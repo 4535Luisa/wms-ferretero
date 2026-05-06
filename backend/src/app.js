@@ -12,7 +12,11 @@ const app = express();
 app.use(helmet());
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: [
+      "http://localhost:5173",
+      "https://wms-macho-backend.onrender.com",
+      /\.netlify\.app$/,
+    ],
     credentials: true,
   }),
 );
