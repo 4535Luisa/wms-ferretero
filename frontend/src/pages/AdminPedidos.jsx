@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import Layout from "../components/Layout";
-import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 
 const estadoColor = {
@@ -24,7 +23,6 @@ const estadoColor = {
 };
 
 export default function AdminPedidos() {
-  const { usuario } = useAuth();
   const [vista, setVista] = useState("lista");
   const [pedidos, setPedidos] = useState([]);
   const [operarios, setOperarios] = useState([]);
@@ -35,8 +33,6 @@ export default function AdminPedidos() {
     montacarguista_id: "",
   });
   const [previaCsv, setPreviaCsv] = useState([]);
-  const [bodegaSeleccionada, setBodegaSeleccionada] = useState("");
-  const [bodegas, setBodegas] = useState([]);
   const [mensaje, setMensaje] = useState({ texto: "", tipo: "" });
   const [cargando, setCargando] = useState(false);
   const [filtroEstado, setFiltroEstado] = useState("");
@@ -47,16 +43,13 @@ export default function AdminPedidos() {
 
   const cargarDatos = async () => {
     try {
-      const [{ data: p }, { data: o }, { data: b }] = await Promise.all([
+      const [{ data: p }, { data: o }] = await Promise.all([
         api.get("/api/pedidos"),
         api.get("/api/pedidos/operarios"),
-        api.get("/api/usuarios/bodegas"),
       ]);
       setPedidos(p);
       setOperarios(o.filter((u) => u.rol === "operario"));
       setMontacarguistas(o.filter((u) => u.rol === "montacarguista"));
-      setBodegas(b);
-      if (b.length > 0) setBodegaSeleccionada(b[0].id);
     } catch (err) {
       console.error(err);
     }
@@ -98,11 +91,8 @@ export default function AdminPedidos() {
   };
 
   const importarPedidos = async () => {
-    if (!bodegaSeleccionada)
-      return mostrarMensaje("Selecciona una bodega", "error");
     if (previaCsv.length === 0)
       return mostrarMensaje("No hay pedidos para importar", "error");
-
     setCargando(true);
     try {
       const productosCache = {};
@@ -132,7 +122,7 @@ export default function AdminPedidos() {
         }
         pedidosConIds.push({
           numero: pedido.numero,
-          bodega_id: bodegaSeleccionada,
+          bodega_id: null,
           items: itemsConIds,
         });
       }
@@ -485,21 +475,6 @@ export default function AdminPedidos() {
               marginBottom: "1rem",
             }}
           >
-            <div style={{ marginBottom: "1.25rem" }}>
-              <label style={labelStyle}>Asignar a bodega</label>
-              <select
-                value={bodegaSeleccionada}
-                onChange={(e) => setBodegaSeleccionada(e.target.value)}
-                style={selectStyle}
-              >
-                {bodegas.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.nombre} ({b.codigo})
-                  </option>
-                ))}
-              </select>
-            </div>
-
             <div
               style={{
                 display: "flex",
