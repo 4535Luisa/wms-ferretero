@@ -6,6 +6,7 @@ import PrivateRoute from "./components/PrivateRoute";
 import Login from "./pages/Login";
 import Admin from "./pages/Admin";
 import AdminUsuarios from "./pages/AdminUsuarios";
+import AdminPedidos from "./pages/AdminPedidos";
 import Montacarguista from "./pages/Montacarguista";
 import Operario from "./pages/Operario";
 import Saldos from "./pages/Saldos";
@@ -41,7 +42,7 @@ createRoot(document.getElementById("root")).render(
             path="/admin/pedidos"
             element={
               <PrivateRoute roles={["administrador"]}>
-                <Admin />
+                <AdminPedidos />
               </PrivateRoute>
             }
           />
