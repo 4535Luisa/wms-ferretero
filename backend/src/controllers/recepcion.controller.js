@@ -1,5 +1,23 @@
 const supabase = require("../utils/supabase");
 
+const registrarMovimiento = async ({
+  usuario_id,
+  accion,
+  tabla,
+  registro_id,
+  valores_antes,
+  valores_despues,
+}) => {
+  await supabase.from("bitacora").insert({
+    usuario_id,
+    accion,
+    tabla,
+    registro_id,
+    valores_antes,
+    valores_despues,
+  });
+};
+
 const crearRecepcion = async (req, res) => {
   const { bodega_id, proveedor, numero_oc } = req.body;
 
@@ -152,13 +170,10 @@ const confirmarRecepcion = async (req, res) => {
     }
   }
 
-  const { error: errorRecepcion } = await supabase
+  await supabase
     .from("recepciones")
     .update({ estado: "confirmada" })
     .eq("id", id);
-
-  if (errorRecepcion)
-    return res.status(500).json({ error: errorRecepcion.message });
 
   return res.json({ mensaje: "Recepción confirmada e inventario actualizado" });
 };
@@ -197,13 +212,13 @@ const confirmarRecepcionDirecto = async (req, res) => {
 
   const { data: recepcion } = await supabase
     .from("recepciones")
-    .select("bodega_id")
+    .select("bodega_id, proveedor, numero_oc")
     .eq("id", id)
     .single();
 
   const { data: items } = await supabase
     .from("recepcion_items")
-    .select("*")
+    .select("*, productos(descripcion_corta, codigo_interno)")
     .eq("recepcion_id", id);
 
   if (!items || items.length === 0) {
@@ -220,12 +235,13 @@ const confirmarRecepcionDirecto = async (req, res) => {
       .eq("bodega_id", recepcion.bodega_id)
       .single();
 
+    const cantidadAntes = inv?.cantidad_disponible || 0;
+    const cantidadDespues = cantidadAntes + item.cantidad_recibida;
+
     if (inv) {
       await supabase
         .from("inventario")
-        .update({
-          cantidad_disponible: inv.cantidad_disponible + item.cantidad_recibida,
-        })
+        .update({ cantidad_disponible: cantidadDespues })
         .eq("id", inv.id);
     } else {
       await supabase.from("inventario").insert({
@@ -234,6 +250,26 @@ const confirmarRecepcionDirecto = async (req, res) => {
         cantidad_disponible: item.cantidad_recibida,
       });
     }
+
+    await registrarMovimiento({
+      usuario_id: null,
+      accion: "RECEPCION_CONFIRMADA",
+      tabla: "inventario",
+      registro_id: item.producto_id,
+      valores_antes: {
+        cantidad_disponible: cantidadAntes,
+        bodega_id: recepcion.bodega_id,
+      },
+      valores_despues: {
+        cantidad_disponible: cantidadDespues,
+        bodega_id: recepcion.bodega_id,
+        proveedor: recepcion.proveedor,
+        factura: recepcion.numero_oc,
+        producto: item.productos?.descripcion_corta,
+        referencia: item.productos?.codigo_interno,
+        recepcion_id: id,
+      },
+    });
   }
 
   await supabase
