@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
+import Etiqueta from "../components/Etiqueta";
 import api from "../services/api";
 
 export default function JefeBodegaRecepcion() {
@@ -16,6 +17,8 @@ export default function JefeBodegaRecepcion() {
   const [scanInput, setScanInput] = useState("");
   const [mensaje, setMensaje] = useState({ texto: "", tipo: "" });
   const [buscando, setBuscando] = useState(false);
+  const [etiquetaActual, setEtiquetaActual] = useState(null);
+  const [colaEtiquetas, setColaEtiquetas] = useState([]);
   const scanRef = useRef(null);
 
   useEffect(() => {
@@ -55,7 +58,7 @@ export default function JefeBodegaRecepcion() {
       setItems([]);
       setVista("recibiendo");
       mostrarMensaje("Recepción iniciada — comienza a escanear");
-    } catch (err) {
+    } catch {
       mostrarMensaje("Error al iniciar la recepción", "error");
     }
   };
@@ -134,6 +137,17 @@ export default function JefeBodegaRecepcion() {
         `/api/recepciones/${recepcionActiva.id}/confirmar-directo`,
       );
       mostrarMensaje("✓ Recepción confirmada — inventario actualizado");
+
+      const cola = items.map((item) => ({
+        producto: {
+          referencia: item.referencia,
+          descripcion: item.descripcion,
+        },
+        cantidad: item.cantidad_recibida,
+      }));
+      setColaEtiquetas(cola);
+      setEtiquetaActual(cola[0]);
+
       cargarRecepciones();
       setVista("lista");
       setProveedor("");
@@ -145,6 +159,12 @@ export default function JefeBodegaRecepcion() {
         "error",
       );
     }
+  };
+
+  const siguienteEtiqueta = () => {
+    const restantes = colaEtiquetas.slice(1);
+    setColaEtiquetas(restantes);
+    setEtiquetaActual(restantes.length > 0 ? restantes[0] : null);
   };
 
   const abrirRecepcion = async (id) => {
@@ -179,7 +199,14 @@ export default function JefeBodegaRecepcion() {
 
   return (
     <Layout titulo="Recepciones" subtitulo={subtitulos[vista]}>
-      {/* Acciones top */}
+      {etiquetaActual && (
+        <Etiqueta
+          producto={etiquetaActual.producto}
+          cantidad={etiquetaActual.cantidad}
+          onCerrar={siguienteEtiqueta}
+        />
+      )}
+
       <div style={{ display: "flex", gap: "8px", marginBottom: "1.5rem" }}>
         {vista !== "lista" && (
           <button
@@ -201,7 +228,6 @@ export default function JefeBodegaRecepcion() {
         )}
       </div>
 
-      {/* Mensaje */}
       {mensaje.texto && (
         <div
           style={{
@@ -220,7 +246,6 @@ export default function JefeBodegaRecepcion() {
         </div>
       )}
 
-      {/* LISTA */}
       {vista === "lista" && (
         <div>
           {recepciones.length === 0 ? (
@@ -343,7 +368,6 @@ export default function JefeBodegaRecepcion() {
         </div>
       )}
 
-      {/* NUEVA */}
       {vista === "nueva" && (
         <div style={{ maxWidth: "520px" }}>
           <div
@@ -401,7 +425,6 @@ export default function JefeBodegaRecepcion() {
         </div>
       )}
 
-      {/* ESCANEANDO */}
       {vista === "recibiendo" && (
         <div
           style={{
@@ -411,7 +434,6 @@ export default function JefeBodegaRecepcion() {
             alignItems: "start",
           }}
         >
-          {/* Lista de items */}
           <div>
             <div
               className="card"
@@ -486,9 +508,6 @@ export default function JefeBodegaRecepcion() {
                   const esCaja =
                     item.unidad_empaque &&
                     item.cantidad_recibida % item.unidad_empaque === 0;
-                  const esSaldo =
-                    item.unidad_empaque &&
-                    item.cantidad_recibida % item.unidad_empaque !== 0;
                   return (
                     <div
                       key={item.producto_id}
@@ -613,7 +632,6 @@ export default function JefeBodegaRecepcion() {
             )}
           </div>
 
-          {/* Resumen lateral */}
           <div>
             <div
               className="card"
@@ -631,7 +649,6 @@ export default function JefeBodegaRecepcion() {
               >
                 Resumen
               </p>
-
               <div
                 style={{
                   display: "flex",
@@ -682,7 +699,6 @@ export default function JefeBodegaRecepcion() {
                   </div>
                 ))}
               </div>
-
               <button
                 className="btn-verde"
                 onClick={confirmarRecepcion}
@@ -691,12 +707,21 @@ export default function JefeBodegaRecepcion() {
               >
                 Confirmar recepción ✓
               </button>
+              <p
+                style={{
+                  fontSize: "11px",
+                  color: "#AAA",
+                  marginTop: "8px",
+                  textAlign: "center",
+                }}
+              >
+                Se imprimirá una etiqueta por cada producto
+              </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* DETALLE */}
       {vista === "detalle" && recepcionActiva && (
         <div style={{ maxWidth: "680px" }}>
           <div
@@ -746,7 +771,6 @@ export default function JefeBodegaRecepcion() {
                 );
               })()}
             </div>
-
             {recepcionActiva.recepcion_items?.map((item, idx) => (
               <div
                 key={item.id}
