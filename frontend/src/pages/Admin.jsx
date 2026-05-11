@@ -15,8 +15,8 @@ const modulos = [
     icon: "📋",
     titulo: "Pedidos",
     descripcion: "Cargar CSV y asignar pedidos a operarios",
-    activo: false,
-    fase: "Fase 3",
+    activo: true,
+    fase: null,
   },
   {
     path: "/admin/reportes",
