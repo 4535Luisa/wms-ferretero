@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import PrivateRoute from "./components/PrivateRoute";
 import Login from "./pages/Login";
 import Admin from "./pages/Admin";
 import AdminUsuarios from "./pages/AdminUsuarios";
@@ -19,19 +20,159 @@ createRoot(document.getElementById("root")).render(
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/admin" element={<Admin />} />
-          <Route path="/admin/usuarios" element={<AdminUsuarios />} />
-          <Route path="/montacarguista" element={<Montacarguista />} />
-          <Route path="/operario" element={<Operario />} />
-          <Route path="/saldos" element={<Saldos />} />
-          <Route path="/jefe-bodega" element={<JefeBodega />} />
+
+          <Route
+            path="/admin"
+            element={
+              <PrivateRoute roles={["administrador"]}>
+                <Admin />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/admin/usuarios"
+            element={
+              <PrivateRoute roles={["administrador"]}>
+                <AdminUsuarios />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/admin/pedidos"
+            element={
+              <PrivateRoute roles={["administrador"]}>
+                <Admin />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/montacarguista"
+            element={
+              <PrivateRoute roles={["montacarguista"]}>
+                <Montacarguista />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/montacarguista/estibas"
+            element={
+              <PrivateRoute roles={["montacarguista"]}>
+                <Montacarguista />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/operario"
+            element={
+              <PrivateRoute roles={["operario"]}>
+                <Operario />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/saldos"
+            element={
+              <PrivateRoute roles={["saldos"]}>
+                <Saldos />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/jefe-bodega"
+            element={
+              <PrivateRoute roles={["jefe_bodega"]}>
+                <JefeBodega />
+              </PrivateRoute>
+            }
+          />
           <Route
             path="/jefe-bodega/recepcion"
-            element={<JefeBodegaRecepcion />}
+            element={
+              <PrivateRoute roles={["jefe_bodega"]}>
+                <JefeBodegaRecepcion />
+              </PrivateRoute>
+            }
           />
-          <Route path="/gerente" element={<Gerente />} />
-          <Route path="/inventarios" element={<Inventarios />} />
-          <Route path="*" element={<Navigate to="/login" />} />
+          <Route
+            path="/jefe-bodega/verificacion"
+            element={
+              <PrivateRoute roles={["jefe_bodega"]}>
+                <JefeBodega />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/jefe-bodega/despacho"
+            element={
+              <PrivateRoute roles={["jefe_bodega"]}>
+                <JefeBodega />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/gerente"
+            element={
+              <PrivateRoute roles={["gerente_logistico"]}>
+                <Gerente />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/gerente/inventario"
+            element={
+              <PrivateRoute roles={["gerente_logistico"]}>
+                <Gerente />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/gerente/ajustes"
+            element={
+              <PrivateRoute roles={["gerente_logistico"]}>
+                <Gerente />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/gerente/reportes"
+            element={
+              <PrivateRoute roles={["gerente_logistico"]}>
+                <Gerente />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/inventarios"
+            element={
+              <PrivateRoute roles={["inventarios"]}>
+                <Inventarios />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/inventarios/conteos"
+            element={
+              <PrivateRoute roles={["inventarios"]}>
+                <Inventarios />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/inventarios/mini-conteos"
+            element={
+              <PrivateRoute roles={["inventarios"]}>
+                <Inventarios />
+              </PrivateRoute>
+            }
+          />
+
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
