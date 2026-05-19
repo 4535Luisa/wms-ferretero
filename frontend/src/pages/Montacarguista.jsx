@@ -350,7 +350,7 @@ export default function Montacarguista() {
                               fontWeight: 700,
                             }}
                           >
-                            {item.ubicaciones?.codigo || "Sin ubicación"}
+                            {item.ubicacion_codigo || "Sin ubicación"}
                           </span>
                           {item.destino_saldos && (
                             <span

@@ -22,15 +22,12 @@ const getSaldosBodegaId = async () => {
 
 const generarListasPicking = async (req, res) => {
   const { pedido_ids } = req.body;
-
-  if (!pedido_ids || pedido_ids.length === 0) {
+  if (!pedido_ids || pedido_ids.length === 0)
     return res.status(400).json({ error: "No hay pedidos para procesar" });
-  }
 
   const bodegaIds = {};
-  for (const codigo of ORDEN_BODEGAS) {
+  for (const codigo of ORDEN_BODEGAS)
     bodegaIds[codigo] = await getBodegaId(codigo);
-  }
   const saldosBodegaId = await getSaldosBodegaId();
 
   const listasPorBodega = {};
@@ -52,20 +49,16 @@ const generarListasPicking = async (req, res) => {
       )
       .eq("id", pedidoId)
       .single();
-
     if (!pedido) continue;
 
     for (const item of pedido.pedido_items || []) {
       const unidadEmpaque = item.productos?.unidad_empaque || 0;
       if (!unidadEmpaque || unidadEmpaque <= 1) continue;
-
-      const cantidadPedida = item.cantidad_pedida;
-      const cajasCompletas = Math.floor(cantidadPedida / unidadEmpaque);
-      const unidadesSueltas = cantidadPedida % unidadEmpaque;
+      const cajasCompletas = Math.floor(item.cantidad_pedida / unidadEmpaque);
+      const unidadesSueltas = item.cantidad_pedida % unidadEmpaque;
 
       if (cajasCompletas > 0) {
         let cajasRestantes = cajasCompletas;
-
         for (const codigo of ORDEN_BODEGAS) {
           if (cajasRestantes <= 0) break;
           const bodegaId = bodegaIds[codigo];
@@ -73,9 +66,7 @@ const generarListasPicking = async (req, res) => {
 
           const { data: invs } = await supabase
             .from("inventario")
-            .select(
-              "id, cantidad_disponible, ubicacion_id, ubicaciones(id, codigo)",
-            )
+            .select("id, cantidad_disponible, ubicacion_id")
             .eq("producto_id", item.producto_id)
             .eq("bodega_id", bodegaId)
             .gt("cantidad_disponible", 0)
@@ -87,22 +78,30 @@ const generarListasPicking = async (req, res) => {
               inv.cantidad_disponible / unidadEmpaque,
             );
             if (cajasDisponibles <= 0) continue;
-
             const cajasATomar = Math.min(cajasRestantes, cajasDisponibles);
+
+            let ubicCodigo = null;
+            if (inv.ubicacion_id) {
+              const { data: ubic } = await supabase
+                .from("ubicaciones")
+                .select("codigo")
+                .eq("id", inv.ubicacion_id)
+                .single();
+              ubicCodigo = ubic?.codigo || null;
+            }
 
             listasPorBodega[bodegaId].items.push({
               pedido_id: pedidoId,
               pedido_numero: pedido.numero,
               producto_id: item.producto_id,
               ubicacion_id: inv.ubicacion_id,
+              ubicacion_codigo: ubicCodigo,
               referencia: item.productos?.codigo_interno,
               descripcion: item.productos?.descripcion_corta,
               cantidad_cajas: cajasATomar,
               cantidad_unidades: cajasATomar * unidadEmpaque,
-              ubicacion_codigo: inv.ubicaciones?.codigo,
               destino_saldos: false,
             });
-
             cajasRestantes -= cajasATomar;
           }
         }
@@ -115,19 +114,15 @@ const generarListasPicking = async (req, res) => {
           .eq("producto_id", item.producto_id)
           .eq("bodega_id", saldosBodegaId)
           .single();
-
         const stockSaldos = invSaldos?.cantidad_disponible || 0;
 
         if (stockSaldos < unidadesSueltas) {
           for (const codigo of ORDEN_BODEGAS) {
             const bodegaId = bodegaIds[codigo];
             if (!bodegaId) continue;
-
             const { data: invs } = await supabase
               .from("inventario")
-              .select(
-                "id, cantidad_disponible, ubicacion_id, ubicaciones(id, codigo)",
-              )
+              .select("id, cantidad_disponible, ubicacion_id")
               .eq("producto_id", item.producto_id)
               .eq("bodega_id", bodegaId)
               .gte("cantidad_disponible", unidadEmpaque)
@@ -136,16 +131,25 @@ const generarListasPicking = async (req, res) => {
 
             if (invs && invs.length > 0) {
               const inv = invs[0];
+              let ubicCodigo = null;
+              if (inv.ubicacion_id) {
+                const { data: ubic } = await supabase
+                  .from("ubicaciones")
+                  .select("codigo")
+                  .eq("id", inv.ubicacion_id)
+                  .single();
+                ubicCodigo = ubic?.codigo || null;
+              }
               listasPorBodega[bodegaId].items.push({
                 pedido_id: pedidoId,
                 pedido_numero: pedido.numero,
                 producto_id: item.producto_id,
                 ubicacion_id: inv.ubicacion_id,
+                ubicacion_codigo: ubicCodigo,
                 referencia: item.productos?.codigo_interno,
                 descripcion: item.productos?.descripcion_corta,
                 cantidad_cajas: 1,
                 cantidad_unidades: unidadEmpaque,
-                ubicacion_codigo: inv.ubicaciones?.codigo,
                 destino_saldos: true,
               });
               break;
@@ -165,23 +169,23 @@ const generarListasPicking = async (req, res) => {
       .insert({ bodega_id: bodegaId, estado: "pendiente" })
       .select()
       .single();
-
     if (error || !listaCreada) continue;
 
-    const itemsConListaId = lista.items.map((item) => ({
-      lista_id: listaCreada.id,
-      pedido_id: item.pedido_id,
-      producto_id: item.producto_id,
-      ubicacion_id: item.ubicacion_id,
-      referencia: item.referencia,
-      descripcion: item.descripcion,
-      cantidad_cajas: item.cantidad_cajas,
-      cantidad_unidades: item.cantidad_unidades,
-      destino_saldos: item.destino_saldos,
-      estado: "pendiente",
-    }));
-
-    await supabase.from("lista_picking_items").insert(itemsConListaId);
+    await supabase.from("lista_picking_items").insert(
+      lista.items.map((item) => ({
+        lista_id: listaCreada.id,
+        pedido_id: item.pedido_id,
+        producto_id: item.producto_id,
+        ubicacion_id: item.ubicacion_id,
+        ubicacion_codigo: item.ubicacion_codigo,
+        referencia: item.referencia,
+        descripcion: item.descripcion,
+        cantidad_cajas: item.cantidad_cajas,
+        cantidad_unidades: item.cantidad_unidades,
+        destino_saldos: item.destino_saldos,
+        estado: "pendiente",
+      })),
+    );
 
     listasCreadas.push({
       id: listaCreada.id,
@@ -198,58 +202,45 @@ const generarListasPicking = async (req, res) => {
   });
 };
 
+const enriquecerItems = async (items) => {
+  if (!items || items.length === 0) return [];
+  const pedidoIds = [
+    ...new Set(items.filter((i) => i.pedido_id).map((i) => i.pedido_id)),
+  ];
+  const { data: pedidos } =
+    pedidoIds.length > 0
+      ? await supabase.from("pedidos").select("id, numero").in("id", pedidoIds)
+      : { data: [] };
+  const pedMap = Object.fromEntries((pedidos || []).map((p) => [p.id, p]));
+
+  return items.map((item) => ({
+    ...item,
+    ubicacion_codigo: item.ubicacion_codigo || null,
+    pedidos: item.pedido_id ? pedMap[item.pedido_id] : null,
+  }));
+};
+
 const listarListasPicking = async (req, res) => {
   const { data: listas, error } = await supabase
     .from("listas_picking")
     .select("*, bodegas(nombre, codigo), usuarios(nombre)")
     .order("created_at", { ascending: false });
-
   if (error) return res.status(500).json({ error: error.message });
   if (!listas || listas.length === 0) return res.json([]);
 
   const listaIds = listas.map((l) => l.id);
-
   const { data: items } = await supabase
     .from("lista_picking_items")
     .select("*")
     .in("lista_id", listaIds);
 
-  if (!items || items.length === 0) {
-    return res.json(listas.map((l) => ({ ...l, lista_picking_items: [] })));
-  }
-
-  const ubicacionIds = [
-    ...new Set(items.filter((i) => i.ubicacion_id).map((i) => i.ubicacion_id)),
-  ];
-  const pedidoIds = [
-    ...new Set(items.filter((i) => i.pedido_id).map((i) => i.pedido_id)),
-  ];
-
-  const [{ data: ubicaciones }, { data: pedidos }] = await Promise.all([
-    ubicacionIds.length > 0
-      ? supabase.from("ubicaciones").select("id, codigo").in("id", ubicacionIds)
-      : Promise.resolve({ data: [] }),
-    pedidoIds.length > 0
-      ? supabase.from("pedidos").select("id, numero").in("id", pedidoIds)
-      : Promise.resolve({ data: [] }),
-  ]);
-
-  const ubicMap = Object.fromEntries((ubicaciones || []).map((u) => [u.id, u]));
-  const pedMap = Object.fromEntries((pedidos || []).map((p) => [p.id, p]));
-
-  const itemsEnriquecidos = items.map((item) => ({
-    ...item,
-    ubicaciones: item.ubicacion_id ? ubicMap[item.ubicacion_id] : null,
-    pedidos: item.pedido_id ? pedMap[item.pedido_id] : null,
-  }));
-
+  const itemsEnriquecidos = await enriquecerItems(items || []);
   const listasPorId = Object.fromEntries(
     listas.map((l) => [l.id, { ...l, lista_picking_items: [] }]),
   );
   for (const item of itemsEnriquecidos) {
-    if (listasPorId[item.lista_id]) {
+    if (listasPorId[item.lista_id])
       listasPorId[item.lista_id].lista_picking_items.push(item);
-    }
   }
 
   return res.json(Object.values(listasPorId));
@@ -264,53 +255,22 @@ const misListas = async (req, res) => {
     .eq("montacarguista_id", usuario_id)
     .in("estado", ["asignada", "en_proceso"])
     .order("created_at", { ascending: false });
-
   if (error) return res.status(500).json({ error: error.message });
   if (!listas || listas.length === 0) return res.json([]);
 
   const listaIds = listas.map((l) => l.id);
-
   const { data: items } = await supabase
     .from("lista_picking_items")
     .select("*")
     .in("lista_id", listaIds);
 
-  if (!items || items.length === 0) {
-    return res.json(listas.map((l) => ({ ...l, lista_picking_items: [] })));
-  }
-
-  const ubicacionIds = [
-    ...new Set(items.filter((i) => i.ubicacion_id).map((i) => i.ubicacion_id)),
-  ];
-  const pedidoIds = [
-    ...new Set(items.filter((i) => i.pedido_id).map((i) => i.pedido_id)),
-  ];
-
-  const [{ data: ubicaciones }, { data: pedidos }] = await Promise.all([
-    ubicacionIds.length > 0
-      ? supabase.from("ubicaciones").select("id, codigo").in("id", ubicacionIds)
-      : Promise.resolve({ data: [] }),
-    pedidoIds.length > 0
-      ? supabase.from("pedidos").select("id, numero").in("id", pedidoIds)
-      : Promise.resolve({ data: [] }),
-  ]);
-
-  const ubicMap = Object.fromEntries((ubicaciones || []).map((u) => [u.id, u]));
-  const pedMap = Object.fromEntries((pedidos || []).map((p) => [p.id, p]));
-
-  const itemsEnriquecidos = items.map((item) => ({
-    ...item,
-    ubicaciones: item.ubicacion_id ? ubicMap[item.ubicacion_id] : null,
-    pedidos: item.pedido_id ? pedMap[item.pedido_id] : null,
-  }));
-
+  const itemsEnriquecidos = await enriquecerItems(items || []);
   const listasPorId = Object.fromEntries(
     listas.map((l) => [l.id, { ...l, lista_picking_items: [] }]),
   );
   for (const item of itemsEnriquecidos) {
-    if (listasPorId[item.lista_id]) {
+    if (listasPorId[item.lista_id])
       listasPorId[item.lista_id].lista_picking_items.push(item);
-    }
   }
 
   return res.json(Object.values(listasPorId));
@@ -326,7 +286,6 @@ const asignarMontacarguista = async (req, res) => {
     .eq("id", id)
     .select()
     .single();
-
   if (error) return res.status(500).json({ error: error.message });
 
   await supabase.from("notificaciones").insert({
@@ -349,7 +308,6 @@ const bajarCaja = async (req, res) => {
     .select("*, productos(codigo_interno)")
     .eq("id", id)
     .single();
-
   if (!item) return res.status(404).json({ error: "Ítem no encontrado" });
 
   await supabase
