@@ -32,8 +32,9 @@ export default function AdminPedidos() {
   const [operarios, setOperarios] = useState([]);
   const [montacarguistas, setMontacarguistas] = useState([]);
   const [bodegas, setBodegas] = useState([]);
+  const [listas, setListas] = useState([]);
   const [seleccionados, setSeleccionados] = useState([]);
-  const [asignaciones, setAsignaciones] = useState({});
+  const [operarioTanda, setOperarioTanda] = useState("");
   const [montacarguistasPorBodega, setMontacarguistasPorBodega] = useState({});
   const [previaCsv, setPreviaCsv] = useState([]);
   const [mensaje, setMensaje] = useState({ texto: "", tipo: "" });
@@ -46,15 +47,18 @@ export default function AdminPedidos() {
 
   const cargarDatos = async () => {
     try {
-      const [{ data: p }, { data: o }, { data: b }] = await Promise.all([
-        api.get("/api/pedidos"),
-        api.get("/api/pedidos/operarios"),
-        api.get("/api/usuarios/bodegas"),
-      ]);
+      const [{ data: p }, { data: o }, { data: b }, { data: l }] =
+        await Promise.all([
+          api.get("/api/pedidos"),
+          api.get("/api/pedidos/operarios"),
+          api.get("/api/usuarios/bodegas"),
+          api.get("/api/picking"),
+        ]);
       setPedidos(p);
       setOperarios(o.filter((u) => u.rol === "operario"));
       setMontacarguistas(o.filter((u) => u.rol === "montacarguista"));
       setBodegas(b);
+      setListas(l);
     } catch (err) {
       console.error(err);
     }
@@ -126,14 +130,28 @@ export default function AdminPedidos() {
           items: itemsConIds,
         });
       }
-      const { data } = await api.post("/api/pedidos/csv", {
+
+      const { data: importResult } = await api.post("/api/pedidos/csv", {
         pedidos: pedidosConIds,
       });
       mostrarMensaje(
-        `✓ ${data.importados} pedidos importados · ${data.omitidos} ya existían`,
+        `✓ ${importResult.importados} pedidos importados · generando listas de picking...`,
       );
-      cargarDatos();
-      setVista("lista");
+
+      const pedidosNuevos = await api.get("/api/pedidos?estado=pendiente");
+      const ids = pedidosNuevos.data.map((p) => p.id);
+
+      if (ids.length > 0) {
+        const { data: listasResult } = await api.post("/api/picking/generar", {
+          pedido_ids: ids,
+        });
+        mostrarMensaje(
+          `✓ ${importResult.importados} pedidos importados · ${listasResult.listas.length} listas de picking generadas`,
+        );
+      }
+
+      await cargarDatos();
+      setVista("listas");
       setPreviaCsv([]);
     } catch (err) {
       mostrarMensaje(
@@ -155,11 +173,8 @@ export default function AdminPedidos() {
     const pendientes = pedidosFiltrados
       .filter((p) => p.estado === "pendiente")
       .map((p) => p.id);
-    if (seleccionados.length === pendientes.length) {
-      setSeleccionados([]);
-    } else {
-      setSeleccionados(pendientes);
-    }
+    if (seleccionados.length === pendientes.length) setSeleccionados([]);
+    else setSeleccionados(pendientes);
   };
 
   const cambiarPrioridad = async (pedidoId, prioridad) => {
@@ -172,18 +187,13 @@ export default function AdminPedidos() {
   };
 
   const asignarTanda = async () => {
-    const sinOperario = seleccionados.filter((id) => !asignaciones[id]);
-    if (sinOperario.length > 0) {
-      return mostrarMensaje(
-        "Todos los pedidos seleccionados deben tener un operario asignado",
-        "error",
-      );
-    }
+    if (!operarioTanda)
+      return mostrarMensaje("Selecciona un operario", "error");
     setCargando(true);
     try {
       const asignacionesArray = seleccionados.map((pedido_id) => ({
         pedido_id,
-        operario_id: asignaciones[pedido_id],
+        operario_id: operarioTanda,
         prioridad:
           pedidos.find((p) => p.id === pedido_id)?.prioridad || "normal",
       }));
@@ -192,10 +202,10 @@ export default function AdminPedidos() {
         montacarguistas: montacarguistasPorBodega,
       });
       mostrarMensaje(
-        `✓ ${seleccionados.length} pedidos asignados correctamente`,
+        `✓ ${seleccionados.length} pedidos asignados a ${operarios.find((o) => o.id === operarioTanda)?.nombre}`,
       );
       setSeleccionados([]);
-      setAsignaciones({});
+      setOperarioTanda("");
       setMontacarguistasPorBodega({});
       cargarDatos();
       setVista("lista");
@@ -209,10 +219,21 @@ export default function AdminPedidos() {
     }
   };
 
+  const asignarMontacarguistaLista = async (listaId, montacarguistaId) => {
+    try {
+      await api.patch(`/api/picking/${listaId}/asignar`, {
+        montacarguista_id: montacarguistaId,
+      });
+      mostrarMensaje("✓ Montacarguista asignado a la lista");
+      cargarDatos();
+    } catch (err) {
+      mostrarMensaje("Error al asignar montacarguista", "error");
+    }
+  };
+
   const pedidosFiltrados = pedidos.filter((p) =>
     filtroEstado ? p.estado === filtroEstado : true,
   );
-
   const pedidosPendientes = pedidosFiltrados.filter(
     (p) => p.estado === "pendiente",
   );
@@ -228,7 +249,6 @@ export default function AdminPedidos() {
     background: "#FFFFFF",
     color: "#0A0A0A",
   };
-
   const labelStyle = {
     fontSize: "11px",
     fontWeight: 600,
@@ -244,14 +264,55 @@ export default function AdminPedidos() {
       titulo="Pedidos"
       subtitulo={
         vista === "lista"
-          ? `${pedidos.length} pedidos en el sistema`
+          ? `${pedidos.length} pedidos · ${listas.filter((l) => l.estado === "pendiente").length} listas pendientes`
           : vista === "preview"
             ? `${previaCsv.length} pedidos detectados`
             : vista === "asignar"
               ? `${seleccionados.length} pedidos para asignar`
-              : ""
+              : vista === "listas"
+                ? `${listas.length} listas de picking`
+                : ""
       }
     >
+      {/* Tabs */}
+      <div
+        style={{
+          display: "flex",
+          gap: "4px",
+          marginBottom: "1.25rem",
+          background: "#F0F0F0",
+          padding: "4px",
+          borderRadius: "10px",
+          width: "fit-content",
+        }}
+      >
+        {[
+          { id: "lista", label: "📋 Pedidos" },
+          { id: "listas", label: "📦 Listas picking" },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setVista(tab.id)}
+            style={{
+              background: vista === tab.id ? "#FFFFFF" : "transparent",
+              color: "#0A0A0A",
+              border: "none",
+              borderRadius: "7px",
+              padding: "8px 16px",
+              fontSize: "13px",
+              fontWeight: vista === tab.id ? 700 : 400,
+              cursor: "pointer",
+              fontFamily: "Outfit, sans-serif",
+              boxShadow:
+                vista === tab.id ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Acciones */}
       <div
         style={{
           display: "flex",
@@ -261,12 +322,12 @@ export default function AdminPedidos() {
           alignItems: "center",
         }}
       >
-        {vista !== "lista" && (
+        {(vista === "preview" || vista === "asignar") && (
           <button
             onClick={() => {
               setVista("lista");
               setSeleccionados([]);
-              setAsignaciones({});
+              setOperarioTanda("");
             }}
             style={{
               background: "transparent",
@@ -362,7 +423,7 @@ export default function AdminPedidos() {
         </div>
       )}
 
-      {/* LISTA */}
+      {/* LISTA DE PEDIDOS */}
       {vista === "lista" && (
         <div>
           {pedidosPendientes.length > 0 && (
@@ -390,7 +451,6 @@ export default function AdminPedidos() {
               </span>
             </div>
           )}
-
           {pedidosFiltrados.length === 0 ? (
             <div
               style={{
@@ -403,9 +463,7 @@ export default function AdminPedidos() {
             >
               <div style={{ fontSize: "40px", marginBottom: "1rem" }}>📋</div>
               <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
-                {filtroEstado
-                  ? "No hay pedidos con ese estado"
-                  : "No hay pedidos cargados"}
+                No hay pedidos cargados
               </p>
             </div>
           ) : (
@@ -419,7 +477,6 @@ export default function AdminPedidos() {
                   prioridadColor[pedido.prioridad] || prioridadColor.normal;
                 const esPendiente = pedido.estado === "pendiente";
                 const estaSeleccionado = seleccionados.includes(pedido.id);
-
                 return (
                   <div
                     key={pedido.id}
@@ -470,7 +527,6 @@ export default function AdminPedidos() {
                               fontFamily: "DM Mono, monospace",
                               fontSize: "14px",
                               fontWeight: 700,
-                              color: "#0A0A0A",
                             }}
                           >
                             {pedido.numero}
@@ -511,12 +567,12 @@ export default function AdminPedidos() {
                             marginTop: "4px",
                           }}
                         >
-                          {pedido.pedido_items?.length || 0} referencias ·{" "}
+                          {pedido.pedido_items?.length || 0} ref ·{" "}
                           {pedido.pedido_items?.reduce(
                             (a, i) => a + (i.cantidad_pedida || 0),
                             0,
                           ) || 0}{" "}
-                          unidades
+                          und
                         </div>
                         {pedido.operario && (
                           <div
@@ -575,6 +631,246 @@ export default function AdminPedidos() {
         </div>
       )}
 
+      {/* LISTAS DE PICKING */}
+      {vista === "listas" && (
+        <div>
+          {listas.length === 0 ? (
+            <div
+              style={{
+                background: "#FFFFFF",
+                border: "1px solid #E8E8E8",
+                borderRadius: "12px",
+                padding: "3rem",
+                textAlign: "center",
+              }}
+            >
+              <div style={{ fontSize: "40px", marginBottom: "1rem" }}>📦</div>
+              <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
+                No hay listas de picking generadas
+              </p>
+              <p style={{ fontSize: "13px", color: "#BBB", marginTop: "4px" }}>
+                Las listas se generan automáticamente al cargar un CSV
+              </p>
+            </div>
+          ) : (
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+            >
+              {listas.map((lista) => (
+                <div
+                  key={lista.id}
+                  style={{
+                    background: "#FFFFFF",
+                    border: "1px solid #E8E8E8",
+                    borderRadius: "12px",
+                    padding: "1.5rem",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      marginBottom: "1rem",
+                      flexWrap: "wrap",
+                      gap: "8px",
+                    }}
+                  >
+                    <div>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontFamily: "Bebas Neue, sans-serif",
+                            fontSize: "20px",
+                            letterSpacing: "0.04em",
+                          }}
+                        >
+                          {lista.bodegas?.nombre || "Bodega"}
+                        </span>
+                        <span
+                          style={{
+                            background:
+                              lista.estado === "asignada"
+                                ? "rgba(0,255,135,0.1)"
+                                : "#F3F4F6",
+                            color:
+                              lista.estado === "asignada"
+                                ? "#007A40"
+                                : "#374151",
+                            padding: "2px 10px",
+                            borderRadius: "20px",
+                            fontSize: "10px",
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          {lista.estado === "asignada"
+                            ? "Asignada"
+                            : "Pendiente"}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "12px",
+                          color: "#888",
+                          marginTop: "4px",
+                        }}
+                      >
+                        {lista.lista_picking_items?.length || 0} ítems ·{" "}
+                        {lista.lista_picking_items?.reduce(
+                          (a, i) => a + (i.cantidad_cajas || 0),
+                          0,
+                        ) || 0}{" "}
+                        cajas
+                        {lista.usuarios && ` · 🚜 ${lista.usuarios.nombre}`}
+                      </div>
+                    </div>
+                    {lista.estado === "pendiente" && (
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "8px",
+                          alignItems: "center",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <select
+                          onChange={(e) =>
+                            e.target.value &&
+                            asignarMontacarguistaLista(lista.id, e.target.value)
+                          }
+                          defaultValue=""
+                          style={{ ...selectStyle, width: "auto" }}
+                        >
+                          <option value="">Asignar montacarguista</option>
+                          {montacarguistas.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.nombre}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  <div
+                    style={{
+                      borderTop: "1px solid #F0F0F0",
+                      paddingTop: "1rem",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          "repeat(auto-fill, minmax(280px, 1fr))",
+                        gap: "8px",
+                      }}
+                    >
+                      {(lista.lista_picking_items || []).map((item) => (
+                        <div
+                          key={item.id}
+                          style={{
+                            background: item.destino_saldos
+                              ? "#FEF9C3"
+                              : "#F8F8F8",
+                            borderRadius: "8px",
+                            padding: "10px 12px",
+                            border: item.destino_saldos
+                              ? "1px solid #FDE68A"
+                              : "1px solid transparent",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "flex-start",
+                            }}
+                          >
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div
+                                style={{
+                                  fontSize: "12px",
+                                  fontWeight: 600,
+                                  color: "#0A0A0A",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {item.descripcion}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: "11px",
+                                  color: "#888",
+                                  fontFamily: "DM Mono, monospace",
+                                  marginTop: "2px",
+                                }}
+                              >
+                                {item.referencia} ·{" "}
+                                {item.ubicaciones?.codigo || "Sin ubicación"}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: "11px",
+                                  color: "#555",
+                                  marginTop: "2px",
+                                }}
+                              >
+                                Pedido: {item.pedidos?.numero}
+                              </div>
+                            </div>
+                            <div
+                              style={{
+                                textAlign: "right",
+                                flexShrink: 0,
+                                marginLeft: "8px",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontSize: "14px",
+                                  fontWeight: 700,
+                                  fontFamily: "DM Mono, monospace",
+                                  color: "#0A0A0A",
+                                }}
+                              >
+                                {item.cantidad_cajas}{" "}
+                                {item.cantidad_cajas === 1 ? "caja" : "cajas"}
+                              </div>
+                              {item.destino_saldos && (
+                                <div
+                                  style={{
+                                    fontSize: "10px",
+                                    color: "#854D0E",
+                                    fontWeight: 600,
+                                    marginTop: "2px",
+                                  }}
+                                >
+                                  → SALDOS
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* PREVIEW CSV */}
       {vista === "preview" && (
         <div>
@@ -586,6 +882,12 @@ export default function AdminPedidos() {
               padding: "1.5rem",
             }}
           >
+            <p
+              style={{ fontSize: "13px", color: "#888", marginBottom: "1rem" }}
+            >
+              Al importar, el sistema generará automáticamente las listas de
+              picking por bodega
+            </p>
             <div
               style={{
                 display: "flex",
@@ -674,8 +976,8 @@ export default function AdminPedidos() {
               }}
             >
               {cargando
-                ? "Importando..."
-                : `Importar ${previaCsv.length} pedidos →`}
+                ? "Importando y generando listas..."
+                : `Importar ${previaCsv.length} pedidos y generar listas →`}
             </button>
           </div>
         </div>
@@ -686,105 +988,83 @@ export default function AdminPedidos() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 320px",
+            gridTemplateColumns: "1fr 300px",
             gap: "1.5rem",
             alignItems: "start",
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            {seleccionados.map((pedidoId) => {
-              const pedido = pedidos.find((p) => p.id === pedidoId);
-              if (!pedido) return null;
-              const pBadge =
-                prioridadColor[pedido.prioridad] || prioridadColor.normal;
-              return (
-                <div
-                  key={pedidoId}
-                  style={{
-                    background: "#FFFFFF",
-                    border: "1px solid #E8E8E8",
-                    borderRadius: "12px",
-                    padding: "1rem 1.25rem",
-                  }}
-                >
+          <div>
+            <p
+              style={{ fontSize: "13px", color: "#888", marginBottom: "1rem" }}
+            >
+              Los siguientes pedidos se asignarán al mismo operario:
+            </p>
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+            >
+              {seleccionados.map((pedidoId) => {
+                const pedido = pedidos.find((p) => p.id === pedidoId);
+                if (!pedido) return null;
+                const pBadge =
+                  prioridadColor[pedido.prioridad] || prioridadColor.normal;
+                return (
                   <div
+                    key={pedidoId}
                     style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      marginBottom: "10px",
+                      background: "#FFFFFF",
+                      border: "1px solid #E8E8E8",
+                      borderRadius: "12px",
+                      padding: "1rem 1.25rem",
                     }}
                   >
-                    <div>
-                      <div
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      <span
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
+                          fontFamily: "DM Mono, monospace",
+                          fontSize: "14px",
+                          fontWeight: 700,
                         }}
                       >
-                        <span
-                          style={{
-                            fontFamily: "DM Mono, monospace",
-                            fontSize: "14px",
-                            fontWeight: 700,
-                          }}
-                        >
-                          {pedido.numero}
-                        </span>
-                        <span
-                          style={{
-                            background: pBadge.bg,
-                            color: pBadge.color,
-                            padding: "2px 8px",
-                            borderRadius: "20px",
-                            fontSize: "10px",
-                            fontWeight: 700,
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          {pBadge.label}
-                        </span>
-                      </div>
-                      <div
+                        {pedido.numero}
+                      </span>
+                      <span
                         style={{
-                          fontSize: "12px",
-                          color: "#888",
-                          marginTop: "3px",
+                          background: pBadge.bg,
+                          color: pBadge.color,
+                          padding: "2px 8px",
+                          borderRadius: "20px",
+                          fontSize: "10px",
+                          fontWeight: 700,
+                          textTransform: "uppercase",
                         }}
                       >
-                        {pedido.pedido_items?.length} ref ·{" "}
-                        {pedido.pedido_items?.reduce(
-                          (a, i) => a + (i.cantidad_pedida || 0),
-                          0,
-                        )}{" "}
-                        und
-                      </div>
+                        {pBadge.label}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "#888",
+                        marginTop: "3px",
+                      }}
+                    >
+                      {pedido.pedido_items?.length} ref ·{" "}
+                      {pedido.pedido_items?.reduce(
+                        (a, i) => a + (i.cantidad_pedida || 0),
+                        0,
+                      )}{" "}
+                      und
                     </div>
                   </div>
-                  <div>
-                    <label style={labelStyle}>Operario *</label>
-                    <select
-                      value={asignaciones[pedidoId] || ""}
-                      onChange={(e) =>
-                        setAsignaciones((prev) => ({
-                          ...prev,
-                          [pedidoId]: e.target.value,
-                        }))
-                      }
-                      style={selectStyle}
-                    >
-                      <option value="">Selecciona un operario</option>
-                      {operarios.map((o) => (
-                        <option key={o.id} value={o.id}>
-                          {o.nombre}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
 
           <div style={{ position: "sticky", top: "1rem" }}>
@@ -797,24 +1077,32 @@ export default function AdminPedidos() {
                 marginBottom: "1rem",
               }}
             >
-              <p style={{ ...labelStyle, marginBottom: "1rem" }}>
-                Montacarguistas por bodega
-              </p>
-              <p
-                style={{
-                  fontSize: "12px",
-                  color: "#888",
-                  marginBottom: "1rem",
-                  lineHeight: 1.5,
-                }}
-              >
-                Asigna qué montacarguista baja la mercancía en cada bodega
-              </p>
+              <div style={{ marginBottom: "1.5rem" }}>
+                <label style={labelStyle}>
+                  Operario para todos los pedidos *
+                </label>
+                <select
+                  value={operarioTanda}
+                  onChange={(e) => setOperarioTanda(e.target.value)}
+                  style={selectStyle}
+                >
+                  <option value="">Selecciona un operario</option>
+                  {operarios.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <p style={labelStyle}>Montacarguistas por bodega</p>
               {bodegas
                 .filter((b) => b.codigo !== "SALDOS")
                 .map((bodega) => (
                   <div key={bodega.id} style={{ marginBottom: "1rem" }}>
-                    <label style={labelStyle}>{bodega.nombre}</label>
+                    <label style={{ ...labelStyle, color: "#555" }}>
+                      {bodega.nombre}
+                    </label>
                     <select
                       value={montacarguistasPorBodega[bodega.id] || ""}
                       onChange={(e) =>
@@ -836,39 +1124,6 @@ export default function AdminPedidos() {
                 ))}
             </div>
 
-            <div
-              style={{
-                background: "#F8F8F8",
-                border: "1px solid #E8E8E8",
-                borderRadius: "12px",
-                padding: "1rem",
-                marginBottom: "1rem",
-              }}
-            >
-              <div
-                style={{ fontSize: "13px", color: "#555", marginBottom: "6px" }}
-              >
-                <strong>{seleccionados.length}</strong> pedidos a asignar
-              </div>
-              <div
-                style={{ fontSize: "13px", color: "#555", marginBottom: "6px" }}
-              >
-                <strong>
-                  {Object.values(asignaciones).filter(Boolean).length}
-                </strong>{" "}
-                con operario asignado
-              </div>
-              <div style={{ fontSize: "13px", color: "#555" }}>
-                <strong>
-                  {
-                    Object.values(montacarguistasPorBodega).filter(Boolean)
-                      .length
-                  }
-                </strong>{" "}
-                bodegas con montacarguista
-              </div>
-            </div>
-
             <button
               onClick={asignarTanda}
               disabled={cargando}
@@ -886,19 +1141,8 @@ export default function AdminPedidos() {
                 opacity: cargando ? 0.6 : 1,
               }}
             >
-              {cargando ? "Asignando..." : `Confirmar asignación →`}
+              {cargando ? "Asignando..." : "Confirmar asignación →"}
             </button>
-            <p
-              style={{
-                fontSize: "11px",
-                color: "#AAA",
-                textAlign: "center",
-                marginTop: "8px",
-              }}
-            >
-              El sistema calculará automáticamente qué va a saldos y qué baja el
-              montacarguista
-            </p>
           </div>
         </div>
       )}
