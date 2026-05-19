@@ -135,18 +135,20 @@ export default function AdminPedidos() {
         pedidos: pedidosConIds,
       });
       mostrarMensaje(
-        `✓ ${importResult.importados} pedidos importados · generando listas de picking...`,
+        `✓ ${importResult.importados} pedidos importados · generando listas...`,
       );
 
-      const pedidosNuevos = await api.get("/api/pedidos?estado=pendiente");
-      const ids = pedidosNuevos.data.map((p) => p.id);
+      const { data: pedidosNuevos } = await api.get(
+        "/api/pedidos?estado=pendiente",
+      );
+      const ids = pedidosNuevos.map((p) => p.id);
 
       if (ids.length > 0) {
         const { data: listasResult } = await api.post("/api/picking/generar", {
           pedido_ids: ids,
         });
         mostrarMensaje(
-          `✓ ${importResult.importados} pedidos importados · ${listasResult.listas.length} listas de picking generadas`,
+          `✓ ${importResult.importados} pedidos importados · ${listasResult.listas.length} listas generadas`,
         );
       }
 
@@ -156,6 +158,34 @@ export default function AdminPedidos() {
     } catch (err) {
       mostrarMensaje(
         "Error al importar: " + (err.response?.data?.error || ""),
+        "error",
+      );
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const generarListasManual = async () => {
+    setCargando(true);
+    try {
+      const pedidosPendientes = pedidos.filter((p) => p.estado === "pendiente");
+      if (pedidosPendientes.length === 0) {
+        mostrarMensaje(
+          "No hay pedidos pendientes para generar listas",
+          "error",
+        );
+        setCargando(false);
+        return;
+      }
+      const ids = pedidosPendientes.map((p) => p.id);
+      const { data } = await api.post("/api/picking/generar", {
+        pedido_ids: ids,
+      });
+      mostrarMensaje(`✓ ${data.listas.length} listas de picking generadas`);
+      cargarDatos();
+    } catch (err) {
+      mostrarMensaje(
+        "Error al generar listas: " + (err.response?.data?.error || ""),
         "error",
       );
     } finally {
@@ -249,6 +279,7 @@ export default function AdminPedidos() {
     background: "#FFFFFF",
     color: "#0A0A0A",
   };
+
   const labelStyle = {
     fontSize: "11px",
     fontWeight: 600,
@@ -646,7 +677,7 @@ export default function AdminPedidos() {
                 padding: "9px 20px",
                 fontSize: "14px",
                 fontWeight: 700,
-                cursor: "pointer",
+                cursor: cargando ? "not-allowed" : "pointer",
                 fontFamily: "Outfit, sans-serif",
                 opacity: cargando ? 0.6 : 1,
               }}
@@ -656,6 +687,7 @@ export default function AdminPedidos() {
                 : "⚡ Generar listas desde pedidos pendientes"}
             </button>
           </div>
+
           {listas.length === 0 ? (
             <div
               style={{
@@ -755,30 +787,21 @@ export default function AdminPedidos() {
                       </div>
                     </div>
                     {lista.estado === "pendiente" && (
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: "8px",
-                          alignItems: "center",
-                          flexWrap: "wrap",
-                        }}
+                      <select
+                        onChange={(e) =>
+                          e.target.value &&
+                          asignarMontacarguistaLista(lista.id, e.target.value)
+                        }
+                        defaultValue=""
+                        style={{ ...selectStyle, width: "auto" }}
                       >
-                        <select
-                          onChange={(e) =>
-                            e.target.value &&
-                            asignarMontacarguistaLista(lista.id, e.target.value)
-                          }
-                          defaultValue=""
-                          style={{ ...selectStyle, width: "auto" }}
-                        >
-                          <option value="">Asignar montacarguista</option>
-                          {montacarguistas.map((m) => (
-                            <option key={m.id} value={m.id}>
-                              {m.nombre}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                        <option value="">Asignar montacarguista</option>
+                        {montacarguistas.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.nombre}
+                          </option>
+                        ))}
+                      </select>
                     )}
                   </div>
 
@@ -908,7 +931,7 @@ export default function AdminPedidos() {
             <p
               style={{ fontSize: "13px", color: "#888", marginBottom: "1rem" }}
             >
-              Al importar, el sistema generará automáticamente las listas de
+              Al importar el sistema generará automáticamente las listas de
               picking por bodega
             </p>
             <div
@@ -1030,36 +1053,6 @@ export default function AdminPedidos() {
                 if (!pedido) return null;
                 const pBadge =
                   prioridadColor[pedido.prioridad] || prioridadColor.normal;
-                const generarListasManual = async () => {
-                  setCargando(true);
-                  try {
-                    const pedidosPendientes = pedidos.filter(
-                      (p) => p.estado === "pendiente",
-                    );
-                    if (pedidosPendientes.length === 0) {
-                      return mostrarMensaje(
-                        "No hay pedidos pendientes para generar listas",
-                        "error",
-                      );
-                    }
-                    const ids = pedidosPendientes.map((p) => p.id);
-                    const { data } = await api.post("/api/picking/generar", {
-                      pedido_ids: ids,
-                    });
-                    mostrarMensaje(
-                      `✓ ${data.listas.length} listas de picking generadas`,
-                    );
-                    cargarDatos();
-                  } catch (err) {
-                    mostrarMensaje(
-                      "Error al generar listas: " +
-                        (err.response?.data?.error || ""),
-                      "error",
-                    );
-                  } finally {
-                    setCargando(false);
-                  }
-                };
                 return (
                   <div
                     key={pedidoId}
@@ -1147,7 +1140,6 @@ export default function AdminPedidos() {
                   ))}
                 </select>
               </div>
-
               <p style={labelStyle}>Montacarguistas por bodega</p>
               {bodegas
                 .filter((b) => b.codigo !== "SALDOS")
@@ -1176,7 +1168,6 @@ export default function AdminPedidos() {
                   </div>
                 ))}
             </div>
-
             <button
               onClick={asignarTanda}
               disabled={cargando}
