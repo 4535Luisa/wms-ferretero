@@ -634,6 +634,28 @@ export default function AdminPedidos() {
       {/* LISTAS DE PICKING */}
       {vista === "listas" && (
         <div>
+          <div style={{ display: "flex", gap: "8px", marginBottom: "1rem" }}>
+            <button
+              onClick={generarListasManual}
+              disabled={cargando}
+              style={{
+                background: "#0A0A0A",
+                color: "#00FF87",
+                border: "none",
+                borderRadius: "8px",
+                padding: "9px 20px",
+                fontSize: "14px",
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "Outfit, sans-serif",
+                opacity: cargando ? 0.6 : 1,
+              }}
+            >
+              {cargando
+                ? "Generando..."
+                : "⚡ Generar listas desde pedidos pendientes"}
+            </button>
+          </div>
           {listas.length === 0 ? (
             <div
               style={{
@@ -649,7 +671,8 @@ export default function AdminPedidos() {
                 No hay listas de picking generadas
               </p>
               <p style={{ fontSize: "13px", color: "#BBB", marginTop: "4px" }}>
-                Las listas se generan automáticamente al cargar un CSV
+                Haz clic en el botón para generar las listas desde los pedidos
+                pendientes
               </p>
             </div>
           ) : (
@@ -1007,6 +1030,36 @@ export default function AdminPedidos() {
                 if (!pedido) return null;
                 const pBadge =
                   prioridadColor[pedido.prioridad] || prioridadColor.normal;
+                const generarListasManual = async () => {
+                  setCargando(true);
+                  try {
+                    const pedidosPendientes = pedidos.filter(
+                      (p) => p.estado === "pendiente",
+                    );
+                    if (pedidosPendientes.length === 0) {
+                      return mostrarMensaje(
+                        "No hay pedidos pendientes para generar listas",
+                        "error",
+                      );
+                    }
+                    const ids = pedidosPendientes.map((p) => p.id);
+                    const { data } = await api.post("/api/picking/generar", {
+                      pedido_ids: ids,
+                    });
+                    mostrarMensaje(
+                      `✓ ${data.listas.length} listas de picking generadas`,
+                    );
+                    cargarDatos();
+                  } catch (err) {
+                    mostrarMensaje(
+                      "Error al generar listas: " +
+                        (err.response?.data?.error || ""),
+                      "error",
+                    );
+                  } finally {
+                    setCargando(false);
+                  }
+                };
                 return (
                   <div
                     key={pedidoId}
