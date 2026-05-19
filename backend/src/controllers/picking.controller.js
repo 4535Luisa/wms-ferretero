@@ -253,8 +253,18 @@ const misListas = async (req, res) => {
       *,
       bodegas(nombre, codigo),
       lista_picking_items(
-        *,
-        ubicaciones(codigo),
+        id,
+        referencia,
+        descripcion,
+        cantidad_cajas,
+        cantidad_unidades,
+        destino_saldos,
+        estado,
+        pedido_id,
+        ubicacion_id,
+        producto_id,
+        lista_id,
+        ubicaciones(id, codigo),
         pedidos(numero)
       )
     `,
