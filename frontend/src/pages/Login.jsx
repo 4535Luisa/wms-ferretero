@@ -38,6 +38,9 @@ export default function Login() {
         case "inventarios":
           navigate("/inventarios");
           break;
+        case "facturacion":
+          navigate("/facturacion");
+          break;
         default:
           navigate("/");
       }
