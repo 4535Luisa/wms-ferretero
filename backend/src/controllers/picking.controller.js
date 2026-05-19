@@ -48,7 +48,7 @@ const generarListasPicking = async (req, res) => {
     const { data: pedido } = await supabase
       .from("pedidos")
       .select(
-        `*, pedido_items(*, productos(codigo_interno, descripcion_corta, unidad_empaque))`,
+        "*, pedido_items(*, productos(codigo_interno, descripcion_corta, unidad_empaque))",
       )
       .eq("id", pedidoId)
       .single();
@@ -56,9 +56,10 @@ const generarListasPicking = async (req, res) => {
     if (!pedido) continue;
 
     for (const item of pedido.pedido_items || []) {
-      const unidadEmpaque = item.productos?.unidad_empaque || 1;
+      const unidadEmpaque = item.productos?.unidad_empaque || 0;
+      if (!unidadEmpaque || unidadEmpaque <= 1) continue;
+
       const cantidadPedida = item.cantidad_pedida;
-      const esSaldo = unidadEmpaque > 1 && cantidadPedida % unidadEmpaque !== 0;
       const cajasCompletas = Math.floor(cantidadPedida / unidadEmpaque);
       const unidadesSueltas = cantidadPedida % unidadEmpaque;
 
@@ -70,19 +71,17 @@ const generarListasPicking = async (req, res) => {
           const bodegaId = bodegaIds[codigo];
           if (!bodegaId) continue;
 
-          const { data: ubicaciones } = await supabase
+          const { data: invs } = await supabase
             .from("inventario")
-            .select("*, ubicaciones(id, codigo, bodega_id)")
+            .select(
+              "id, cantidad_disponible, ubicacion_id, ubicaciones(id, codigo)",
+            )
             .eq("producto_id", item.producto_id)
-            .eq("ubicaciones.bodega_id", bodegaId)
+            .eq("bodega_id", bodegaId)
             .gt("cantidad_disponible", 0)
             .order("cantidad_disponible", { ascending: true });
 
-          const ubicacionesFiltradas = (ubicaciones || []).filter(
-            (u) => u.ubicaciones?.bodega_id === bodegaId,
-          );
-
-          for (const inv of ubicacionesFiltradas) {
+          for (const inv of invs || []) {
             if (cajasRestantes <= 0) break;
             const cajasDisponibles = Math.floor(
               inv.cantidad_disponible / unidadEmpaque,
@@ -95,7 +94,7 @@ const generarListasPicking = async (req, res) => {
               pedido_id: pedidoId,
               pedido_numero: pedido.numero,
               producto_id: item.producto_id,
-              ubicacion_id: inv.ubicaciones?.id,
+              ubicacion_id: inv.ubicacion_id,
               referencia: item.productos?.codigo_interno,
               descripcion: item.productos?.descripcion_corta,
               cantidad_cajas: cajasATomar,
@@ -109,7 +108,7 @@ const generarListasPicking = async (req, res) => {
         }
       }
 
-      if (esSaldo && unidadesSueltas > 0) {
+      if (unidadesSueltas > 0) {
         const { data: invSaldos } = await supabase
           .from("inventario")
           .select("cantidad_disponible")
@@ -124,24 +123,24 @@ const generarListasPicking = async (req, res) => {
             const bodegaId = bodegaIds[codigo];
             if (!bodegaId) continue;
 
-            const { data: ubicaciones } = await supabase
+            const { data: invs } = await supabase
               .from("inventario")
-              .select("*, ubicaciones(id, codigo, bodega_id)")
+              .select(
+                "id, cantidad_disponible, ubicacion_id, ubicaciones(id, codigo)",
+              )
               .eq("producto_id", item.producto_id)
-              .gt("cantidad_disponible", unidadEmpaque - 1)
-              .order("cantidad_disponible", { ascending: true });
+              .eq("bodega_id", bodegaId)
+              .gte("cantidad_disponible", unidadEmpaque)
+              .order("cantidad_disponible", { ascending: true })
+              .limit(1);
 
-            const ubicacionesFiltradas = (ubicaciones || []).filter(
-              (u) => u.ubicaciones?.bodega_id === bodegaId,
-            );
-
-            if (ubicacionesFiltradas.length > 0) {
-              const inv = ubicacionesFiltradas[0];
+            if (invs && invs.length > 0) {
+              const inv = invs[0];
               listasPorBodega[bodegaId].items.push({
                 pedido_id: pedidoId,
                 pedido_numero: pedido.numero,
                 producto_id: item.producto_id,
-                ubicacion_id: inv.ubicaciones?.id,
+                ubicacion_id: inv.ubicacion_id,
                 referencia: item.productos?.codigo_interno,
                 descripcion: item.productos?.descripcion_corta,
                 cantidad_cajas: 1,
@@ -209,7 +208,6 @@ const listarListasPicking = async (req, res) => {
       usuarios(nombre),
       lista_picking_items(
         *,
-        productos(codigo_interno, descripcion_corta),
         ubicaciones(codigo),
         pedidos(numero)
       )
