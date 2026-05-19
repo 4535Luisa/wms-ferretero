@@ -243,8 +243,108 @@ const asignarMontacarguista = async (req, res) => {
   return res.json({ data, mensaje: "Montacarguista asignado correctamente" });
 };
 
+const misListas = async (req, res) => {
+  const usuario_id = req.usuario?.id;
+
+  const { data, error } = await supabase
+    .from("listas_picking")
+    .select(
+      `
+      *,
+      bodegas(nombre, codigo),
+      lista_picking_items(
+        *,
+        ubicaciones(codigo),
+        pedidos(numero)
+      )
+    `,
+    )
+    .eq("montacarguista_id", usuario_id)
+    .in("estado", ["asignada", "en_proceso"])
+    .order("created_at", { ascending: false });
+
+  if (error) return res.status(500).json({ error: error.message });
+  return res.json(data);
+};
+
+const bajarCaja = async (req, res) => {
+  const { id } = req.params;
+  const usuario_id = req.usuario?.id;
+
+  const { data: item } = await supabase
+    .from("lista_picking_items")
+    .select("*, productos(codigo_interno), listas_picking(bodega_id)")
+    .eq("id", id)
+    .single();
+
+  if (!item) return res.status(404).json({ error: "Ítem no encontrado" });
+
+  await supabase
+    .from("lista_picking_items")
+    .update({ estado: "bajada" })
+    .eq("id", id);
+
+  if (item.ubicacion_id) {
+    const { data: inv } = await supabase
+      .from("inventario")
+      .select("*")
+      .eq("producto_id", item.producto_id)
+      .eq("ubicacion_id", item.ubicacion_id)
+      .single();
+
+    if (inv) {
+      const nuevaCantidad = Math.max(
+        0,
+        inv.cantidad_disponible - item.cantidad_unidades,
+      );
+      await supabase
+        .from("inventario")
+        .update({ cantidad_disponible: nuevaCantidad })
+        .eq("id", inv.id);
+
+      await supabase.from("bitacora").insert({
+        usuario_id,
+        accion: "PICKING",
+        tabla: "inventario",
+        registro_id: item.producto_id,
+        valores_antes: {
+          cantidad_disponible: inv.cantidad_disponible,
+          ubicacion_id: item.ubicacion_id,
+        },
+        valores_despues: {
+          cantidad_disponible: nuevaCantidad,
+          ubicacion_id: item.ubicacion_id,
+          pedido_id: item.pedido_id,
+          lista_id: item.lista_id,
+        },
+      });
+    }
+  }
+
+  if (item.pedido_id) {
+    await supabase.from("notificaciones").insert({
+      usuario_id: null,
+      tipo: "caja_bajada",
+      titulo: "Caja bajada",
+      mensaje: `La caja de ${item.descripcion} ya fue bajada`,
+      datos: {
+        pedido_id: item.pedido_id,
+        producto_id: item.producto_id,
+        referencia: item.productos?.codigo_interno,
+        destino_saldos: item.destino_saldos,
+      },
+    });
+  }
+
+  return res.json({
+    mensaje: "Caja registrada como bajada e inventario actualizado",
+  });
+};
+
 module.exports = {
   generarListasPicking,
   listarListasPicking,
   asignarMontacarguista,
+  misListas,
+  bajarCaja,
 };
