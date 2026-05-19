@@ -7,6 +7,7 @@ const recepcionRoutes = require("./routes/recepcion.routes");
 const productosRoutes = require("./routes/productos.routes");
 const usuariosRoutes = require("./routes/usuarios.routes");
 const pedidosRoutes = require("./routes/pedidos.routes");
+const authMiddleware = require("./middlewares/auth.middleware");
 
 const app = express();
 
@@ -35,9 +36,9 @@ app.get("/test-supabase", async (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
-app.use("/api/recepciones", recepcionRoutes);
-app.use("/api/productos", productosRoutes);
-app.use("/api/usuarios", usuariosRoutes);
-app.use("/api/pedidos", pedidosRoutes);
+app.use("/api/recepciones", authMiddleware, recepcionRoutes);
+app.use("/api/productos", authMiddleware, productosRoutes);
+app.use("/api/usuarios", authMiddleware, usuariosRoutes);
+app.use("/api/pedidos", authMiddleware, pedidosRoutes);
 
 module.exports = app;

@@ -209,6 +209,7 @@ const agregarItemRecepcion = async (req, res) => {
 
 const confirmarRecepcionDirecto = async (req, res) => {
   const { id } = req.params;
+  const usuario_id = req.usuario?.id || null;
 
   const { data: recepcion } = await supabase
     .from("recepciones")
@@ -251,8 +252,8 @@ const confirmarRecepcionDirecto = async (req, res) => {
       });
     }
 
-    await registrarMovimiento({
-      usuario_id: null,
+    await supabase.from("bitacora").insert({
+      usuario_id,
       accion: "RECEPCION_CONFIRMADA",
       tabla: "inventario",
       registro_id: item.producto_id,
