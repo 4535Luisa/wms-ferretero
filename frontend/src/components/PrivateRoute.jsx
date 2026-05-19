@@ -6,6 +6,7 @@ const rutasPorRol = {
     "/admin",
     "/admin/usuarios",
     "/admin/pedidos",
+    "/admin/historial",
     "/admin/reportes",
   ],
   montacarguista: ["/montacarguista", "/montacarguista/estibas"],
@@ -28,6 +29,7 @@ const rutasPorRol = {
     "/inventarios/conteos",
     "/inventarios/mini-conteos",
   ],
+  facturacion: ["/facturacion", "/facturacion/historial"],
 };
 
 export default function PrivateRoute({ children, roles }) {
@@ -48,7 +50,7 @@ export default function PrivateRoute({ children, roles }) {
       >
         <div
           style={{
-            fontFamily: "Bebas Neue, sans-serif",
+            fontFamily: "Bebas Neue,sans-serif",
             fontSize: "32px",
             color: "#FFFFFF",
             letterSpacing: "0.06em",
@@ -70,14 +72,11 @@ export default function PrivateRoute({ children, roles }) {
     );
   }
 
-  if (!usuario) {
-    return <Navigate to="/login" replace />;
-  }
+  if (!usuario) return <Navigate to="/login" replace />;
 
   if (roles && !roles.includes(usuario.rol)) {
     const rutasDelRol = rutasPorRol[usuario.rol] || [];
-    const redireccion = rutasDelRol[0] || "/login";
-    return <Navigate to={redireccion} replace />;
+    return <Navigate to={rutasDelRol[0] || "/login"} replace />;
   }
 
   return children;

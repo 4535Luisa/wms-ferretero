@@ -200,10 +200,81 @@ const listarOperarios = async (req, res) => {
   return res.json(data);
 };
 
+const facturarPedido = async (req, res) => {
+  const { id } = req.params;
+  const usuario_id = req.usuario?.id || null;
+
+  const { data: pedido, error: errorPedido } = await supabase
+    .from("pedidos")
+    .select("*, pedido_items(*, productos(codigo_interno, descripcion_corta))")
+    .eq("id", id)
+    .single();
+
+  if (errorPedido || !pedido) {
+    return res.status(404).json({ error: "Pedido no encontrado" });
+  }
+
+  if (pedido.facturado) {
+    return res.status(400).json({ error: "El pedido ya fue facturado" });
+  }
+
+  for (const item of pedido.pedido_items || []) {
+    const cantidad = item.cantidad_picking || item.cantidad_pedida;
+
+    const { data: invs } = await supabase
+      .from("inventario")
+      .select("*")
+      .eq("producto_id", item.producto_id)
+      .gt("cantidad_disponible", 0)
+      .order("created_at", { ascending: true });
+
+    let restante = cantidad;
+    for (const inv of invs || []) {
+      if (restante <= 0) break;
+      const descontar = Math.min(restante, inv.cantidad_disponible);
+      await supabase
+        .from("inventario")
+        .update({ cantidad_disponible: inv.cantidad_disponible - descontar })
+        .eq("id", inv.id);
+
+      await supabase.from("bitacora").insert({
+        usuario_id,
+        accion: "DESPACHO",
+        tabla: "inventario",
+        registro_id: item.producto_id,
+        valores_antes: { cantidad_disponible: inv.cantidad_disponible },
+        valores_despues: {
+          cantidad_disponible: inv.cantidad_disponible - descontar,
+          pedido_numero: pedido.numero,
+          pedido_id: id,
+        },
+      });
+      restante -= descontar;
+    }
+  }
+
+  const { error } = await supabase
+    .from("pedidos")
+    .update({
+      facturado: true,
+      hora_facturacion: new Date().toISOString(),
+      facturador_id: usuario_id,
+      estado: "despachado",
+    })
+    .eq("id", id);
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  return res.json({
+    mensaje: "Pedido facturado e inventario actualizado correctamente",
+  });
+};
+
 module.exports = {
   cargarCSV,
   listarPedidos,
   asignarPedido,
   obtenerPedido,
   listarOperarios,
+  facturarPedido,
 };

@@ -7,6 +7,7 @@ import Login from "./pages/Login";
 import Admin from "./pages/Admin";
 import AdminUsuarios from "./pages/AdminUsuarios";
 import AdminPedidos from "./pages/AdminPedidos";
+import HistorialProducto from "./pages/HistorialProducto";
 import Montacarguista from "./pages/Montacarguista";
 import Operario from "./pages/Operario";
 import Saldos from "./pages/Saldos";
@@ -14,7 +15,7 @@ import JefeBodega from "./pages/JefeBodega";
 import JefeBodegaRecepcion from "./pages/JefeBodegaRecepcion";
 import Gerente from "./pages/Gerente";
 import Inventarios from "./pages/Inventarios";
-import HistorialProducto from "./pages/HistorialProducto";
+import Facturacion from "./pages/Facturacion";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
@@ -178,6 +179,23 @@ createRoot(document.getElementById("root")).render(
             element={
               <PrivateRoute roles={["inventarios"]}>
                 <Inventarios />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/facturacion"
+            element={
+              <PrivateRoute roles={["facturacion"]}>
+                <Facturacion />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/facturacion/historial"
+            element={
+              <PrivateRoute roles={["facturacion"]}>
+                <Facturacion />
               </PrivateRoute>
             }
           />
