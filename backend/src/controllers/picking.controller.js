@@ -199,24 +199,121 @@ const generarListasPicking = async (req, res) => {
 };
 
 const listarListasPicking = async (req, res) => {
-  const { data, error } = await supabase
+  const { data: listas, error } = await supabase
     .from("listas_picking")
-    .select(
-      `
-      *,
-      bodegas(nombre, codigo),
-      usuarios(nombre),
-      lista_picking_items(
-        *,
-        ubicaciones(codigo),
-        pedidos(numero)
-      )
-    `,
-    )
+    .select("*, bodegas(nombre, codigo), usuarios(nombre)")
     .order("created_at", { ascending: false });
 
   if (error) return res.status(500).json({ error: error.message });
-  return res.json(data);
+  if (!listas || listas.length === 0) return res.json([]);
+
+  const listaIds = listas.map((l) => l.id);
+
+  const { data: items } = await supabase
+    .from("lista_picking_items")
+    .select("*")
+    .in("lista_id", listaIds);
+
+  if (!items || items.length === 0) {
+    return res.json(listas.map((l) => ({ ...l, lista_picking_items: [] })));
+  }
+
+  const ubicacionIds = [
+    ...new Set(items.filter((i) => i.ubicacion_id).map((i) => i.ubicacion_id)),
+  ];
+  const pedidoIds = [
+    ...new Set(items.filter((i) => i.pedido_id).map((i) => i.pedido_id)),
+  ];
+
+  const [{ data: ubicaciones }, { data: pedidos }] = await Promise.all([
+    ubicacionIds.length > 0
+      ? supabase.from("ubicaciones").select("id, codigo").in("id", ubicacionIds)
+      : Promise.resolve({ data: [] }),
+    pedidoIds.length > 0
+      ? supabase.from("pedidos").select("id, numero").in("id", pedidoIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const ubicMap = Object.fromEntries((ubicaciones || []).map((u) => [u.id, u]));
+  const pedMap = Object.fromEntries((pedidos || []).map((p) => [p.id, p]));
+
+  const itemsEnriquecidos = items.map((item) => ({
+    ...item,
+    ubicaciones: item.ubicacion_id ? ubicMap[item.ubicacion_id] : null,
+    pedidos: item.pedido_id ? pedMap[item.pedido_id] : null,
+  }));
+
+  const listasPorId = Object.fromEntries(
+    listas.map((l) => [l.id, { ...l, lista_picking_items: [] }]),
+  );
+  for (const item of itemsEnriquecidos) {
+    if (listasPorId[item.lista_id]) {
+      listasPorId[item.lista_id].lista_picking_items.push(item);
+    }
+  }
+
+  return res.json(Object.values(listasPorId));
+};
+
+const misListas = async (req, res) => {
+  const usuario_id = req.usuario?.id;
+
+  const { data: listas, error } = await supabase
+    .from("listas_picking")
+    .select("*, bodegas(nombre, codigo)")
+    .eq("montacarguista_id", usuario_id)
+    .in("estado", ["asignada", "en_proceso"])
+    .order("created_at", { ascending: false });
+
+  if (error) return res.status(500).json({ error: error.message });
+  if (!listas || listas.length === 0) return res.json([]);
+
+  const listaIds = listas.map((l) => l.id);
+
+  const { data: items } = await supabase
+    .from("lista_picking_items")
+    .select("*")
+    .in("lista_id", listaIds);
+
+  if (!items || items.length === 0) {
+    return res.json(listas.map((l) => ({ ...l, lista_picking_items: [] })));
+  }
+
+  const ubicacionIds = [
+    ...new Set(items.filter((i) => i.ubicacion_id).map((i) => i.ubicacion_id)),
+  ];
+  const pedidoIds = [
+    ...new Set(items.filter((i) => i.pedido_id).map((i) => i.pedido_id)),
+  ];
+
+  const [{ data: ubicaciones }, { data: pedidos }] = await Promise.all([
+    ubicacionIds.length > 0
+      ? supabase.from("ubicaciones").select("id, codigo").in("id", ubicacionIds)
+      : Promise.resolve({ data: [] }),
+    pedidoIds.length > 0
+      ? supabase.from("pedidos").select("id, numero").in("id", pedidoIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const ubicMap = Object.fromEntries((ubicaciones || []).map((u) => [u.id, u]));
+  const pedMap = Object.fromEntries((pedidos || []).map((p) => [p.id, p]));
+
+  const itemsEnriquecidos = items.map((item) => ({
+    ...item,
+    ubicaciones: item.ubicacion_id ? ubicMap[item.ubicacion_id] : null,
+    pedidos: item.pedido_id ? pedMap[item.pedido_id] : null,
+  }));
+
+  const listasPorId = Object.fromEntries(
+    listas.map((l) => [l.id, { ...l, lista_picking_items: [] }]),
+  );
+  for (const item of itemsEnriquecidos) {
+    if (listasPorId[item.lista_id]) {
+      listasPorId[item.lista_id].lista_picking_items.push(item);
+    }
+  }
+
+  return res.json(Object.values(listasPorId));
 };
 
 const asignarMontacarguista = async (req, res) => {
@@ -243,47 +340,13 @@ const asignarMontacarguista = async (req, res) => {
   return res.json({ data, mensaje: "Montacarguista asignado correctamente" });
 };
 
-const misListas = async (req, res) => {
-  const usuario_id = req.usuario?.id;
-
-  const { data, error } = await supabase
-    .from("listas_picking")
-    .select(
-      `
-      *,
-      bodegas(nombre, codigo),
-      lista_picking_items(
-        id,
-        referencia,
-        descripcion,
-        cantidad_cajas,
-        cantidad_unidades,
-        destino_saldos,
-        estado,
-        pedido_id,
-        ubicacion_id,
-        producto_id,
-        lista_id,
-        ubicaciones(id, codigo),
-        pedidos(numero)
-      )
-    `,
-    )
-    .eq("montacarguista_id", usuario_id)
-    .in("estado", ["asignada", "en_proceso"])
-    .order("created_at", { ascending: false });
-
-  if (error) return res.status(500).json({ error: error.message });
-  return res.json(data);
-};
-
 const bajarCaja = async (req, res) => {
   const { id } = req.params;
   const usuario_id = req.usuario?.id;
 
   const { data: item } = await supabase
     .from("lista_picking_items")
-    .select("*, productos(codigo_interno), listas_picking(bodega_id)")
+    .select("*, productos(codigo_interno)")
     .eq("id", id)
     .single();
 
