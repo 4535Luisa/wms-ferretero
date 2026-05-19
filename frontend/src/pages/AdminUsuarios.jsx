@@ -9,6 +9,7 @@ const ROLES = [
   { value: "jefe_bodega", label: "Jefe de Bodega" },
   { value: "gerente_logistico", label: "Gerente Logístico" },
   { value: "inventarios", label: "Inventarios" },
+  { value: "facturacion", label: "Facturación" },
 ];
 
 const colorRol = {
@@ -18,6 +19,7 @@ const colorRol = {
   jefe_bodega: { bg: "#ede9fe", color: "#5b21b6" },
   gerente_logistico: { bg: "#fee2e2", color: "#991b1b" },
   inventarios: { bg: "#f3f4f6", color: "#374151" },
+  facturacion: { bg: "#E0F2FE", color: "#0369A1" },
 };
 
 export default function AdminUsuarios() {
