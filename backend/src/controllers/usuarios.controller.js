@@ -26,6 +26,7 @@ const crearUsuario = async (req, res) => {
     "jefe_bodega",
     "gerente_logistico",
     "inventarios",
+    "facturacion",
   ];
   if (!rolesValidos.includes(rol)) {
     return res.status(400).json({ error: "Rol inválido" });
