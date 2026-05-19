@@ -14,6 +14,7 @@ import JefeBodega from "./pages/JefeBodega";
 import JefeBodegaRecepcion from "./pages/JefeBodegaRecepcion";
 import Gerente from "./pages/Gerente";
 import Inventarios from "./pages/Inventarios";
+import HistorialProducto from "./pages/HistorialProducto";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
@@ -43,6 +44,14 @@ createRoot(document.getElementById("root")).render(
             element={
               <PrivateRoute roles={["administrador"]}>
                 <AdminPedidos />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/admin/historial"
+            element={
+              <PrivateRoute roles={["administrador"]}>
+                <HistorialProducto />
               </PrivateRoute>
             }
           />

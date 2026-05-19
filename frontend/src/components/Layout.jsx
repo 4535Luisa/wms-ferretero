@@ -7,6 +7,7 @@ const menuPorRol = {
     { path: "/admin", label: "Dashboard", icon: "◼" },
     { path: "/admin/usuarios", label: "Usuarios", icon: "👷" },
     { path: "/admin/pedidos", label: "Pedidos", icon: "📋" },
+    { path: "/admin/historial", label: "Historial", icon: "🔍" },
     { path: "/admin/reportes", label: "Reportes", icon: "📊" },
   ],
   montacarguista: [
