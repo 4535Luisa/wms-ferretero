@@ -38,7 +38,7 @@ export default function Montacarguista() {
     setCargando(true);
     try {
       await api.patch(`/api/picking/items/${itemId}/bajar`);
-      mostrarMensaje("✓ Caja registrada como bajada");
+      mostrarMensaje("✓ Caja registrada como bajada — inventario actualizado");
       const { data } = await api.get("/api/picking/mis-listas");
       setListas(data);
       const listaActualizada = data.find((l) => l.id === listaActiva?.id);
@@ -50,18 +50,12 @@ export default function Montacarguista() {
     }
   };
 
-  const estadoColor = (estado) => {
-    if (estado === "bajada")
-      return { bg: "rgba(0,255,135,0.1)", color: "#007A40" };
-    return { bg: "#F3F4F6", color: "#374151" };
-  };
-
   return (
     <Layout
       titulo="Mis Listas"
       subtitulo={
         vista === "lista"
-          ? `${listas.length} listas asignadas`
+          ? `${listas.length} lista${listas.length !== 1 ? "s" : ""} asignada${listas.length !== 1 ? "s" : ""}`
           : `${listaActiva?.bodegas?.nombre} — ${listaActiva?.lista_picking_items?.length} ítems`
       }
     >
@@ -79,6 +73,7 @@ export default function Montacarguista() {
             cursor: "pointer",
             fontFamily: "Outfit, sans-serif",
             marginBottom: "1.25rem",
+            display: "block",
           }}
         >
           ← Volver
@@ -121,7 +116,6 @@ export default function Montacarguista() {
               </p>
               <p style={{ fontSize: "13px", color: "#BBB", marginTop: "4px" }}>
                 El administrador te asignará una lista cuando haya pedidos
-                pendientes
               </p>
             </div>
           ) : (
@@ -300,14 +294,13 @@ export default function Montacarguista() {
 
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {(listaActiva.lista_picking_items || [])
-              .sort((a, b) => {
-                const ua = a.ubicaciones?.codigo || "";
-                const ub = b.ubicaciones?.codigo || "";
-                return ua.localeCompare(ub);
-              })
+              .sort((a, b) =>
+                (a.ubicacion_codigo || "").localeCompare(
+                  b.ubicacion_codigo || "",
+                ),
+              )
               .map((item) => {
                 const bajada = item.estado === "bajada";
-                const badge = estadoColor(item.estado);
                 return (
                   <div
                     key={item.id}
@@ -335,7 +328,7 @@ export default function Montacarguista() {
                             display: "flex",
                             alignItems: "center",
                             gap: "8px",
-                            marginBottom: "4px",
+                            marginBottom: "6px",
                             flexWrap: "wrap",
                           }}
                         >
@@ -343,14 +336,15 @@ export default function Montacarguista() {
                             style={{
                               background: "#0A0A0A",
                               color: "#00FF87",
-                              padding: "2px 10px",
+                              padding: "3px 12px",
                               borderRadius: "6px",
-                              fontSize: "12px",
+                              fontSize: "13px",
                               fontFamily: "DM Mono, monospace",
                               fontWeight: 700,
+                              letterSpacing: "0.06em",
                             }}
                           >
-                            {item.ubicacion_codigo || "Sin ubicación"}
+                            {item.ubicacion_codigo || "Sin ubic."}
                           </span>
                           {item.destino_saldos && (
                             <span
@@ -368,8 +362,10 @@ export default function Montacarguista() {
                           )}
                           <span
                             style={{
-                              background: badge.bg,
-                              color: badge.color,
+                              background: bajada
+                                ? "rgba(0,255,135,0.1)"
+                                : "#F3F4F6",
+                              color: bajada ? "#007A40" : "#374151",
                               padding: "2px 8px",
                               borderRadius: "20px",
                               fontSize: "10px",
@@ -382,7 +378,7 @@ export default function Montacarguista() {
                         </div>
                         <div
                           style={{
-                            fontSize: "13px",
+                            fontSize: "14px",
                             fontWeight: 600,
                             color: "#0A0A0A",
                             overflow: "hidden",
@@ -394,25 +390,34 @@ export default function Montacarguista() {
                         </div>
                         <div
                           style={{
-                            fontSize: "11px",
+                            fontSize: "12px",
                             color: "#888",
                             fontFamily: "DM Mono, monospace",
-                            marginTop: "2px",
+                            marginTop: "3px",
                           }}
                         >
-                          {item.referencia} · Pedido: {item.pedidos?.numero}
+                          Ref: {item.referencia} · Pedido:{" "}
+                          {item.pedidos?.numero}
                         </div>
                       </div>
                       <div style={{ textAlign: "right", flexShrink: 0 }}>
                         <div
                           style={{
-                            fontSize: "18px",
+                            fontSize: "20px",
                             fontWeight: 700,
                             fontFamily: "DM Mono, monospace",
                             color: "#0A0A0A",
                           }}
                         >
-                          {item.cantidad_cajas}{" "}
+                          {item.cantidad_cajas}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "11px",
+                            color: "#888",
+                            marginBottom: "8px",
+                          }}
+                        >
                           {item.cantidad_cajas === 1 ? "caja" : "cajas"}
                         </div>
                         {!bajada && (
@@ -420,18 +425,18 @@ export default function Montacarguista() {
                             onClick={() => marcarBajada(item.id)}
                             disabled={cargando}
                             style={{
-                              marginTop: "8px",
                               background: "#00FF87",
                               color: "#0A0A0A",
                               border: "none",
                               borderRadius: "8px",
-                              padding: "8px 14px",
-                              fontSize: "12px",
+                              padding: "10px 16px",
+                              fontSize: "13px",
                               fontWeight: 700,
                               cursor: "pointer",
                               fontFamily: "Outfit, sans-serif",
                               minHeight: "44px",
                               minWidth: "80px",
+                              display: "block",
                             }}
                           >
                             Bajar ↓

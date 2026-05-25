@@ -168,16 +168,15 @@ export default function AdminPedidos() {
   const generarListasManual = async () => {
     setCargando(true);
     try {
-      const pedidosPendientes = pedidos.filter((p) => p.estado === "pendiente");
-      if (pedidosPendientes.length === 0) {
-        mostrarMensaje(
-          "No hay pedidos pendientes para generar listas",
-          "error",
-        );
+      const pedidosActivos = pedidos.filter((p) =>
+        ["pendiente", "asignado", "en_picking"].includes(p.estado),
+      );
+      if (pedidosActivos.length === 0) {
+        mostrarMensaje("No hay pedidos activos para generar listas", "error");
         setCargando(false);
         return;
       }
-      const ids = pedidosPendientes.map((p) => p.id);
+      const ids = pedidosActivos.map((p) => p.id);
       const { data } = await api.post("/api/picking/generar", {
         pedido_ids: ids,
       });
@@ -305,7 +304,6 @@ export default function AdminPedidos() {
                 : ""
       }
     >
-      {/* Tabs */}
       <div
         style={{
           display: "flex",
@@ -343,7 +341,6 @@ export default function AdminPedidos() {
         ))}
       </div>
 
-      {/* Acciones */}
       <div
         style={{
           display: "flex",
@@ -454,7 +451,6 @@ export default function AdminPedidos() {
         </div>
       )}
 
-      {/* LISTA DE PEDIDOS */}
       {vista === "lista" && (
         <div>
           {pedidosPendientes.length > 0 && (
@@ -662,7 +658,6 @@ export default function AdminPedidos() {
         </div>
       )}
 
-      {/* LISTAS DE PICKING */}
       {vista === "listas" && (
         <div>
           <div style={{ display: "flex", gap: "8px", marginBottom: "1rem" }}>
@@ -703,8 +698,7 @@ export default function AdminPedidos() {
                 No hay listas de picking generadas
               </p>
               <p style={{ fontSize: "13px", color: "#BBB", marginTop: "4px" }}>
-                Haz clic en el botón para generar las listas desde los pedidos
-                pendientes
+                Haz clic en el botón para generar las listas
               </p>
             </div>
           ) : (
@@ -819,95 +813,111 @@ export default function AdminPedidos() {
                         gap: "8px",
                       }}
                     >
-                      {(lista.lista_picking_items || []).map((item) => (
-                        <div
-                          key={item.id}
-                          style={{
-                            background: item.destino_saldos
-                              ? "#FEF9C3"
-                              : "#F8F8F8",
-                            borderRadius: "8px",
-                            padding: "10px 12px",
-                            border: item.destino_saldos
-                              ? "1px solid #FDE68A"
-                              : "1px solid transparent",
-                          }}
-                        >
+                      {(lista.lista_picking_items || [])
+                        .sort((a, b) =>
+                          (a.ubicacion_codigo || "").localeCompare(
+                            b.ubicacion_codigo || "",
+                          ),
+                        )
+                        .map((item) => (
                           <div
+                            key={item.id}
                             style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "flex-start",
+                              background: item.destino_saldos
+                                ? "#FEF9C3"
+                                : "#F8F8F8",
+                              borderRadius: "8px",
+                              padding: "10px 12px",
+                              border: item.destino_saldos
+                                ? "1px solid #FDE68A"
+                                : "1px solid transparent",
                             }}
                           >
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div
-                                style={{
-                                  fontSize: "12px",
-                                  fontWeight: 600,
-                                  color: "#0A0A0A",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                {item.descripcion}
-                              </div>
-                              <div
-                                style={{
-                                  fontSize: "11px",
-                                  color: "#888",
-                                  fontFamily: "DM Mono, monospace",
-                                  marginTop: "2px",
-                                }}
-                              >
-                                {item.referencia} ·{" "}
-                                {item.ubicaciones?.codigo || "Sin ubicación"}
-                              </div>
-                              <div
-                                style={{
-                                  fontSize: "11px",
-                                  color: "#555",
-                                  marginTop: "2px",
-                                }}
-                              >
-                                Pedido: {item.pedidos?.numero}
-                              </div>
-                            </div>
                             <div
                               style={{
-                                textAlign: "right",
-                                flexShrink: 0,
-                                marginLeft: "8px",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "flex-start",
                               }}
                             >
-                              <div
-                                style={{
-                                  fontSize: "14px",
-                                  fontWeight: 700,
-                                  fontFamily: "DM Mono, monospace",
-                                  color: "#0A0A0A",
-                                }}
-                              >
-                                {item.cantidad_cajas}{" "}
-                                {item.cantidad_cajas === 1 ? "caja" : "cajas"}
-                              </div>
-                              {item.destino_saldos && (
+                              <div style={{ flex: 1, minWidth: 0 }}>
                                 <div
                                   style={{
-                                    fontSize: "10px",
-                                    color: "#854D0E",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "6px",
+                                    marginBottom: "4px",
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      background: "#0A0A0A",
+                                      color: "#00FF87",
+                                      padding: "1px 8px",
+                                      borderRadius: "4px",
+                                      fontSize: "11px",
+                                      fontFamily: "DM Mono, monospace",
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    {item.ubicacion_codigo || "Sin ubic."}
+                                  </span>
+                                  {item.destino_saldos && (
+                                    <span
+                                      style={{
+                                        fontSize: "10px",
+                                        color: "#854D0E",
+                                        fontWeight: 700,
+                                      }}
+                                    >
+                                      → SALDOS
+                                    </span>
+                                  )}
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: "12px",
                                     fontWeight: 600,
+                                    color: "#0A0A0A",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {item.descripcion}
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: "11px",
+                                    color: "#888",
+                                    fontFamily: "DM Mono, monospace",
                                     marginTop: "2px",
                                   }}
                                 >
-                                  → SALDOS
+                                  {item.referencia} · {item.pedidos?.numero}
                                 </div>
-                              )}
+                              </div>
+                              <div
+                                style={{
+                                  textAlign: "right",
+                                  flexShrink: 0,
+                                  marginLeft: "8px",
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    fontSize: "14px",
+                                    fontWeight: 700,
+                                    fontFamily: "DM Mono, monospace",
+                                  }}
+                                >
+                                  {item.cantidad_cajas}{" "}
+                                  {item.cantidad_cajas === 1 ? "caja" : "cajas"}
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
                     </div>
                   </div>
                 </div>
@@ -917,7 +927,6 @@ export default function AdminPedidos() {
         </div>
       )}
 
-      {/* PREVIEW CSV */}
       {vista === "preview" && (
         <div>
           <div
@@ -1029,7 +1038,6 @@ export default function AdminPedidos() {
         </div>
       )}
 
-      {/* ASIGNAR TANDA */}
       {vista === "asignar" && (
         <div
           style={{
