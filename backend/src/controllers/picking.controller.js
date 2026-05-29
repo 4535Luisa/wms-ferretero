@@ -1,34 +1,33 @@
 const supabase = require("../utils/supabase");
-
-const ORDEN_BODEGAS = ["B8", "B36", "B7"];
-
-const getBodegaId = async (codigo) => {
-  const { data } = await supabase
-    .from("bodegas")
-    .select("id")
-    .eq("codigo", codigo)
-    .single();
-  return data?.id || null;
-};
-
-const getSaldosBodegaId = async () => {
-  const { data } = await supabase
-    .from("bodegas")
-    .select("id")
-    .eq("codigo", "SALDOS")
-    .single();
-  return data?.id || null;
-};
+const { ORDEN_BODEGAS, splitCajaSaldo } = require("../utils/picking");
 
 const generarListasPicking = async (req, res) => {
   const { pedido_ids } = req.body;
   if (!pedido_ids || pedido_ids.length === 0)
     return res.status(400).json({ error: "No hay pedidos para procesar" });
 
+  // Bodegas (incl. SALDOS) en una sola consulta.
+  const { data: bodegasData } = await supabase
+    .from("bodegas")
+    .select("id, codigo")
+    .in("codigo", [...ORDEN_BODEGAS, "SALDOS"]);
+  const codigoToId = {};
+  for (const b of bodegasData || []) codigoToId[b.codigo] = b.id;
   const bodegaIds = {};
   for (const codigo of ORDEN_BODEGAS)
-    bodegaIds[codigo] = await getBodegaId(codigo);
-  const saldosBodegaId = await getSaldosBodegaId();
+    bodegaIds[codigo] = codigoToId[codigo] || null;
+
+  // Mapa de ubicaciones (id -> codigo) de las bodegas de picking, en una consulta
+  // (evita un SELECT por cada fila de inventario elegida).
+  const bodegaIdList = ORDEN_BODEGAS.map((c) => bodegaIds[c]).filter(Boolean);
+  const ubicMap = {};
+  if (bodegaIdList.length > 0) {
+    const { data: ubics } = await supabase
+      .from("ubicaciones")
+      .select("id, codigo")
+      .in("bodega_id", bodegaIdList);
+    for (const u of ubics || []) ubicMap[u.id] = u.codigo;
+  }
 
   const listasPorBodega = {};
   for (const codigo of ORDEN_BODEGAS) {
@@ -41,22 +40,30 @@ const generarListasPicking = async (req, res) => {
     }
   }
 
+  // Todos los pedidos con sus ítems en una sola consulta (en vez de uno por uno).
+  const { data: pedidosData } = await supabase
+    .from("pedidos")
+    .select(
+      "*, pedido_items(*, productos(codigo_interno, descripcion_corta, unidad_empaque))",
+    )
+    .in("id", pedido_ids);
+  const pedidosMap = {};
+  for (const p of pedidosData || []) pedidosMap[p.id] = p;
+
   for (const pedidoId of pedido_ids) {
-    const { data: pedido } = await supabase
-      .from("pedidos")
-      .select(
-        "*, pedido_items(*, productos(codigo_interno, descripcion_corta, unidad_empaque))",
-      )
-      .eq("id", pedidoId)
-      .single();
+    const pedido = pedidosMap[pedidoId];
     if (!pedido) continue;
 
     for (const item of pedido.pedido_items || []) {
       const unidadEmpaque = item.productos?.unidad_empaque || 0;
-      if (!unidadEmpaque || unidadEmpaque <= 1) continue;
-      const cajasCompletas = Math.floor(item.cantidad_pedida / unidadEmpaque);
-      const unidadesSueltas = item.cantidad_pedida % unidadEmpaque;
+      const { aplica, cajasCompletas } = splitCajaSaldo(
+        item.cantidad_pedida,
+        unidadEmpaque,
+      );
+      if (!aplica) continue;
 
+      // Las unidades sueltas (saldos) y su reposición se resuelven al asignar
+      // el pedido a un operario (consolidado por operario, ver asignarTanda).
       if (cajasCompletas > 0) {
         let cajasRestantes = cajasCompletas;
         for (const codigo of ORDEN_BODEGAS) {
@@ -66,7 +73,7 @@ const generarListasPicking = async (req, res) => {
 
           const { data: invs } = await supabase
             .from("inventario")
-            .select("id, cantidad_disponible, ubicacion_id")
+            .select("id, cantidad_disponible, cantidad_comprometida, ubicacion_id")
             .eq("producto_id", item.producto_id)
             .eq("bodega_id", bodegaId)
             .gt("cantidad_disponible", 0)
@@ -74,21 +81,28 @@ const generarListasPicking = async (req, res) => {
 
           for (const inv of invs || []) {
             if (cajasRestantes <= 0) break;
-            const cajasDisponibles = Math.floor(
-              inv.cantidad_disponible / unidadEmpaque,
-            );
+            // Disponible real = físico menos lo ya comprometido por otra lista
+            // (bloqueo: dos pickers no pueden tomar el mismo stock).
+            const disponibleReal =
+              inv.cantidad_disponible - (inv.cantidad_comprometida || 0);
+            const cajasDisponibles = Math.floor(disponibleReal / unidadEmpaque);
             if (cajasDisponibles <= 0) continue;
             const cajasATomar = Math.min(cajasRestantes, cajasDisponibles);
+            const unidadesATomar = cajasATomar * unidadEmpaque;
 
-            let ubicCodigo = null;
-            if (inv.ubicacion_id) {
-              const { data: ubic } = await supabase
-                .from("ubicaciones")
-                .select("codigo")
-                .eq("id", inv.ubicacion_id)
-                .single();
-              ubicCodigo = ubic?.codigo || null;
-            }
+            const ubicCodigo = inv.ubicacion_id
+              ? ubicMap[inv.ubicacion_id] || null
+              : null;
+
+            // Reserva: el stock pasa a COMPROMETIDO al asignar el picking
+            // (railguard), no se descuenta el disponible hasta la bajada física.
+            await supabase
+              .from("inventario")
+              .update({
+                cantidad_comprometida:
+                  (inv.cantidad_comprometida || 0) + unidadesATomar,
+              })
+              .eq("id", inv.id);
 
             listasPorBodega[bodegaId].items.push({
               pedido_id: pedidoId,
@@ -99,61 +113,10 @@ const generarListasPicking = async (req, res) => {
               referencia: item.productos?.codigo_interno,
               descripcion: item.productos?.descripcion_corta,
               cantidad_cajas: cajasATomar,
-              cantidad_unidades: cajasATomar * unidadEmpaque,
+              cantidad_unidades: unidadesATomar,
               destino_saldos: false,
             });
             cajasRestantes -= cajasATomar;
-          }
-        }
-      }
-
-      if (unidadesSueltas > 0) {
-        const { data: invSaldos } = await supabase
-          .from("inventario")
-          .select("cantidad_disponible")
-          .eq("producto_id", item.producto_id)
-          .eq("bodega_id", saldosBodegaId)
-          .single();
-        const stockSaldos = invSaldos?.cantidad_disponible || 0;
-
-        if (stockSaldos < unidadesSueltas) {
-          for (const codigo of ORDEN_BODEGAS) {
-            const bodegaId = bodegaIds[codigo];
-            if (!bodegaId) continue;
-            const { data: invs } = await supabase
-              .from("inventario")
-              .select("id, cantidad_disponible, ubicacion_id")
-              .eq("producto_id", item.producto_id)
-              .eq("bodega_id", bodegaId)
-              .gte("cantidad_disponible", unidadEmpaque)
-              .order("cantidad_disponible", { ascending: true })
-              .limit(1);
-
-            if (invs && invs.length > 0) {
-              const inv = invs[0];
-              let ubicCodigo = null;
-              if (inv.ubicacion_id) {
-                const { data: ubic } = await supabase
-                  .from("ubicaciones")
-                  .select("codigo")
-                  .eq("id", inv.ubicacion_id)
-                  .single();
-                ubicCodigo = ubic?.codigo || null;
-              }
-              listasPorBodega[bodegaId].items.push({
-                pedido_id: pedidoId,
-                pedido_numero: pedido.numero,
-                producto_id: item.producto_id,
-                ubicacion_id: inv.ubicacion_id,
-                ubicacion_codigo: ubicCodigo,
-                referencia: item.productos?.codigo_interno,
-                descripcion: item.productos?.descripcion_corta,
-                cantidad_cajas: 1,
-                cantidad_unidades: unidadEmpaque,
-                destino_saldos: true,
-              });
-              break;
-            }
           }
         }
       }
@@ -301,7 +264,9 @@ const asignarMontacarguista = async (req, res) => {
 
 const bajarCaja = async (req, res) => {
   const { id } = req.params;
+  const { estiba_id } = req.body || {};
   const usuario_id = req.usuario?.id;
+  const esAdmin = req.usuario?.rol === "administrador";
 
   const { data: item } = await supabase
     .from("lista_picking_items")
@@ -310,27 +275,78 @@ const bajarCaja = async (req, res) => {
     .single();
   if (!item) return res.status(404).json({ error: "Ítem no encontrado" });
 
+  // Idempotencia: si ya fue procesada, no volver a descontar inventario.
+  if (item.estado !== "pendiente") {
+    return res.status(400).json({ error: "Esta caja ya fue bajada" });
+  }
+
+  // La estiba debe existir y tener foto (railguard) — se valida al crearla.
+  if (estiba_id) {
+    const { data: estiba } = await supabase
+      .from("estibas")
+      .select("id, foto_url")
+      .eq("id", estiba_id)
+      .single();
+    if (!estiba || !estiba.foto_url) {
+      return res
+        .status(400)
+        .json({ error: "La estiba no existe o no tiene foto registrada" });
+    }
+  }
+
+  // Propiedad: la lista debe estar asignada a este montacarguista.
+  const { data: lista } = await supabase
+    .from("listas_picking")
+    .select("id, montacarguista_id")
+    .eq("id", item.lista_id)
+    .single();
+  if (!esAdmin && lista?.montacarguista_id !== usuario_id) {
+    return res
+      .status(403)
+      .json({ error: "Esta lista no está asignada a ti" });
+  }
+
   await supabase
     .from("lista_picking_items")
     .update({ estado: "bajada" })
     .eq("id", id);
 
+  // Vincula el ítem del pedido a la estiba para que el operario sepa dónde está.
+  if (estiba_id && item.pedido_id) {
+    await supabase
+      .from("pedido_items")
+      .update({ estiba_id })
+      .eq("pedido_id", item.pedido_id)
+      .eq("producto_id", item.producto_id);
+  }
+
   if (item.ubicacion_id) {
-    const { data: inv } = await supabase
+    // Tolerante a filas duplicadas de inventario: toma la primera coincidencia.
+    const { data: invs } = await supabase
       .from("inventario")
       .select("*")
       .eq("producto_id", item.producto_id)
       .eq("ubicacion_id", item.ubicacion_id)
-      .single();
+      .order("created_at", { ascending: true });
+    const inv = (invs || [])[0];
 
     if (inv) {
       const nuevaCantidad = Math.max(
         0,
         inv.cantidad_disponible - item.cantidad_unidades,
       );
+      // Al bajar físicamente, el disponible baja y se libera lo comprometido
+      // (la reserva se materializa en salida real).
+      const nuevoComprometido = Math.max(
+        0,
+        (inv.cantidad_comprometida || 0) - item.cantidad_unidades,
+      );
       await supabase
         .from("inventario")
-        .update({ cantidad_disponible: nuevaCantidad })
+        .update({
+          cantidad_disponible: nuevaCantidad,
+          cantidad_comprometida: nuevoComprometido,
+        })
         .eq("id", inv.id);
 
       await supabase.from("bitacora").insert({
@@ -340,10 +356,12 @@ const bajarCaja = async (req, res) => {
         registro_id: item.producto_id,
         valores_antes: {
           cantidad_disponible: inv.cantidad_disponible,
+          cantidad_comprometida: inv.cantidad_comprometida || 0,
           ubicacion_id: item.ubicacion_id,
         },
         valores_despues: {
           cantidad_disponible: nuevaCantidad,
+          cantidad_comprometida: nuevoComprometido,
           ubicacion_id: item.ubicacion_id,
           pedido_id: item.pedido_id,
           lista_id: item.lista_id,
@@ -352,24 +370,117 @@ const bajarCaja = async (req, res) => {
     }
   }
 
+  const datosNotif = {
+    pedido_id: item.pedido_id,
+    producto_id: item.producto_id,
+    referencia: item.productos?.codigo_interno,
+    destino_saldos: item.destino_saldos,
+  };
+
+  // Notifica al operario dueño del pedido (notificación en tiempo real).
   if (item.pedido_id) {
-    await supabase.from("notificaciones").insert({
-      usuario_id: null,
-      tipo: "caja_bajada",
-      titulo: "Caja bajada",
-      mensaje: `La caja de ${item.descripcion} ya fue bajada`,
-      datos: {
-        pedido_id: item.pedido_id,
-        producto_id: item.producto_id,
-        referencia: item.productos?.codigo_interno,
-        destino_saldos: item.destino_saldos,
-      },
-    });
+    const { data: pedido } = await supabase
+      .from("pedidos")
+      .select("operario_id, numero")
+      .eq("id", item.pedido_id)
+      .single();
+    if (pedido?.operario_id) {
+      await supabase.from("notificaciones").insert({
+        usuario_id: pedido.operario_id,
+        tipo: "caja_bajada",
+        titulo: "Caja bajada",
+        mensaje: `Se bajó una caja de ${item.descripcion}`,
+        datos: { ...datosNotif, pedido_numero: pedido.numero },
+      });
+    }
+  }
+
+  // Si la caja va a SALDOS, alerta al perfil de saldos (railguard).
+  if (item.destino_saldos) {
+    const { data: saldosUsers } = await supabase
+      .from("usuarios")
+      .select("id")
+      .eq("rol", "saldos")
+      .eq("activo", true);
+    if (saldosUsers && saldosUsers.length > 0) {
+      await supabase.from("notificaciones").insert(
+        saldosUsers.map((u) => ({
+          usuario_id: u.id,
+          tipo: "caja_saldos_entrante",
+          titulo: "Caja con destino SALDOS",
+          mensaje: `Llegó una caja de ${item.descripcion} para confirmar`,
+          datos: datosNotif,
+        })),
+      );
+    }
+  }
+
+  // Estado de la lista: en_proceso al primer movimiento, completada al terminar.
+  if (item.lista_id) {
+    const { data: pendientes } = await supabase
+      .from("lista_picking_items")
+      .select("id")
+      .eq("lista_id", item.lista_id)
+      .eq("estado", "pendiente");
+    await supabase
+      .from("listas_picking")
+      .update({
+        estado: (pendientes || []).length === 0 ? "completada" : "en_proceso",
+      })
+      .eq("id", item.lista_id);
   }
 
   return res.json({
     mensaje: "Caja registrada como bajada e inventario actualizado",
   });
+};
+
+// ----- Estibas (Fase 3) -----
+
+// Registra una estiba. La foto es obligatoria (railguard: estiba sin foto no
+// puede usarse para marcar cajas como listas).
+const crearEstiba = async (req, res) => {
+  const usuario_id = req.usuario?.id;
+  const { nombre, foto_url } = req.body;
+
+  if (!nombre?.trim())
+    return res.status(400).json({ error: "El nombre de la estiba es obligatorio" });
+  if (!foto_url?.trim())
+    return res.status(400).json({ error: "La foto de la estiba es obligatoria" });
+
+  const { data, error } = await supabase
+    .from("estibas")
+    .insert({
+      montacarguista_id: usuario_id,
+      nombre: nombre.trim(),
+      foto_url,
+      estado: "activa",
+    })
+    .select("id, nombre, estado, created_at")
+    .single();
+  if (error) return res.status(500).json({ error: error.message });
+
+  await supabase.from("bitacora").insert({
+    usuario_id,
+    accion: "REGISTRO_ESTIBA",
+    tabla: "estibas",
+    registro_id: data.id,
+    valores_despues: { nombre: data.nombre },
+  });
+
+  return res.json({ data, mensaje: "Estiba registrada" });
+};
+
+const misEstibas = async (req, res) => {
+  const usuario_id = req.usuario?.id;
+  const { data, error } = await supabase
+    .from("estibas")
+    .select("id, nombre, estado, created_at")
+    .eq("montacarguista_id", usuario_id)
+    .eq("estado", "activa")
+    .order("created_at", { ascending: false });
+  if (error) return res.status(500).json({ error: error.message });
+  return res.json(data || []);
 };
 
 module.exports = {
@@ -378,4 +489,6 @@ module.exports = {
   asignarMontacarguista,
   misListas,
   bajarCaja,
+  crearEstiba,
+  misEstibas,
 };

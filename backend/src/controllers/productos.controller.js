@@ -21,13 +21,29 @@ const buscarProducto = async (req, res) => {
 };
 
 const listarProductos = async (req, res) => {
-  const { data, error } = await supabase
+  const { buscar } = req.query;
+  const lim = Math.min(Number(req.query.limit) || 100, 500);
+  const off = Math.max(Number(req.query.offset) || 0, 0);
+
+  let query = supabase
     .from("productos")
     .select(
       "id, codigo_interno, descripcion_corta, unidad_empaque, unidad_base",
     )
     .eq("activo", true)
-    .order("codigo_interno");
+    .order("codigo_interno")
+    .range(off, off + lim - 1);
+
+  if (buscar) {
+    // Sanitiza caracteres que romperían el filtro .or de PostgREST.
+    const t = String(buscar).replace(/[,()%]/g, "").trim();
+    if (t)
+      query = query.or(
+        `codigo_interno.ilike.%${t}%,descripcion_corta.ilike.%${t}%`,
+      );
+  }
+
+  const { data, error } = await query;
 
   if (error) return res.status(500).json({ error: error.message });
 
