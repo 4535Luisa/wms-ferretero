@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const { requireRoles } = require("../middlewares/auth.middleware");
 const {
   listarUsuarios,
   crearUsuario,
@@ -8,10 +9,10 @@ const {
   listarBodegas,
 } = require("../controllers/usuarios.controller");
 
-router.get("/", listarUsuarios);
-router.post("/", crearUsuario);
-router.put("/:id", actualizarUsuario);
-router.patch("/:id/toggle", toggleUsuario);
+router.get("/", requireRoles("administrador"), listarUsuarios);
+router.post("/", requireRoles("administrador"), crearUsuario);
+router.put("/:id", requireRoles("administrador"), actualizarUsuario);
+router.patch("/:id/toggle", requireRoles("administrador"), toggleUsuario);
 router.get("/bodegas", listarBodegas);
 
 module.exports = router;

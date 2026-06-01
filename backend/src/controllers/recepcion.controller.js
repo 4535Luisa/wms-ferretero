@@ -124,10 +124,17 @@ const inspeccionarItem = async (req, res) => {
 
 const confirmarRecepcion = async (req, res) => {
   const { id } = req.params;
+  const usuario_id = req.usuario?.id || null;
+
+  const { data: recepcion } = await supabase
+    .from("recepciones")
+    .select("proveedor, numero_oc")
+    .eq("id", id)
+    .single();
 
   const { data: items, error: errorItems } = await supabase
     .from("recepcion_items")
-    .select("*, productos(id)")
+    .select("*, productos(id, codigo_interno, descripcion_corta)")
     .eq("recepcion_id", id);
 
   if (errorItems) return res.status(500).json({ error: errorItems.message });
@@ -146,21 +153,22 @@ const confirmarRecepcion = async (req, res) => {
   for (const item of itemsAprobados) {
     const cantidad = item.cantidad_aprobada || item.cantidad_recibida;
 
-    const { data: inventarioExistente } = await supabase
+    // Tolerante a filas duplicadas: si existe inventario, suma; si no, crea.
+    const { data: invRows } = await supabase
       .from("inventario")
       .select("*")
       .eq("producto_id", item.producto_id)
       .eq("bodega_id", item.bodega_id)
-      .single();
+      .order("created_at", { ascending: true });
+    const inv = (invRows || [])[0];
+    const antes = inv?.cantidad_disponible || 0;
+    const despues = antes + cantidad;
 
-    if (inventarioExistente) {
+    if (inv) {
       await supabase
         .from("inventario")
-        .update({
-          cantidad_disponible:
-            inventarioExistente.cantidad_disponible + cantidad,
-        })
-        .eq("id", inventarioExistente.id);
+        .update({ cantidad_disponible: despues })
+        .eq("id", inv.id);
     } else {
       await supabase.from("inventario").insert({
         producto_id: item.producto_id,
@@ -168,6 +176,24 @@ const confirmarRecepcion = async (req, res) => {
         cantidad_disponible: cantidad,
       });
     }
+
+    // Trazabilidad: toda recepción registra usuario, fecha y hora (railguard).
+    await supabase.from("bitacora").insert({
+      usuario_id,
+      accion: "RECEPCION_CONFIRMADA",
+      tabla: "inventario",
+      registro_id: item.producto_id,
+      valores_antes: { cantidad_disponible: antes, bodega_id: item.bodega_id },
+      valores_despues: {
+        cantidad_disponible: despues,
+        bodega_id: item.bodega_id,
+        proveedor: recepcion?.proveedor,
+        factura: recepcion?.numero_oc,
+        referencia: item.productos?.codigo_interno,
+        producto: item.productos?.descripcion_corta,
+        recepcion_id: id,
+      },
+    });
   }
 
   await supabase
@@ -229,12 +255,13 @@ const confirmarRecepcionDirecto = async (req, res) => {
   }
 
   for (const item of items) {
-    const { data: inv } = await supabase
+    const { data: invRows } = await supabase
       .from("inventario")
       .select("*")
       .eq("producto_id", item.producto_id)
       .eq("bodega_id", recepcion.bodega_id)
-      .single();
+      .order("created_at", { ascending: true });
+    const inv = (invRows || [])[0];
 
     const cantidadAntes = inv?.cantidad_disponible || 0;
     const cantidadDespues = cantidadAntes + item.cantidad_recibida;

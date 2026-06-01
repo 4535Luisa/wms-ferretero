@@ -1,4 +1,7 @@
+const crypto = require("crypto");
 const supabase = require("../utils/supabase");
+
+const SINGLE_SESSION = process.env.SINGLE_SESSION === "true";
 
 const login = async (req, res) => {
   const { email, password } = req.body;
@@ -32,8 +35,20 @@ const login = async (req, res) => {
     return res.status(403).json({ error: "Usuario inactivo" });
   }
 
+  // Sesión única: genera un id de sesión y lo guarda; cualquier sesión previa
+  // queda invalidada (railguard). Requiere la columna usuarios.sesion_actual.
+  let sesion_id = null;
+  if (SINGLE_SESSION) {
+    sesion_id = crypto.randomUUID();
+    await supabase
+      .from("usuarios")
+      .update({ sesion_actual: sesion_id })
+      .eq("id", usuario.id);
+  }
+
   return res.json({
     token: data.session.access_token,
+    sesion_id,
     usuario: {
       id: usuario.id,
       nombre: usuario.nombre,
@@ -52,25 +67,38 @@ const logout = async (req, res) => {
   return res.json({ mensaje: "Sesión cerrada correctamente" });
 };
 
+// Crea los usuarios semilla. Las credenciales NO se hardcodean: se leen de la
+// variable de entorno SEED_USERS (JSON), o del body de la petición (admin).
+// Ejemplo SEED_USERS: [{"email":"admin@indurruedas.com","password":"..."}]
 const crearUsuarios = async (req, res) => {
-  const usuarios = [
-    { email: "admin@indurruedas.com", password: "Admin2024*" },
-    {
-      email: "montacarguista@indurruedas.com",
-      password: "Montacarguista2024*",
-    },
-    { email: "operario1@indurruedas.com", password: "Operario2024*" },
-    { email: "operario2@indurruedas.com", password: "Operario2024*" },
-    { email: "saldos@indurruedas.com", password: "Saldos2024*" },
-    { email: "jefebodega@indurruedas.com", password: "Jefebodega2024*" },
-    { email: "gerente@indurruedas.com", password: "Gerente2024*" },
-    { email: "inventarios@indurruedas.com", password: "Inventarios2024*" },
-  ];
+  let usuarios = req.body?.usuarios;
+
+  if (!Array.isArray(usuarios) || usuarios.length === 0) {
+    if (process.env.SEED_USERS) {
+      try {
+        usuarios = JSON.parse(process.env.SEED_USERS);
+      } catch {
+        return res
+          .status(500)
+          .json({ error: "SEED_USERS no es un JSON válido" });
+      }
+    }
+  }
+
+  if (!Array.isArray(usuarios) || usuarios.length === 0) {
+    return res.status(400).json({
+      error:
+        "Define la variable SEED_USERS (JSON) o envía 'usuarios' en el body. No hay credenciales en el código.",
+    });
+  }
 
   const resultados = [];
-
   for (const u of usuarios) {
-    const { data, error } = await supabase.auth.admin.createUser({
+    if (!u?.email || !u?.password) {
+      resultados.push({ email: u?.email, ok: false, error: "email/password requerido" });
+      continue;
+    }
+    const { error } = await supabase.auth.admin.createUser({
       email: u.email,
       password: u.password,
       email_confirm: true,

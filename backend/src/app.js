@@ -9,6 +9,7 @@ const usuariosRoutes = require("./routes/usuarios.routes");
 const pedidosRoutes = require("./routes/pedidos.routes");
 const authMiddleware = require("./middlewares/auth.middleware");
 const pickingRoutes = require("./routes/picking.routes");
+const saldosRoutes = require("./routes/saldos.routes");
 
 const app = express();
 
@@ -42,5 +43,6 @@ app.use("/api/productos", authMiddleware, productosRoutes);
 app.use("/api/usuarios", authMiddleware, usuariosRoutes);
 app.use("/api/pedidos", authMiddleware, pedidosRoutes);
 app.use("/api/picking", authMiddleware, pickingRoutes);
+app.use("/api/saldos", authMiddleware, saldosRoutes);
 
 module.exports = app;

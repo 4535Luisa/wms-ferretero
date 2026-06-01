@@ -11,8 +11,15 @@ export default function Montacarguista() {
   const [mensaje, setMensaje] = useState({ texto: "", tipo: "" });
   const [cargando, setCargando] = useState(false);
 
+  const [estibas, setEstibas] = useState([]);
+  const [estibaActiva, setEstibaActiva] = useState("");
+  const [showEstibaForm, setShowEstibaForm] = useState(false);
+  const [nombreEstiba, setNombreEstiba] = useState("");
+  const [fotoEstiba, setFotoEstiba] = useState("");
+
   useEffect(() => {
     cargarListas();
+    cargarEstibas();
   }, []);
 
   const cargarListas = async () => {
@@ -24,9 +31,69 @@ export default function Montacarguista() {
     }
   };
 
+  const cargarEstibas = async () => {
+    try {
+      const { data } = await api.get("/api/picking/estibas");
+      setEstibas(data);
+      if (data.length > 0 && !estibaActiva) setEstibaActiva(data[0].id);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const mostrarMensaje = (texto, tipo = "ok") => {
     setMensaje({ texto, tipo });
     setTimeout(() => setMensaje({ texto: "", tipo: "" }), 3000);
+  };
+
+  // Redimensiona la foto a ~640px para no guardar imágenes enormes.
+  const onFoto = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const max = 640;
+        const escala = Math.min(1, max / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width * escala;
+        canvas.height = img.height * escala;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        setFotoEstiba(canvas.toDataURL("image/jpeg", 0.6));
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const registrarEstiba = async () => {
+    if (!nombreEstiba.trim()) {
+      mostrarMensaje("El nombre de la estiba es obligatorio", "error");
+      return;
+    }
+    if (!fotoEstiba) {
+      mostrarMensaje("La foto de la estiba es obligatoria", "error");
+      return;
+    }
+    setCargando(true);
+    try {
+      const { data } = await api.post("/api/picking/estibas", {
+        nombre: nombreEstiba.trim(),
+        foto_url: fotoEstiba,
+      });
+      mostrarMensaje("✓ Estiba registrada");
+      setNombreEstiba("");
+      setFotoEstiba("");
+      setShowEstibaForm(false);
+      await cargarEstibas();
+      if (data?.data?.id) setEstibaActiva(data.data.id);
+    } catch (err) {
+      mostrarMensaje(err.response?.data?.error || "Error al registrar", "error");
+    } finally {
+      setCargando(false);
+    }
   };
 
   const abrirLista = (lista) => {
@@ -35,16 +102,22 @@ export default function Montacarguista() {
   };
 
   const marcarBajada = async (itemId) => {
+    if (!estibaActiva) {
+      mostrarMensaje("Registra o selecciona una estiba antes de bajar", "error");
+      return;
+    }
     setCargando(true);
     try {
-      await api.patch(`/api/picking/items/${itemId}/bajar`);
+      await api.patch(`/api/picking/items/${itemId}/bajar`, {
+        estiba_id: estibaActiva,
+      });
       mostrarMensaje("✓ Caja registrada como bajada — inventario actualizado");
       const { data } = await api.get("/api/picking/mis-listas");
       setListas(data);
       const listaActualizada = data.find((l) => l.id === listaActiva?.id);
       if (listaActualizada) setListaActiva(listaActualizada);
     } catch (err) {
-      mostrarMensaje("Error al registrar", "error");
+      mostrarMensaje(err.response?.data?.error || "Error al registrar", "error");
     } finally {
       setCargando(false);
     }
@@ -126,7 +199,7 @@ export default function Montacarguista() {
                 const total = lista.lista_picking_items?.length || 0;
                 const bajadas =
                   lista.lista_picking_items?.filter(
-                    (i) => i.estado === "bajada",
+                    (i) => i.estado !== "pendiente",
                   ).length || 0;
                 const porcentaje =
                   total > 0 ? Math.round((bajadas / total) * 100) : 0;
@@ -256,7 +329,7 @@ export default function Montacarguista() {
               >
                 {
                   listaActiva.lista_picking_items?.filter(
-                    (i) => i.estado === "bajada",
+                    (i) => i.estado !== "pendiente",
                   ).length
                 }{" "}
                 / {listaActiva.lista_picking_items?.length} cajas
@@ -282,7 +355,7 @@ export default function Montacarguista() {
               >
                 {Math.round(
                   ((listaActiva.lista_picking_items?.filter(
-                    (i) => i.estado === "bajada",
+                    (i) => i.estado !== "pendiente",
                   ).length || 0) /
                     (listaActiva.lista_picking_items?.length || 1)) *
                     100,
@@ -290,6 +363,129 @@ export default function Montacarguista() {
                 %
               </div>
             </div>
+          </div>
+
+          {/* Barra de estiba: foto obligatoria para registrar (railguard) */}
+          <div
+            style={{
+              background: "#FFFFFF",
+              border: "1px solid #E8E8E8",
+              borderRadius: "12px",
+              padding: "1rem 1.25rem",
+              marginBottom: "1rem",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                flexWrap: "wrap",
+              }}
+            >
+              <span style={{ fontSize: "13px", fontWeight: 600, color: "#0A0A0A" }}>
+                📦 Estiba activa:
+              </span>
+              <select
+                value={estibaActiva}
+                onChange={(e) => setEstibaActiva(e.target.value)}
+                style={{
+                  padding: "8px 12px",
+                  border: "1px solid #E8E8E8",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  flex: 1,
+                  minWidth: "140px",
+                }}
+              >
+                <option value="">— Selecciona —</option>
+                {estibas.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.nombre}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => setShowEstibaForm((v) => !v)}
+                style={{
+                  background: "transparent",
+                  color: "#0A0A0A",
+                  border: "1.5px solid #E8E8E8",
+                  borderRadius: "8px",
+                  padding: "8px 14px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                {showEstibaForm ? "Cancelar" : "+ Registrar estiba"}
+              </button>
+            </div>
+
+            {showEstibaForm && (
+              <div
+                style={{
+                  marginTop: "12px",
+                  paddingTop: "12px",
+                  borderTop: "1px solid #F0F0F0",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "8px",
+                }}
+              >
+                <input
+                  value={nombreEstiba}
+                  onChange={(e) => setNombreEstiba(e.target.value)}
+                  placeholder="Nombre / número de la estiba"
+                  style={{
+                    padding: "9px 12px",
+                    border: "1px solid #E8E8E8",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                  }}
+                />
+                <label style={{ fontSize: "12px", color: "#666", fontWeight: 600 }}>
+                  Foto de la estiba (obligatoria)
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={onFoto}
+                  style={{ fontSize: "13px" }}
+                />
+                {fotoEstiba && (
+                  <img
+                    src={fotoEstiba}
+                    alt="estiba"
+                    style={{
+                      width: "120px",
+                      height: "120px",
+                      objectFit: "cover",
+                      borderRadius: "8px",
+                      border: "1px solid #E8E8E8",
+                    }}
+                  />
+                )}
+                <button
+                  onClick={registrarEstiba}
+                  disabled={cargando}
+                  style={{
+                    background: "#0A0A0A",
+                    color: "#00FF87",
+                    border: "none",
+                    borderRadius: "8px",
+                    padding: "10px 14px",
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    alignSelf: "flex-start",
+                  }}
+                >
+                  Guardar estiba
+                </button>
+              </div>
+            )}
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -300,7 +496,7 @@ export default function Montacarguista() {
                 ),
               )
               .map((item) => {
-                const bajada = item.estado === "bajada";
+                const bajada = item.estado !== "pendiente";
                 return (
                   <div
                     key={item.id}
