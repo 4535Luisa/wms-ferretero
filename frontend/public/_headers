@@ -1,0 +1,13 @@
+# Cabeceras de seguridad para el SPA (Netlify las aplica a todo lo servido).
+# Mitigan XSS y clickjacking. El token vive en localStorage, así que la pieza
+# clave es `script-src 'self'` SIN 'unsafe-inline': bloquea scripts inyectados
+# y, junto a connect-src acotado, impide exfiltrar el token a otro origen.
+#
+# IMPORTANTE: connect-src debe incluir la URL del backend (VITE_API_URL). Si
+# cambias de backend/dominio, actualiza la URL de connect-src aquí.
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://wms-macho-backend.onrender.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'

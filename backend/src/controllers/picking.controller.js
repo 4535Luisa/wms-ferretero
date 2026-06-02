@@ -453,6 +453,35 @@ const misEstibas = async (req, res) => {
   return res.json(data || []);
 };
 
+// Cancela una lista de picking y libera el comprometido de sus ítems pendientes
+// (RPC transaccional). Ver backend/sql/2026-06-01_rpc_cancelar_lista.sql
+const cancelarLista = async (req, res) => {
+  const { id } = req.params;
+  const usuario_id = req.usuario?.id || null;
+
+  const { data, error } = await supabase.rpc("cancelar_lista_picking", {
+    p_lista_id: id,
+    p_usuario_id: usuario_id,
+  });
+  if (error) return sendServerError(res, error, req);
+
+  const r = data || {};
+  switch (r.status) {
+    case "not_found":
+      return res.status(404).json({ error: "Lista no encontrada" });
+    case "already_done":
+      return res.status(400).json({ error: "La lista ya fue cancelada" });
+    case "ok":
+      break;
+    default:
+      return res.status(500).json({ error: "Error procesando la solicitud" });
+  }
+
+  return res.json({
+    mensaje: `Lista cancelada — ${r.items_cancelados} ítem(s) liberados`,
+  });
+};
+
 module.exports = {
   generarListasPicking,
   listarListasPicking,
@@ -461,4 +490,5 @@ module.exports = {
   bajarCaja,
   crearEstiba,
   misEstibas,
+  cancelarLista,
 };

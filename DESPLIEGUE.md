@@ -27,6 +27,7 @@ El esquema vive en Supabase. El repo versiona solo las migraciones en
 2. `2026-06-01_rpc_entregar_saldo.sql`
 3. `2026-06-01_rpc_picking_saldos.sql`
 4. `2026-06-01_rpc_recepciones.sql`
+5. `2026-06-01_rpc_cancelar_lista.sql`
 
 Las funciones RPC (3 últimos archivos) son **obligatorias**: el backend las
 invoca para que las operaciones de inventario sean atómicas/idempotentes. Si no
@@ -119,7 +120,21 @@ El hosting **debe** instalar dependencias desde `package.json` + `pnpm-lock.yaml
 
 ---
 
-## 8. Pruebas
+## 8. Seguridad del frontend (CSP / cabeceras)
+
+`frontend/public/_headers` (Netlify lo aplica a todo lo servido) define CSP y
+cabeceras de seguridad para mitigar XSS y clickjacking. Como el token vive en
+`localStorage`, la pieza clave es `script-src 'self'` **sin** `'unsafe-inline'`.
+
+- ⚠️ `connect-src` debe incluir la URL del backend (`VITE_API_URL`). Hoy apunta a
+  `https://wms-macho-backend.onrender.com`. **Si cambias de backend/dominio,
+  actualiza esa URL en `_headers`** o las llamadas a la API quedarán bloqueadas.
+- (Opcional) Reducir XSS aún más: bajar el TTL del JWT en Supabase
+  (**Auth → Settings**); el frontend ya hace logout automático ante 401.
+
+---
+
+## 9. Pruebas
 
 ```bash
 cd backend && pnpm test      # node --test (lógica pura)
