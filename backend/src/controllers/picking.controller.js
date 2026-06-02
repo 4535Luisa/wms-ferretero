@@ -7,6 +7,21 @@ const generarListasPicking = async (req, res) => {
   if (!pedido_ids || pedido_ids.length === 0)
     return res.status(400).json({ error: "No hay pedidos para procesar" });
 
+  // Idempotencia: omite pedidos que YA tienen ítems de picking generados. Sin
+  // esto, re-ejecutar volvía a comprometer inventario y duplicaba listas.
+  const { data: yaGenerados } = await supabase
+    .from("lista_picking_items")
+    .select("pedido_id")
+    .in("pedido_id", pedido_ids);
+  const conPicking = new Set((yaGenerados || []).map((i) => i.pedido_id));
+  const pedidosAProcesar = pedido_ids.filter((id) => !conPicking.has(id));
+  if (pedidosAProcesar.length === 0) {
+    return res.json({
+      listas: [],
+      mensaje: "Los pedidos seleccionados ya tienen listas generadas",
+    });
+  }
+
   // Bodegas (incl. SALDOS) en una sola consulta.
   const { data: bodegasData } = await supabase
     .from("bodegas")
@@ -47,11 +62,11 @@ const generarListasPicking = async (req, res) => {
     .select(
       "*, pedido_items(*, productos(codigo_interno, descripcion_corta, unidad_empaque))",
     )
-    .in("id", pedido_ids);
+    .in("id", pedidosAProcesar);
   const pedidosMap = {};
   for (const p of pedidosData || []) pedidosMap[p.id] = p;
 
-  for (const pedidoId of pedido_ids) {
+  for (const pedidoId of pedidosAProcesar) {
     const pedido = pedidosMap[pedidoId];
     if (!pedido) continue;
 

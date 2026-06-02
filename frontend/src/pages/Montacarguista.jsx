@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "../context/AuthContext";
 import Layout from "../components/Layout";
 import api from "../services/api";
 
 export default function Montacarguista() {
-  const { usuario } = useAuth();
   const [listas, setListas] = useState([]);
   const [listaActiva, setListaActiva] = useState(null);
   const [vista, setVista] = useState("lista");
@@ -16,11 +14,6 @@ export default function Montacarguista() {
   const [showEstibaForm, setShowEstibaForm] = useState(false);
   const [nombreEstiba, setNombreEstiba] = useState("");
   const [fotoEstiba, setFotoEstiba] = useState("");
-
-  useEffect(() => {
-    cargarListas();
-    cargarEstibas();
-  }, []);
 
   const cargarListas = async () => {
     try {
@@ -40,6 +33,14 @@ export default function Montacarguista() {
       console.error(err);
     }
   };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    cargarListas();
+    cargarEstibas();
+    // Solo al montar: las funciones se redefinen cada render; no van en deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const mostrarMensaje = (texto, tipo = "ok") => {
     setMensaje({ texto, tipo });

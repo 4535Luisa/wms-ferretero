@@ -9,10 +9,6 @@ export default function Facturacion() {
   const [mensaje, setMensaje] = useState({ texto: "", tipo: "" });
   const [cargando, setCargando] = useState(false);
 
-  useEffect(() => {
-    cargarPedidos();
-  }, []);
-
   const cargarPedidos = async () => {
     try {
       const { data } = await api.get("/api/pedidos?estado=cerrado");
@@ -21,6 +17,11 @@ export default function Facturacion() {
       console.error(err);
     }
   };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    cargarPedidos();
+  }, []);
 
   const mostrarMensaje = (texto, tipo = "ok") => {
     setMensaje({ texto, tipo });

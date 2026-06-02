@@ -1,13 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import Etiqueta from "../components/Etiqueta";
 import api from "../services/api";
 
 export default function JefeBodegaRecepcion() {
   const { usuario } = useAuth();
-  const navigate = useNavigate();
   const [vista, setVista] = useState("lista");
   const [recepciones, setRecepciones] = useState([]);
   const [recepcionActiva, setRecepcionActiva] = useState(null);
@@ -21,14 +19,6 @@ export default function JefeBodegaRecepcion() {
   const [colaEtiquetas, setColaEtiquetas] = useState([]);
   const scanRef = useRef(null);
 
-  useEffect(() => {
-    cargarRecepciones();
-  }, []);
-
-  useEffect(() => {
-    if (vista === "recibiendo" && scanRef.current) scanRef.current.focus();
-  }, [vista]);
-
   const cargarRecepciones = async () => {
     try {
       const { data } = await api.get(
@@ -39,6 +29,17 @@ export default function JefeBodegaRecepcion() {
       console.error(err);
     }
   };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    cargarRecepciones();
+    // Solo al montar: cargarRecepciones se redefine cada render; no va en deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (vista === "recibiendo" && scanRef.current) scanRef.current.focus();
+  }, [vista]);
 
   const mostrarMensaje = (texto, tipo = "ok") => {
     setMensaje({ texto, tipo });

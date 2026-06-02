@@ -13,6 +13,7 @@ const saldosRoutes = require("./routes/saldos.routes");
 const { errorHandler, notFoundHandler } = require("./utils/errors");
 const { apiLimiter, authLimiter } = require("./middlewares/rateLimit");
 const { construirCorsOptions } = require("./utils/cors");
+const requestLogger = require("./middlewares/requestLogger");
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.set("trust proxy", 1);
 app.use(helmet());
 app.use(cors(construirCorsOptions()));
 app.use(express.json({ limit: "1mb" }));
+app.use(requestLogger);
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok", proyecto: "WMS Ferretero" });

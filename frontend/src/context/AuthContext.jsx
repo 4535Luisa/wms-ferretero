@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import api from "../services/api";
 
 const AuthContext = createContext();
@@ -39,6 +39,14 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("sesion_id");
     setUsuario(null);
   };
+
+  // Cierre de sesión disparado por el interceptor 401 (token expirado o sesión
+  // cerrada en otro dispositivo). PrivateRoute redirige a /login al quedar null.
+  useEffect(() => {
+    const onLogout = () => logout();
+    window.addEventListener("auth:logout", onLogout);
+    return () => window.removeEventListener("auth:logout", onLogout);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ usuario, login, logout, cargando }}>
