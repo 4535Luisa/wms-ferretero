@@ -41,10 +41,6 @@ export default function AdminPedidos() {
   const [cargando, setCargando] = useState(false);
   const [filtroEstado, setFiltroEstado] = useState("");
 
-  useEffect(() => {
-    cargarDatos();
-  }, []);
-
   const cargarDatos = async () => {
     try {
       const [{ data: p }, { data: o }, { data: b }, { data: l }] =
@@ -64,6 +60,13 @@ export default function AdminPedidos() {
     }
   };
 
+  useEffect(() => {
+    // Carga inicial al montar. El setState ocurre tras await (asíncrono), no
+    // de forma síncrona, así que no genera renders en cascada.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    cargarDatos();
+  }, []);
+
   const mostrarMensaje = (texto, tipo = "ok") => {
     setMensaje({ texto, tipo });
     setTimeout(() => setMensaje({ texto: "", tipo: "" }), 4000);
@@ -74,24 +77,37 @@ export default function AdminPedidos() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const data = new Uint8Array(ev.target.result);
-      const workbook = XLSX.read(data, { type: "array" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-      const pedidosMap = {};
-      for (let i = 1; i < rows.length; i++) {
-        const row = rows[i];
-        if (!row[0] || !row[1]) continue;
-        const numero = String(row[0]).trim();
-        const referencia = String(row[1]).trim();
-        const descripcion = String(row[2] || "").trim();
-        const cantidad = Number(row[3]) || 0;
-        if (!pedidosMap[numero]) pedidosMap[numero] = { numero, items: [] };
-        pedidosMap[numero].items.push({ referencia, descripcion, cantidad });
+      try {
+        const data = new Uint8Array(ev.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        const pedidosMap = {};
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i];
+          if (!row[0] || !row[1]) continue;
+          const numero = String(row[0]).trim();
+          const referencia = String(row[1]).trim();
+          const descripcion = String(row[2] || "").trim();
+          const cantidad = Number(row[3]) || 0;
+          if (!pedidosMap[numero]) pedidosMap[numero] = { numero, items: [] };
+          pedidosMap[numero].items.push({ referencia, descripcion, cantidad });
+        }
+        const pedidos = Object.values(pedidosMap);
+        if (pedidos.length === 0) {
+          mostrarMensaje("El archivo no tiene filas válidas", "error");
+          return;
+        }
+        setPreviaCsv(pedidos);
+        setVista("preview");
+      } catch {
+        mostrarMensaje(
+          "No se pudo leer el archivo. Verifica que sea un CSV/Excel válido.",
+          "error",
+        );
       }
-      setPreviaCsv(Object.values(pedidosMap));
-      setVista("preview");
     };
+    reader.onerror = () => mostrarMensaje("Error al leer el archivo", "error");
     reader.readAsArrayBuffer(file);
   };
 
@@ -102,10 +118,13 @@ export default function AdminPedidos() {
     try {
       const productosCache = {};
       const pedidosConIds = [];
+      const noEncontradas = new Set();
       for (const pedido of previaCsv) {
         const itemsConIds = [];
         for (const item of pedido.items) {
-          if (!productosCache[item.referencia]) {
+          // Cachea también los "no encontrado" (null) para no repetir la
+          // búsqueda de la misma referencia en cada ocurrencia.
+          if (!(item.referencia in productosCache)) {
             try {
               const { data } = await api.get(
                 `/api/productos/buscar?referencia=${item.referencia}`,
@@ -122,6 +141,8 @@ export default function AdminPedidos() {
               cantidad_pedida: item.cantidad,
               descripcion: item.descripcion,
             });
+          } else {
+            noEncontradas.add(item.referencia);
           }
         }
         pedidosConIds.push({
@@ -131,11 +152,18 @@ export default function AdminPedidos() {
         });
       }
 
+      // No se descartan referencias en silencio: se avisa al usuario.
+      const avisoRef =
+        noEncontradas.size > 0
+          ? ` · ⚠ ${noEncontradas.size} referencia(s) no encontradas y omitidas`
+          : "";
+
       const { data: importResult } = await api.post("/api/pedidos/csv", {
         pedidos: pedidosConIds,
       });
       mostrarMensaje(
-        `✓ ${importResult.importados} pedidos importados · generando listas...`,
+        `✓ ${importResult.importados} pedidos importados · generando listas...${avisoRef}`,
+        noEncontradas.size > 0 ? "error" : "ok",
       );
 
       const { data: pedidosNuevos } = await api.get(
@@ -148,7 +176,8 @@ export default function AdminPedidos() {
           pedido_ids: ids,
         });
         mostrarMensaje(
-          `✓ ${importResult.importados} pedidos importados · ${listasResult.listas.length} listas generadas`,
+          `✓ ${importResult.importados} pedidos importados · ${listasResult.listas.length} listas generadas${avisoRef}`,
+          noEncontradas.size > 0 ? "error" : "ok",
         );
       }
 
@@ -255,7 +284,7 @@ export default function AdminPedidos() {
       });
       mostrarMensaje("✓ Montacarguista asignado a la lista");
       cargarDatos();
-    } catch (err) {
+    } catch {
       mostrarMensaje("Error al asignar montacarguista", "error");
     }
   };

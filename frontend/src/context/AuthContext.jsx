@@ -1,20 +1,28 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState } from "react";
 import api from "../services/api";
 
 const AuthContext = createContext();
 
-export const AuthProvider = ({ children }) => {
-  const [usuario, setUsuario] = useState(null);
-  const [cargando, setCargando] = useState(true);
-
-  useEffect(() => {
+// Lee la sesión guardada de forma segura. Si localStorage está corrupto, lo
+// limpia en vez de crashear la app.
+function leerSesionGuardada() {
+  try {
     const token = localStorage.getItem("token");
     const usuarioGuardado = localStorage.getItem("usuario");
-    if (token && usuarioGuardado) {
-      setUsuario(JSON.parse(usuarioGuardado));
-    }
-    setCargando(false);
-  }, []);
+    if (token && usuarioGuardado) return JSON.parse(usuarioGuardado);
+  } catch {
+    localStorage.removeItem("token");
+    localStorage.removeItem("usuario");
+    localStorage.removeItem("sesion_id");
+  }
+  return null;
+}
+
+export const AuthProvider = ({ children }) => {
+  // La sesión se resuelve de forma síncrona al montar (init perezoso de
+  // useState): no hay carga asíncrona, por eso `cargando` es siempre false.
+  const [usuario, setUsuario] = useState(leerSesionGuardada);
+  const cargando = false;
 
   const login = async (email, password) => {
     const { data } = await api.post("/api/auth/login", { email, password });
@@ -39,4 +47,5 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(AuthContext);

@@ -1,5 +1,7 @@
 const supabase = require("../utils/supabase");
 const { ORDEN_BODEGAS, splitCajaSaldo } = require("../utils/picking");
+const { sendServerError } = require("../utils/errors");
+const { toFiniteNumber } = require("../utils/validate");
 
 const cargarCSV = async (req, res) => {
   const { pedidos } = req.body;
@@ -66,6 +68,31 @@ const cargarCSV = async (req, res) => {
   return res.json(resultados);
 };
 
+// Adjunta los objetos operario/montacarguista a una lista de pedidos en una
+// sola consulta (evita N+1 y deduplica la lógica de mapeo entre endpoints).
+const adjuntarUsuarios = async (pedidos) => {
+  const ids = [
+    ...new Set(
+      pedidos.flatMap((p) =>
+        [p.operario_id, p.montacarguista_id].filter(Boolean),
+      ),
+    ),
+  ];
+  let mapa = {};
+  if (ids.length > 0) {
+    const { data: usuarios } = await supabase
+      .from("usuarios")
+      .select("id, nombre, email, rol")
+      .in("id", ids);
+    if (usuarios) mapa = Object.fromEntries(usuarios.map((u) => [u.id, u]));
+  }
+  return pedidos.map((p) => ({
+    ...p,
+    operario: p.operario_id ? mapa[p.operario_id] || null : null,
+    montacarguista: p.montacarguista_id ? mapa[p.montacarguista_id] || null : null,
+  }));
+};
+
 const listarPedidos = async (req, res) => {
   const { estado, bodega_id, limit, offset } = req.query;
 
@@ -87,36 +114,9 @@ const listarPedidos = async (req, res) => {
   }
 
   const { data: pedidos, error } = await query;
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
 
-  const usuariosIds = [
-    ...new Set([
-      ...pedidos.filter((p) => p.operario_id).map((p) => p.operario_id),
-      ...pedidos
-        .filter((p) => p.montacarguista_id)
-        .map((p) => p.montacarguista_id),
-    ]),
-  ];
-
-  let usuariosMap = {};
-  if (usuariosIds.length > 0) {
-    const { data: usuarios } = await supabase
-      .from("usuarios")
-      .select("id, nombre, email, rol")
-      .in("id", usuariosIds);
-    if (usuarios)
-      usuariosMap = Object.fromEntries(usuarios.map((u) => [u.id, u]));
-  }
-
-  return res.json(
-    pedidos.map((p) => ({
-      ...p,
-      operario: p.operario_id ? usuariosMap[p.operario_id] : null,
-      montacarguista: p.montacarguista_id
-        ? usuariosMap[p.montacarguista_id]
-        : null,
-    })),
-  );
+  return res.json(await adjuntarUsuarios(pedidos));
 };
 
 // Acumula unidades sueltas en la cola de saldos, consolidando por operario +
@@ -392,7 +392,7 @@ const asignarPedido = async (req, res) => {
     .select()
     .single();
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
   return res.json({ data, mensaje: "Pedido asignado correctamente" });
 };
 
@@ -407,29 +407,10 @@ const obtenerPedido = async (req, res) => {
     .eq("id", id)
     .single();
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
 
-  const usuariosIds = [pedido.operario_id, pedido.montacarguista_id].filter(
-    Boolean,
-  );
-  let usuariosMap = {};
-
-  if (usuariosIds.length > 0) {
-    const { data: usuarios } = await supabase
-      .from("usuarios")
-      .select("id, nombre, email, rol")
-      .in("id", usuariosIds);
-    if (usuarios)
-      usuariosMap = Object.fromEntries(usuarios.map((u) => [u.id, u]));
-  }
-
-  return res.json({
-    ...pedido,
-    operario: pedido.operario_id ? usuariosMap[pedido.operario_id] : null,
-    montacarguista: pedido.montacarguista_id
-      ? usuariosMap[pedido.montacarguista_id]
-      : null,
-  });
+  const [enriquecido] = await adjuntarUsuarios([pedido]);
+  return res.json(enriquecido);
 };
 
 const listarOperarios = async (req, res) => {
@@ -440,7 +421,7 @@ const listarOperarios = async (req, res) => {
     .eq("activo", true)
     .order("nombre");
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
   return res.json(data);
 };
 
@@ -484,7 +465,7 @@ const facturarPedido = async (req, res) => {
     })
     .eq("id", id);
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
 
   await supabase.from("bitacora").insert({
     usuario_id,
@@ -520,7 +501,7 @@ const cambiarPrioridad = async (req, res) => {
     .select()
     .single();
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
   return res.json({ data, mensaje: "Prioridad actualizada" });
 };
 
@@ -542,7 +523,7 @@ const misPedidosOperario = async (req, res) => {
     .order("prioridad", { ascending: false })
     .order("hora_asignacion", { ascending: true });
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
   if (!pedidos || pedidos.length === 0) return res.json([]);
 
   // Estado del barrido: trae los ítems de picking (cajas) de estos pedidos.
@@ -626,10 +607,15 @@ const actualizarItemOperario = async (req, res) => {
     });
   }
 
-  const cantidadFinal =
-    cantidad_picking === undefined || cantidad_picking === null
-      ? item.cantidad_pedida
-      : Number(cantidad_picking);
+  let cantidadFinal;
+  if (cantidad_picking === undefined || cantidad_picking === null) {
+    cantidadFinal = item.cantidad_pedida;
+  } else {
+    cantidadFinal = toFiniteNumber(cantidad_picking);
+    if (cantidadFinal === null) {
+      return res.status(400).json({ error: "Cantidad inválida" });
+    }
+  }
 
   if (cantidadFinal < 0) {
     return res.status(400).json({ error: "Cantidad inválida" });
@@ -654,7 +640,7 @@ const actualizarItemOperario = async (req, res) => {
     .select()
     .single();
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
 
   await supabase.from("bitacora").insert({
     usuario_id,
@@ -717,7 +703,7 @@ const cerrarPedido = async (req, res) => {
       cerrado_por: usuario_id,
     })
     .eq("id", id);
-  if (errUpd) return res.status(500).json({ error: errUpd.message });
+  if (errUpd) return sendServerError(res, errUpd, req);
 
   // Notifica a todos los usuarios de facturación.
   const { data: facturadores } = await supabase
@@ -775,7 +761,7 @@ const reabrirPedido = async (req, res) => {
     .from("pedidos")
     .update({ estado: "en_proceso", hora_cierre: null, cerrado_por: null })
     .eq("id", id);
-  if (errUpd) return res.status(500).json({ error: errUpd.message });
+  if (errUpd) return sendServerError(res, errUpd, req);
 
   await supabase.from("bitacora").insert({
     usuario_id,

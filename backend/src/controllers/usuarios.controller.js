@@ -1,4 +1,6 @@
 const supabase = require("../utils/supabase");
+const { sendServerError } = require("../utils/errors");
+const { isEmail } = require("../utils/validate");
 
 const listarUsuarios = async (req, res) => {
   const { data, error } = await supabase
@@ -6,7 +8,7 @@ const listarUsuarios = async (req, res) => {
     .select("*, bodegas(nombre, codigo)")
     .order("created_at", { ascending: false });
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
   return res.json(data);
 };
 
@@ -17,6 +19,15 @@ const crearUsuario = async (req, res) => {
     return res
       .status(400)
       .json({ error: "Email, nombre, rol y contraseña son obligatorios" });
+  }
+
+  if (!isEmail(email)) {
+    return res.status(400).json({ error: "Email inválido" });
+  }
+  if (String(password).length < 8) {
+    return res
+      .status(400)
+      .json({ error: "La contraseña debe tener al menos 8 caracteres" });
   }
 
   const rolesValidos = [
@@ -43,7 +54,7 @@ const crearUsuario = async (req, res) => {
     if (authError.message.includes("already registered")) {
       return res.status(400).json({ error: "El email ya está registrado" });
     }
-    return res.status(500).json({ error: authError.message });
+    return sendServerError(res, authError, req);
   }
 
   const { data, error } = await supabase
@@ -54,7 +65,7 @@ const crearUsuario = async (req, res) => {
 
   if (error) {
     await supabase.auth.admin.deleteUser(authUser.user.id);
-    return res.status(500).json({ error: error.message });
+    return sendServerError(res, error, req);
   }
 
   return res.json({ data, mensaje: "Usuario creado correctamente" });
@@ -71,7 +82,7 @@ const actualizarUsuario = async (req, res) => {
     .select("*, bodegas(nombre, codigo)")
     .single();
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
   return res.json({ data, mensaje: "Usuario actualizado" });
 };
 
@@ -93,7 +104,7 @@ const toggleUsuario = async (req, res) => {
     .select()
     .single();
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
   return res.json({
     data,
     mensaje: `Usuario ${data.activo ? "activado" : "desactivado"}`,
@@ -107,7 +118,7 @@ const listarBodegas = async (req, res) => {
     .eq("activa", true)
     .order("codigo");
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
   return res.json(data);
 };
 

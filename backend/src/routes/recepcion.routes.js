@@ -13,8 +13,8 @@ const {
 } = require("../controllers/recepcion.controller");
 
 router.post("/", requireRoles("jefe_bodega"), crearRecepcion);
-router.get("/", obtenerRecepciones);
-router.get("/:id", obtenerRecepcion);
+router.get("/", requireRoles("jefe_bodega"), obtenerRecepciones);
+router.get("/:id", requireRoles("jefe_bodega"), obtenerRecepcion);
 router.post("/:id/items", requireRoles("jefe_bodega"), agregarItemRecepcion);
 router.patch("/:id/confirmar", requireRoles("jefe_bodega"), confirmarRecepcion);
 router.patch(

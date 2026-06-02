@@ -1,13 +1,5 @@
 const supabase = require("../utils/supabase");
-
-const getSaldosBodegaId = async () => {
-  const { data } = await supabase
-    .from("bodegas")
-    .select("id")
-    .eq("codigo", "SALDOS")
-    .single();
-  return data?.id || null;
-};
+const { sendServerError } = require("../utils/errors");
 
 // Semáforo de urgencia calculado desde la hora límite de despacho (railguard).
 const calcularSemaforo = (horaLimite, hayUrgente) => {
@@ -29,7 +21,7 @@ const colaSaldos = async (req, res) => {
     .select("*")
     .neq("estado", "entregado")
     .order("created_at", { ascending: true });
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
 
   const productoIds = [...new Set((saldos || []).map((s) => s.producto_id))];
   const operarioIds = [...new Set((saldos || []).map((s) => s.operario_id))];
@@ -100,66 +92,31 @@ const confirmarCajaSaldos = async (req, res) => {
   const { itemId } = req.params;
   const usuario_id = req.usuario?.id;
 
-  const { data: item, error } = await supabase
-    .from("lista_picking_items")
-    .select("*")
-    .eq("id", itemId)
-    .single();
-  if (error || !item)
-    return res.status(404).json({ error: "Caja no encontrada" });
-  if (!item.destino_saldos)
-    return res.status(400).json({ error: "Esta caja no tiene destino SALDOS" });
-  if (item.estado === "recibida_saldos")
-    return res.status(400).json({ error: "Esta caja ya fue confirmada" });
-
-  const saldosBodegaId = await getSaldosBodegaId();
-  if (!saldosBodegaId)
-    return res.status(500).json({ error: "Bodega SALDOS no configurada" });
-
-  const cantidad = item.cantidad_unidades || 0;
-
-  const { data: invRows } = await supabase
-    .from("inventario")
-    .select("*")
-    .eq("producto_id", item.producto_id)
-    .eq("bodega_id", saldosBodegaId)
-    .order("created_at", { ascending: true });
-  const inv = (invRows || [])[0];
-
-  const antes = inv?.cantidad_disponible || 0;
-  const despues = antes + cantidad;
-
-  if (inv) {
-    await supabase
-      .from("inventario")
-      .update({ cantidad_disponible: despues })
-      .eq("id", inv.id);
-  } else {
-    await supabase.from("inventario").insert({
-      producto_id: item.producto_id,
-      bodega_id: saldosBodegaId,
-      cantidad_disponible: cantidad,
-    });
-  }
-
-  await supabase
-    .from("lista_picking_items")
-    .update({ estado: "recibida_saldos" })
-    .eq("id", itemId);
-
-  await supabase.from("bitacora").insert({
-    usuario_id,
-    accion: "RECEPCION_SALDOS",
-    tabla: "inventario",
-    registro_id: item.producto_id,
-    valores_antes: { cantidad_disponible: antes, bodega_id: saldosBodegaId },
-    valores_despues: {
-      cantidad_disponible: despues,
-      bodega_id: saldosBodegaId,
-      referencia: item.referencia,
-      lista_picking_item_id: itemId,
-    },
+  // Suba de inventario SALDOS + marca del ítem + bitácora en UNA transacción
+  // con bloqueo de filas. Ver backend/sql/2026-06-01_rpc_picking_saldos.sql
+  const { data, error } = await supabase.rpc("confirmar_caja_saldos", {
+    p_item_id: itemId,
+    p_usuario_id: usuario_id || null,
   });
+  if (error) return sendServerError(res, error, req);
+
+  const r = data || {};
+  switch (r.status) {
+    case "not_found":
+      return res.status(404).json({ error: "Caja no encontrada" });
+    case "not_saldos":
+      return res
+        .status(400)
+        .json({ error: "Esta caja no tiene destino SALDOS" });
+    case "already_done":
+      return res.status(400).json({ error: "Esta caja ya fue confirmada" });
+    case "no_saldos_bodega":
+      return res.status(500).json({ error: "Bodega SALDOS no configurada" });
+    case "ok":
+      break;
+    default:
+      return res.status(500).json({ error: "Error procesando la solicitud" });
+  }
 
   return res.json({
     mensaje: "Caja confirmada — inventario de SALDOS actualizado",
@@ -172,68 +129,40 @@ const entregarSaldo = async (req, res) => {
   const { id } = req.params;
   const usuario_id = req.usuario?.id;
 
-  const { data: saldo, error } = await supabase
-    .from("saldos")
-    .select("*")
-    .eq("id", id)
-    .single();
-  if (error || !saldo)
-    return res.status(404).json({ error: "Saldo no encontrado" });
-  if (saldo.estado === "entregado")
-    return res.status(400).json({ error: "Este saldo ya fue entregado" });
+  // El descuento de inventario + cierre del saldo + bitácora corren en UNA
+  // transacción con bloqueo de filas (RPC entregar_saldo). Evita el doble
+  // descuento bajo concurrencia. Ver backend/sql/2026-06-01_rpc_entregar_saldo.sql
+  const { data, error } = await supabase.rpc("entregar_saldo", {
+    p_saldo_id: id,
+    p_usuario_id: usuario_id || null,
+  });
+  if (error) return sendServerError(res, error, req);
 
-  const saldosBodegaId = await getSaldosBodegaId();
-  if (!saldosBodegaId)
-    return res.status(500).json({ error: "Bodega SALDOS no configurada" });
-
-  const cantidad = saldo.cantidad_total || 0;
-
-  const { data: invRows } = await supabase
-    .from("inventario")
-    .select("*")
-    .eq("producto_id", saldo.producto_id)
-    .eq("bodega_id", saldosBodegaId)
-    .order("created_at", { ascending: true });
-  const inv = (invRows || [])[0];
-
-  const antes = inv?.cantidad_disponible || 0;
-  if (antes < cantidad) {
-    return res.status(400).json({
-      error: `Stock insuficiente en SALDOS (disponible ${antes}, requerido ${cantidad}). Confirma primero la caja de reposición.`,
-    });
+  const r = data || {};
+  switch (r.status) {
+    case "not_found":
+      return res.status(404).json({ error: "Saldo no encontrado" });
+    case "already_done":
+      return res.status(400).json({ error: "Este saldo ya fue entregado" });
+    case "no_saldos_bodega":
+      return res.status(500).json({ error: "Bodega SALDOS no configurada" });
+    case "insufficient_stock":
+      return res.status(400).json({
+        error: `Stock insuficiente en SALDOS (disponible ${r.antes}, requerido ${r.requerido}). Confirma primero la caja de reposición.`,
+      });
+    case "ok":
+      break;
+    default:
+      return res.status(500).json({ error: "Error procesando la solicitud" });
   }
-  const despues = antes - cantidad;
 
-  await supabase
-    .from("inventario")
-    .update({ cantidad_disponible: despues })
-    .eq("id", inv.id);
-
-  await supabase
-    .from("saldos")
-    .update({ estado: "entregado" })
-    .eq("id", id);
-
+  // Notificación al operario: no crítica, se deja fuera de la transacción.
   await supabase.from("notificaciones").insert({
-    usuario_id: saldo.operario_id,
+    usuario_id: r.operario_id,
     tipo: "saldo_entregado",
     titulo: "Saldo listo",
     mensaje: "Las unidades sueltas de tu pedido están listas en saldos",
-    datos: { producto_id: saldo.producto_id, cantidad },
-  });
-
-  await supabase.from("bitacora").insert({
-    usuario_id,
-    accion: "ENTREGA_SALDOS",
-    tabla: "inventario",
-    registro_id: saldo.producto_id,
-    valores_antes: { cantidad_disponible: antes, bodega_id: saldosBodegaId },
-    valores_despues: {
-      cantidad_disponible: despues,
-      bodega_id: saldosBodegaId,
-      operario_id: saldo.operario_id,
-      saldo_id: id,
-    },
+    datos: { producto_id: r.producto_id, cantidad: r.cantidad },
   });
 
   return res.json({ mensaje: "Saldo entregado al operario" });
