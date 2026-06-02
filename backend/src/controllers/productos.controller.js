@@ -1,4 +1,5 @@
 const supabase = require("../utils/supabase");
+const { sendServerError } = require("../utils/errors");
 
 const buscarProducto = async (req, res) => {
   const { referencia } = req.query;
@@ -15,7 +16,8 @@ const buscarProducto = async (req, res) => {
     .eq("activo", true)
     .single();
 
-  if (error || !data) return res.status(404).json(null);
+  if (error || !data)
+    return res.status(404).json({ error: "Producto no encontrado" });
 
   return res.json(data);
 };
@@ -45,7 +47,7 @@ const listarProductos = async (req, res) => {
 
   const { data, error } = await query;
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
 
   return res.json(data);
 };
@@ -70,7 +72,7 @@ const historialProducto = async (req, res) => {
     .eq("registro_id", id)
     .order("created_at", { ascending: false });
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
 
   const { data: inventario } = await supabase
     .from("inventario")

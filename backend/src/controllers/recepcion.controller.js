@@ -1,22 +1,6 @@
 const supabase = require("../utils/supabase");
-
-const registrarMovimiento = async ({
-  usuario_id,
-  accion,
-  tabla,
-  registro_id,
-  valores_antes,
-  valores_despues,
-}) => {
-  await supabase.from("bitacora").insert({
-    usuario_id,
-    accion,
-    tabla,
-    registro_id,
-    valores_antes,
-    valores_despues,
-  });
-};
+const { sendServerError } = require("../utils/errors");
+const { toFiniteNumber } = require("../utils/validate");
 
 const crearRecepcion = async (req, res) => {
   const { bodega_id, proveedor, numero_oc } = req.body;
@@ -31,7 +15,7 @@ const crearRecepcion = async (req, res) => {
     .select()
     .single();
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
 
   return res.json({ recepcion, mensaje: "Recepción creada correctamente" });
 };
@@ -46,11 +30,17 @@ const obtenerRecepciones = async (req, res) => {
     )
     .order("created_at", { ascending: false });
 
-  if (bodega_id) query = query.eq("bodega_id", bodega_id);
+  // Aislamiento por bodega: un jefe_bodega solo ve recepciones de su bodega
+  // (no se confía en el bodega_id del query). El administrador ve todas.
+  if (req.usuario?.rol !== "administrador") {
+    query = query.eq("bodega_id", req.usuario?.bodega_id || null);
+  } else if (bodega_id) {
+    query = query.eq("bodega_id", bodega_id);
+  }
 
   const { data, error } = await query;
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
 
   return res.json(data);
 };
@@ -66,16 +56,26 @@ const obtenerRecepcion = async (req, res) => {
     .eq("id", id)
     .single();
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
+  if (!data)
+    return res.status(404).json({ error: "Recepción no encontrada" });
+
+  // Aislamiento por bodega: el jefe_bodega solo accede a su propia bodega.
+  if (
+    req.usuario?.rol !== "administrador" &&
+    data.bodega_id !== req.usuario?.bodega_id
+  ) {
+    return res.status(403).json({ error: "Esta recepción no es de tu bodega" });
+  }
 
   return res.json(data);
 };
 
 const registrarCantidad = async (req, res) => {
   const { item_id } = req.params;
-  const { cantidad_recibida } = req.body;
+  const cantidad_recibida = toFiniteNumber(req.body.cantidad_recibida);
 
-  if (cantidad_recibida === undefined || cantidad_recibida < 0) {
+  if (cantidad_recibida === null || cantidad_recibida < 0) {
     return res.status(400).json({ error: "Cantidad inválida" });
   }
 
@@ -86,7 +86,7 @@ const registrarCantidad = async (req, res) => {
     .select()
     .single();
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
 
   return res.json({ data, mensaje: "Cantidad registrada" });
 };
@@ -105,19 +105,32 @@ const inspeccionarItem = async (req, res) => {
     return res.status(400).json({ error: "Estado de inspección inválido" });
   }
 
+  // Las cantidades son opcionales, pero si vienen deben ser números >= 0.
+  const aprobada = toFiniteNumber(cantidad_aprobada);
+  const rechazada = toFiniteNumber(cantidad_rechazada);
+  const aprobadaProvista = cantidad_aprobada != null && cantidad_aprobada !== "";
+  const rechazadaProvista =
+    cantidad_rechazada != null && cantidad_rechazada !== "";
+  if (
+    (aprobadaProvista && (aprobada === null || aprobada < 0)) ||
+    (rechazadaProvista && (rechazada === null || rechazada < 0))
+  ) {
+    return res.status(400).json({ error: "Cantidad inválida" });
+  }
+
   const { data, error } = await supabase
     .from("recepcion_items")
     .update({
       estado: estado_inspeccion,
-      cantidad_aprobada,
-      cantidad_rechazada,
+      cantidad_aprobada: aprobada,
+      cantidad_rechazada: rechazada,
       motivo_rechazo,
     })
     .eq("id", item_id)
     .select()
     .single();
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
 
   return res.json({ data, mensaje: "Inspección registrada" });
 };
@@ -126,80 +139,28 @@ const confirmarRecepcion = async (req, res) => {
   const { id } = req.params;
   const usuario_id = req.usuario?.id || null;
 
-  const { data: recepcion } = await supabase
-    .from("recepciones")
-    .select("proveedor, numero_oc")
-    .eq("id", id)
-    .single();
+  // Suma de inventario por ítem aprobado + bitácora + cierre de la recepción en
+  // UNA transacción con bloqueo (idempotente, evita doble suma de inventario).
+  // Ver backend/sql/2026-06-01_rpc_recepciones.sql
+  const { data, error } = await supabase.rpc("confirmar_recepcion", {
+    p_recepcion_id: id,
+    p_usuario_id: usuario_id,
+  });
+  if (error) return sendServerError(res, error, req);
 
-  const { data: items, error: errorItems } = await supabase
-    .from("recepcion_items")
-    .select("*, productos(id, codigo_interno, descripcion_corta)")
-    .eq("recepcion_id", id);
-
-  if (errorItems) return res.status(500).json({ error: errorItems.message });
-
-  const itemsSinProcesar = items.filter(
-    (i) => i.estado === "pendiente" || i.estado === "recibido",
-  );
-  if (itemsSinProcesar.length > 0) {
-    return res.status(400).json({ error: "Hay ítems sin inspeccionar" });
+  const r = data || {};
+  switch (r.status) {
+    case "not_found":
+      return res.status(404).json({ error: "Recepción no encontrada" });
+    case "already_done":
+      return res.status(400).json({ error: "La recepción ya fue confirmada" });
+    case "items_sin_inspeccionar":
+      return res.status(400).json({ error: "Hay ítems sin inspeccionar" });
+    case "ok":
+      break;
+    default:
+      return res.status(500).json({ error: "Error procesando la solicitud" });
   }
-
-  const itemsAprobados = items.filter(
-    (i) => i.estado === "aprobado" || i.estado === "parcial",
-  );
-
-  for (const item of itemsAprobados) {
-    const cantidad = item.cantidad_aprobada || item.cantidad_recibida;
-
-    // Tolerante a filas duplicadas: si existe inventario, suma; si no, crea.
-    const { data: invRows } = await supabase
-      .from("inventario")
-      .select("*")
-      .eq("producto_id", item.producto_id)
-      .eq("bodega_id", item.bodega_id)
-      .order("created_at", { ascending: true });
-    const inv = (invRows || [])[0];
-    const antes = inv?.cantidad_disponible || 0;
-    const despues = antes + cantidad;
-
-    if (inv) {
-      await supabase
-        .from("inventario")
-        .update({ cantidad_disponible: despues })
-        .eq("id", inv.id);
-    } else {
-      await supabase.from("inventario").insert({
-        producto_id: item.producto_id,
-        bodega_id: item.bodega_id,
-        cantidad_disponible: cantidad,
-      });
-    }
-
-    // Trazabilidad: toda recepción registra usuario, fecha y hora (railguard).
-    await supabase.from("bitacora").insert({
-      usuario_id,
-      accion: "RECEPCION_CONFIRMADA",
-      tabla: "inventario",
-      registro_id: item.producto_id,
-      valores_antes: { cantidad_disponible: antes, bodega_id: item.bodega_id },
-      valores_despues: {
-        cantidad_disponible: despues,
-        bodega_id: item.bodega_id,
-        proveedor: recepcion?.proveedor,
-        factura: recepcion?.numero_oc,
-        referencia: item.productos?.codigo_interno,
-        producto: item.productos?.descripcion_corta,
-        recepcion_id: id,
-      },
-    });
-  }
-
-  await supabase
-    .from("recepciones")
-    .update({ estado: "confirmada" })
-    .eq("id", id);
 
   return res.json({ mensaje: "Recepción confirmada e inventario actualizado" });
 };
@@ -228,7 +189,7 @@ const agregarItemRecepcion = async (req, res) => {
     .select()
     .single();
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
 
   return res.json(data);
 };
@@ -237,73 +198,29 @@ const confirmarRecepcionDirecto = async (req, res) => {
   const { id } = req.params;
   const usuario_id = req.usuario?.id || null;
 
-  const { data: recepcion } = await supabase
-    .from("recepciones")
-    .select("bodega_id, proveedor, numero_oc")
-    .eq("id", id)
-    .single();
+  // Igual que confirmarRecepcion pero suma todos los ítems por cantidad_recibida
+  // (sin inspección). Transaccional e idempotente.
+  const { data, error } = await supabase.rpc("confirmar_recepcion_directo", {
+    p_recepcion_id: id,
+    p_usuario_id: usuario_id,
+  });
+  if (error) return sendServerError(res, error, req);
 
-  const { data: items } = await supabase
-    .from("recepcion_items")
-    .select("*, productos(descripcion_corta, codigo_interno)")
-    .eq("recepcion_id", id);
-
-  if (!items || items.length === 0) {
-    return res
-      .status(400)
-      .json({ error: "No hay productos en esta recepción" });
+  const r = data || {};
+  switch (r.status) {
+    case "not_found":
+      return res.status(404).json({ error: "Recepción no encontrada" });
+    case "already_done":
+      return res.status(400).json({ error: "La recepción ya fue confirmada" });
+    case "sin_items":
+      return res
+        .status(400)
+        .json({ error: "No hay productos en esta recepción" });
+    case "ok":
+      break;
+    default:
+      return res.status(500).json({ error: "Error procesando la solicitud" });
   }
-
-  for (const item of items) {
-    const { data: invRows } = await supabase
-      .from("inventario")
-      .select("*")
-      .eq("producto_id", item.producto_id)
-      .eq("bodega_id", recepcion.bodega_id)
-      .order("created_at", { ascending: true });
-    const inv = (invRows || [])[0];
-
-    const cantidadAntes = inv?.cantidad_disponible || 0;
-    const cantidadDespues = cantidadAntes + item.cantidad_recibida;
-
-    if (inv) {
-      await supabase
-        .from("inventario")
-        .update({ cantidad_disponible: cantidadDespues })
-        .eq("id", inv.id);
-    } else {
-      await supabase.from("inventario").insert({
-        producto_id: item.producto_id,
-        bodega_id: recepcion.bodega_id,
-        cantidad_disponible: item.cantidad_recibida,
-      });
-    }
-
-    await supabase.from("bitacora").insert({
-      usuario_id,
-      accion: "RECEPCION_CONFIRMADA",
-      tabla: "inventario",
-      registro_id: item.producto_id,
-      valores_antes: {
-        cantidad_disponible: cantidadAntes,
-        bodega_id: recepcion.bodega_id,
-      },
-      valores_despues: {
-        cantidad_disponible: cantidadDespues,
-        bodega_id: recepcion.bodega_id,
-        proveedor: recepcion.proveedor,
-        factura: recepcion.numero_oc,
-        producto: item.productos?.descripcion_corta,
-        referencia: item.productos?.codigo_interno,
-        recepcion_id: id,
-      },
-    });
-  }
-
-  await supabase
-    .from("recepciones")
-    .update({ estado: "confirmada" })
-    .eq("id", id);
 
   return res.json({ mensaje: "Recepción confirmada e inventario actualizado" });
 };

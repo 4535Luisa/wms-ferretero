@@ -53,7 +53,7 @@ export default function Etiqueta({ producto, cantidad, ubicacion, onCerrar }) {
             <span>${new Date().toLocaleDateString("es-CO")}</span>
           </div>
         </div>
-        <script>window.onload = () => { window.print(); window.close(); }<\/script>
+        <script>window.onload = () => { window.print(); window.close(); }</script>
       </body>
       </html>
     `);

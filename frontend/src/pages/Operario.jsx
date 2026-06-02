@@ -22,10 +22,6 @@ export default function Operario() {
   const [cantidadEdit, setCantidadEdit] = useState("");
   const [motivoEdit, setMotivoEdit] = useState("");
 
-  useEffect(() => {
-    cargar();
-  }, []);
-
   const cargar = async () => {
     try {
       const { data } = await api.get("/api/pedidos/mis-pedidos");
@@ -38,6 +34,13 @@ export default function Operario() {
       console.error(err);
     }
   };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    cargar();
+    // Solo al montar: cargar se redefine cada render; no debe ir en deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const aviso = (texto, tipo = "ok") => {
     setMensaje({ texto, tipo });

@@ -38,10 +38,6 @@ export default function AdminUsuarios() {
   const [cargando, setCargando] = useState(false);
   const [busqueda, setBusqueda] = useState("");
 
-  useEffect(() => {
-    cargarDatos();
-  }, []);
-
   const cargarDatos = async () => {
     try {
       const [{ data: u }, { data: b }] = await Promise.all([
@@ -54,6 +50,11 @@ export default function AdminUsuarios() {
       console.error(err);
     }
   };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    cargarDatos();
+  }, []);
 
   const mostrarMensaje = (texto, tipo = "ok") => {
     setMensaje({ texto, tipo });
@@ -116,7 +117,7 @@ export default function AdminUsuarios() {
       await api.patch(`/api/usuarios/${u.id}/toggle`);
       mostrarMensaje(`Usuario ${u.activo ? "desactivado" : "activado"}`);
       cargarDatos();
-    } catch (err) {
+    } catch {
       mostrarMensaje("Error al cambiar estado", "error");
     }
   };

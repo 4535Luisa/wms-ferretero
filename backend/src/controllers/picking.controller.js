@@ -1,10 +1,26 @@
 const supabase = require("../utils/supabase");
 const { ORDEN_BODEGAS, splitCajaSaldo } = require("../utils/picking");
+const { sendServerError } = require("../utils/errors");
 
 const generarListasPicking = async (req, res) => {
   const { pedido_ids } = req.body;
   if (!pedido_ids || pedido_ids.length === 0)
     return res.status(400).json({ error: "No hay pedidos para procesar" });
+
+  // Idempotencia: omite pedidos que YA tienen ítems de picking generados. Sin
+  // esto, re-ejecutar volvía a comprometer inventario y duplicaba listas.
+  const { data: yaGenerados } = await supabase
+    .from("lista_picking_items")
+    .select("pedido_id")
+    .in("pedido_id", pedido_ids);
+  const conPicking = new Set((yaGenerados || []).map((i) => i.pedido_id));
+  const pedidosAProcesar = pedido_ids.filter((id) => !conPicking.has(id));
+  if (pedidosAProcesar.length === 0) {
+    return res.json({
+      listas: [],
+      mensaje: "Los pedidos seleccionados ya tienen listas generadas",
+    });
+  }
 
   // Bodegas (incl. SALDOS) en una sola consulta.
   const { data: bodegasData } = await supabase
@@ -46,11 +62,11 @@ const generarListasPicking = async (req, res) => {
     .select(
       "*, pedido_items(*, productos(codigo_interno, descripcion_corta, unidad_empaque))",
     )
-    .in("id", pedido_ids);
+    .in("id", pedidosAProcesar);
   const pedidosMap = {};
   for (const p of pedidosData || []) pedidosMap[p.id] = p;
 
-  for (const pedidoId of pedido_ids) {
+  for (const pedidoId of pedidosAProcesar) {
     const pedido = pedidosMap[pedidoId];
     if (!pedido) continue;
 
@@ -188,7 +204,7 @@ const listarListasPicking = async (req, res) => {
     .from("listas_picking")
     .select("*, bodegas(nombre, codigo), usuarios(nombre)")
     .order("created_at", { ascending: false });
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
   if (!listas || listas.length === 0) return res.json([]);
 
   const listaIds = listas.map((l) => l.id);
@@ -218,7 +234,7 @@ const misListas = async (req, res) => {
     .eq("montacarguista_id", usuario_id)
     .in("estado", ["asignada", "en_proceso"])
     .order("created_at", { ascending: false });
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
   if (!listas || listas.length === 0) return res.json([]);
 
   const listaIds = listas.map((l) => l.id);
@@ -249,7 +265,7 @@ const asignarMontacarguista = async (req, res) => {
     .eq("id", id)
     .select()
     .single();
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
 
   await supabase.from("notificaciones").insert({
     usuario_id: montacarguista_id,
@@ -306,69 +322,23 @@ const bajarCaja = async (req, res) => {
       .json({ error: "Esta lista no está asignada a ti" });
   }
 
-  await supabase
-    .from("lista_picking_items")
-    .update({ estado: "bajada" })
-    .eq("id", id);
-
-  // Vincula el ítem del pedido a la estiba para que el operario sepa dónde está.
-  if (estiba_id && item.pedido_id) {
-    await supabase
-      .from("pedido_items")
-      .update({ estiba_id })
-      .eq("pedido_id", item.pedido_id)
-      .eq("producto_id", item.producto_id);
-  }
-
-  if (item.ubicacion_id) {
-    // Tolerante a filas duplicadas de inventario: toma la primera coincidencia.
-    const { data: invs } = await supabase
-      .from("inventario")
-      .select("*")
-      .eq("producto_id", item.producto_id)
-      .eq("ubicacion_id", item.ubicacion_id)
-      .order("created_at", { ascending: true });
-    const inv = (invs || [])[0];
-
-    if (inv) {
-      const nuevaCantidad = Math.max(
-        0,
-        inv.cantidad_disponible - item.cantidad_unidades,
-      );
-      // Al bajar físicamente, el disponible baja y se libera lo comprometido
-      // (la reserva se materializa en salida real).
-      const nuevoComprometido = Math.max(
-        0,
-        (inv.cantidad_comprometida || 0) - item.cantidad_unidades,
-      );
-      await supabase
-        .from("inventario")
-        .update({
-          cantidad_disponible: nuevaCantidad,
-          cantidad_comprometida: nuevoComprometido,
-        })
-        .eq("id", inv.id);
-
-      await supabase.from("bitacora").insert({
-        usuario_id,
-        accion: "PICKING",
-        tabla: "inventario",
-        registro_id: item.producto_id,
-        valores_antes: {
-          cantidad_disponible: inv.cantidad_disponible,
-          cantidad_comprometida: inv.cantidad_comprometida || 0,
-          ubicacion_id: item.ubicacion_id,
-        },
-        valores_despues: {
-          cantidad_disponible: nuevaCantidad,
-          cantidad_comprometida: nuevoComprometido,
-          ubicacion_id: item.ubicacion_id,
-          pedido_id: item.pedido_id,
-          lista_id: item.lista_id,
-        },
-      });
-    }
-  }
+  // Núcleo atómico: transición pendiente -> bajada + vínculo de estiba +
+  // descuento de inventario + liberación de comprometido + bitácora, en UNA
+  // transacción con bloqueo de filas (idempotente, anti doble descuento).
+  // Ver backend/sql/2026-06-01_rpc_picking_saldos.sql
+  const { data: rpcData, error } = await supabase.rpc("bajar_caja", {
+    p_item_id: id,
+    p_usuario_id: usuario_id || null,
+    p_estiba_id: estiba_id || null,
+  });
+  if (error) return sendServerError(res, error, req);
+  const r = rpcData || {};
+  if (r.status === "not_found")
+    return res.status(404).json({ error: "Ítem no encontrado" });
+  if (r.status === "already_done")
+    return res.status(400).json({ error: "Esta caja ya fue bajada" });
+  if (r.status !== "ok")
+    return res.status(500).json({ error: "Error procesando la solicitud" });
 
   const datosNotif = {
     pedido_id: item.pedido_id,
@@ -458,7 +428,7 @@ const crearEstiba = async (req, res) => {
     })
     .select("id, nombre, estado, created_at")
     .single();
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
 
   await supabase.from("bitacora").insert({
     usuario_id,
@@ -479,8 +449,37 @@ const misEstibas = async (req, res) => {
     .eq("montacarguista_id", usuario_id)
     .eq("estado", "activa")
     .order("created_at", { ascending: false });
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
   return res.json(data || []);
+};
+
+// Cancela una lista de picking y libera el comprometido de sus ítems pendientes
+// (RPC transaccional). Ver backend/sql/2026-06-01_rpc_cancelar_lista.sql
+const cancelarLista = async (req, res) => {
+  const { id } = req.params;
+  const usuario_id = req.usuario?.id || null;
+
+  const { data, error } = await supabase.rpc("cancelar_lista_picking", {
+    p_lista_id: id,
+    p_usuario_id: usuario_id,
+  });
+  if (error) return sendServerError(res, error, req);
+
+  const r = data || {};
+  switch (r.status) {
+    case "not_found":
+      return res.status(404).json({ error: "Lista no encontrada" });
+    case "already_done":
+      return res.status(400).json({ error: "La lista ya fue cancelada" });
+    case "ok":
+      break;
+    default:
+      return res.status(500).json({ error: "Error procesando la solicitud" });
+  }
+
+  return res.json({
+    mensaje: `Lista cancelada — ${r.items_cancelados} ítem(s) liberados`,
+  });
 };
 
 module.exports = {
@@ -491,4 +490,5 @@ module.exports = {
   bajarCaja,
   crearEstiba,
   misEstibas,
+  cancelarLista,
 };

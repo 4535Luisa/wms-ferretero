@@ -24,10 +24,6 @@ export default function Saldos() {
   const [mensaje, setMensaje] = useState({ texto: "", tipo: "" });
   const [cargando, setCargando] = useState(false);
 
-  useEffect(() => {
-    cargar();
-  }, []);
-
   const cargar = async () => {
     try {
       const { data } = await api.get("/api/saldos");
@@ -37,6 +33,11 @@ export default function Saldos() {
       console.error(err);
     }
   };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    cargar();
+  }, []);
 
   const aviso = (texto, tipo = "ok") => {
     setMensaje({ texto, tipo });
@@ -176,7 +177,6 @@ export default function Saldos() {
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           {cola.map((s) => {
             const sem = semaforoColor[s.semaforo] || semaforoColor.verde;
-            const confirmado = s.estado === "confirmado";
             return (
               <div
                 key={s.id}

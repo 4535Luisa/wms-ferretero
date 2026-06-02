@@ -17,10 +17,10 @@ const {
 } = require("../controllers/pedidos.controller");
 
 router.post("/csv", requireRoles("administrador"), cargarCSV);
-router.get("/", listarPedidos);
-router.get("/operarios", listarOperarios);
+router.get("/", requireRoles("facturacion"), listarPedidos);
+router.get("/operarios", requireRoles("administrador"), listarOperarios);
 router.get("/mis-pedidos", requireRoles("operario"), misPedidosOperario);
-router.get("/:id", obtenerPedido);
+router.get("/:id", requireRoles("facturacion"), obtenerPedido);
 router.patch("/:id/asignar", requireRoles("administrador"), asignarPedido);
 router.post("/tanda", requireRoles("administrador"), asignarTanda);
 router.patch("/:id/facturar", requireRoles("facturacion"), facturarPedido);
