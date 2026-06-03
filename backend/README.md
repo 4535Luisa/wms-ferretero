@@ -54,6 +54,7 @@ El esquema vive en Supabase; el repo solo versiona las migraciones en
 | `2026-06-01_rpc_picking_saldos.sql` | RPC `confirmar_caja_saldos` y `bajar_caja`. |
 | `2026-06-01_rpc_recepciones.sql` | RPC `confirmar_recepcion` y `confirmar_recepcion_directo`. |
 | `2026-06-01_rpc_cancelar_lista.sql` | RPC `cancelar_lista_picking` (libera comprometido). |
+| `2026-06-02_rpc_reservar_picking.sql` | RPC `reservar_inventario_picking` (reserva atómica, anti doble-picking). |
 
 Las funciones RPC son **obligatorias**: el backend las llama vía
 `supabase.rpc(...)` para garantizar atomicidad. Sin aplicarlas, esos endpoints

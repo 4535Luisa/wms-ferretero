@@ -244,6 +244,20 @@ export default function AdminPedidos() {
     }
   };
 
+  // Reasigna un pedido a otro operario conservando el avance ya alistado.
+  const reasignar = async (pedidoId, nuevoOperarioId) => {
+    if (!nuevoOperarioId) return;
+    try {
+      const { data } = await api.patch(`/api/pedidos/${pedidoId}/reasignar`, {
+        operario_id: nuevoOperarioId,
+      });
+      mostrarMensaje(data.mensaje || "Pedido reasignado");
+      cargarDatos();
+    } catch (err) {
+      mostrarMensaje(err.response?.data?.error || "Error al reasignar", "error");
+    }
+  };
+
   const asignarTanda = async () => {
     if (!operarioTanda)
       return mostrarMensaje("Selecciona un operario", "error");
@@ -643,6 +657,38 @@ export default function AdminPedidos() {
                               ` · 🚜 ${pedido.montacarguista.nombre}`}
                           </div>
                         )}
+                        {pedido.operario &&
+                          !["cerrado", "despachado"].includes(
+                            pedido.estado,
+                          ) && (
+                            <select
+                              value=""
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => {
+                                reasignar(pedido.id, e.target.value);
+                                e.target.value = "";
+                              }}
+                              style={{
+                                marginTop: "6px",
+                                padding: "4px 8px",
+                                border: "1px solid #E8E8E8",
+                                borderRadius: "6px",
+                                fontSize: "11px",
+                                color: "#555",
+                                background: "#FAFAFA",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <option value="">↪ Reasignar a…</option>
+                              {operarios
+                                .filter((o) => o.id !== pedido.operario_id)
+                                .map((o) => (
+                                  <option key={o.id} value={o.id}>
+                                    {o.nombre}
+                                  </option>
+                                ))}
+                            </select>
+                          )}
                       </div>
                       {esPendiente && (
                         <button

@@ -1,6 +1,43 @@
 import { useState, useEffect } from "react";
 import Layout from "../components/Layout";
+import ScanInput from "../components/ScanInput";
 import api from "../services/api";
+
+// Consolida los ítems de una lista por referencia + ubicación: misma referencia
+// en la misma ubicación pedida por varios pedidos se muestra como UNA línea con
+// el total de cajas (el montacarguista baja todo el grupo de una sola pasada).
+const consolidarItems = (items) => {
+  const grupos = {};
+  for (const it of items || []) {
+    const key = `${(it.referencia || "").trim().toUpperCase()}|${it.ubicacion_codigo || ""}`;
+    if (!grupos[key]) {
+      grupos[key] = {
+        key,
+        referencia: it.referencia,
+        descripcion: it.descripcion,
+        ubicacion_codigo: it.ubicacion_codigo,
+        destino_saldos: it.destino_saldos,
+        items: [],
+        cajas_total: 0,
+        pedidos: new Set(),
+      };
+    }
+    const g = grupos[key];
+    g.items.push(it);
+    g.cajas_total += it.cantidad_cajas || 0;
+    if (it.pedidos?.numero) g.pedidos.add(it.pedidos.numero);
+  }
+  return Object.values(grupos)
+    .map((g) => ({
+      ...g,
+      pedidos: [...g.pedidos],
+      pendientes: g.items.filter((i) => i.estado === "pendiente"),
+      bajada: g.items.every((i) => i.estado !== "pendiente"),
+    }))
+    .sort((a, b) =>
+      (a.ubicacion_codigo || "").localeCompare(b.ubicacion_codigo || ""),
+    );
+};
 
 export default function Montacarguista() {
   const [listas, setListas] = useState([]);
@@ -102,26 +139,64 @@ export default function Montacarguista() {
     setVista("barrido");
   };
 
-  const marcarBajada = async (itemId) => {
+  const recargarListaActiva = async () => {
+    const { data } = await api.get("/api/picking/mis-listas");
+    setListas(data);
+    const listaActualizada = data.find((l) => l.id === listaActiva?.id);
+    if (listaActualizada) setListaActiva(listaActualizada);
+  };
+
+  // Baja todas las cajas pendientes de un grupo consolidado (misma referencia +
+  // ubicación, posiblemente de varios pedidos) con un solo escaneo. El backend
+  // re-verifica la referencia de cada ítem antes de descontar inventario.
+  const bajarGrupo = async (grupo, referenciaEscaneada) => {
     if (!estibaActiva) {
       mostrarMensaje("Registra o selecciona una estiba antes de bajar", "error");
       return;
     }
     setCargando(true);
     try {
-      await api.patch(`/api/picking/items/${itemId}/bajar`, {
-        estiba_id: estibaActiva,
-      });
-      mostrarMensaje("✓ Caja registrada como bajada — inventario actualizado");
-      const { data } = await api.get("/api/picking/mis-listas");
-      setListas(data);
-      const listaActualizada = data.find((l) => l.id === listaActiva?.id);
-      if (listaActualizada) setListaActiva(listaActualizada);
+      for (const it of grupo.pendientes) {
+        await api.patch(`/api/picking/items/${it.id}/bajar`, {
+          estiba_id: estibaActiva,
+          referencia_escaneada: referenciaEscaneada,
+        });
+      }
+      const n = grupo.pendientes.length;
+      mostrarMensaje(
+        `✓ ${n} caja${n !== 1 ? "s" : ""} de ${grupo.referencia} verificada${n !== 1 ? "s" : ""} y bajada${n !== 1 ? "s" : ""}`,
+      );
     } catch (err) {
       mostrarMensaje(err.response?.data?.error || "Error al registrar", "error");
     } finally {
+      await recargarListaActiva();
       setCargando(false);
     }
+  };
+
+  // El escaneo es el disparador de la bajada: cruza la referencia leída contra
+  // los grupos pendientes (consolidados) de la lista. La verificación definitiva
+  // la hace el backend (no se puede saltar manipulando el frontend).
+  const onEscanear = async (refEscaneada) => {
+    if (!estibaActiva) {
+      mostrarMensaje("Registra o selecciona una estiba antes de bajar", "error");
+      return;
+    }
+    const norm = refEscaneada.trim().toUpperCase();
+    const grupos = consolidarItems(listaActiva?.lista_picking_items);
+    const objetivo = grupos.find(
+      (g) =>
+        (g.referencia || "").trim().toUpperCase() === norm &&
+        g.pendientes.length > 0,
+    );
+    if (!objetivo) {
+      mostrarMensaje(
+        `Caja incorrecta: ${norm} no pertenece a esta lista o ya fue bajada`,
+        "error",
+      );
+      return;
+    }
+    await bajarGrupo(objetivo, refEscaneada);
   };
 
   return (
@@ -489,161 +564,178 @@ export default function Montacarguista() {
             )}
           </div>
 
+          <ScanInput
+            onScan={onEscanear}
+            disabled={cargando}
+            label="Escanea la caja antes de bajarla"
+            hint="Verifica que la referencia coincide con la lista antes de descontar inventario"
+          />
+
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            {(listaActiva.lista_picking_items || [])
-              .sort((a, b) =>
-                (a.ubicacion_codigo || "").localeCompare(
-                  b.ubicacion_codigo || "",
-                ),
-              )
-              .map((item) => {
-                const bajada = item.estado !== "pendiente";
-                return (
+            {consolidarItems(listaActiva.lista_picking_items).map((grupo) => {
+              const bajada = grupo.bajada;
+              const cajasBajadas = grupo.cajas_total - grupo.pendientes.reduce(
+                (a, i) => a + (i.cantidad_cajas || 0),
+                0,
+              );
+              return (
+                <div
+                  key={grupo.key}
+                  style={{
+                    background: bajada ? "rgba(0,255,135,0.04)" : "#FFFFFF",
+                    border: bajada
+                      ? "1px solid rgba(0,255,135,0.2)"
+                      : "1px solid #E8E8E8",
+                    borderRadius: "12px",
+                    padding: "1rem 1.25rem",
+                    opacity: bajada ? 0.7 : 1,
+                  }}
+                >
                   <div
-                    key={item.id}
                     style={{
-                      background: bajada ? "rgba(0,255,135,0.04)" : "#FFFFFF",
-                      border: bajada
-                        ? "1px solid rgba(0,255,135,0.2)"
-                        : "1px solid #E8E8E8",
-                      borderRadius: "12px",
-                      padding: "1rem 1.25rem",
-                      opacity: bajada ? 0.7 : 1,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      gap: "12px",
                     }}
                   >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "flex-start",
-                        gap: "12px",
-                      }}
-                    >
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          marginBottom: "6px",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <span
                           style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "8px",
-                            marginBottom: "6px",
-                            flexWrap: "wrap",
+                            background: "#0A0A0A",
+                            color: "#00FF87",
+                            padding: "3px 12px",
+                            borderRadius: "6px",
+                            fontSize: "13px",
+                            fontFamily: "DM Mono, monospace",
+                            fontWeight: 700,
+                            letterSpacing: "0.06em",
                           }}
                         >
+                          {grupo.ubicacion_codigo || "Sin ubic."}
+                        </span>
+                        {grupo.destino_saldos && (
                           <span
                             style={{
-                              background: "#0A0A0A",
-                              color: "#00FF87",
-                              padding: "3px 12px",
-                              borderRadius: "6px",
-                              fontSize: "13px",
-                              fontFamily: "DM Mono, monospace",
-                              fontWeight: 700,
-                              letterSpacing: "0.06em",
-                            }}
-                          >
-                            {item.ubicacion_codigo || "Sin ubic."}
-                          </span>
-                          {item.destino_saldos && (
-                            <span
-                              style={{
-                                background: "#FEF9C3",
-                                color: "#854D0E",
-                                padding: "2px 8px",
-                                borderRadius: "20px",
-                                fontSize: "10px",
-                                fontWeight: 700,
-                              }}
-                            >
-                              → SALDOS
-                            </span>
-                          )}
-                          <span
-                            style={{
-                              background: bajada
-                                ? "rgba(0,255,135,0.1)"
-                                : "#F3F4F6",
-                              color: bajada ? "#007A40" : "#374151",
+                              background: "#FEF9C3",
+                              color: "#854D0E",
                               padding: "2px 8px",
                               borderRadius: "20px",
                               fontSize: "10px",
                               fontWeight: 700,
-                              textTransform: "uppercase",
                             }}
                           >
-                            {bajada ? "✓ Bajada" : "Pendiente"}
+                            → SALDOS
                           </span>
-                        </div>
-                        <div
+                        )}
+                        {grupo.pedidos.length > 1 && (
+                          <span
+                            style={{
+                              background: "#EEF2FF",
+                              color: "#3730A3",
+                              padding: "2px 8px",
+                              borderRadius: "20px",
+                              fontSize: "10px",
+                              fontWeight: 700,
+                            }}
+                          >
+                            {grupo.pedidos.length} pedidos
+                          </span>
+                        )}
+                        <span
                           style={{
-                            fontSize: "14px",
-                            fontWeight: 600,
-                            color: "#0A0A0A",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {item.descripcion}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: "12px",
-                            color: "#888",
-                            fontFamily: "DM Mono, monospace",
-                            marginTop: "3px",
-                          }}
-                        >
-                          Ref: {item.referencia} · Pedido:{" "}
-                          {item.pedidos?.numero}
-                        </div>
-                      </div>
-                      <div style={{ textAlign: "right", flexShrink: 0 }}>
-                        <div
-                          style={{
-                            fontSize: "20px",
+                            background: bajada
+                              ? "rgba(0,255,135,0.1)"
+                              : "#F3F4F6",
+                            color: bajada ? "#007A40" : "#374151",
+                            padding: "2px 8px",
+                            borderRadius: "20px",
+                            fontSize: "10px",
                             fontWeight: 700,
-                            fontFamily: "DM Mono, monospace",
-                            color: "#0A0A0A",
+                            textTransform: "uppercase",
                           }}
                         >
-                          {item.cantidad_cajas}
-                        </div>
+                          {bajada
+                            ? "✓ Bajada"
+                            : cajasBajadas > 0
+                              ? `${cajasBajadas}/${grupo.cajas_total} bajadas`
+                              : "Pendiente"}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "14px",
+                          fontWeight: 600,
+                          color: "#0A0A0A",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {grupo.descripcion}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "12px",
+                          color: "#888",
+                          fontFamily: "DM Mono, monospace",
+                          marginTop: "3px",
+                        }}
+                      >
+                        Ref: {grupo.referencia} · Pedido
+                        {grupo.pedidos.length !== 1 ? "s" : ""}:{" "}
+                        {grupo.pedidos.join(", ") || "—"}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <div
+                        style={{
+                          fontSize: "20px",
+                          fontWeight: 700,
+                          fontFamily: "DM Mono, monospace",
+                          color: "#0A0A0A",
+                        }}
+                      >
+                        {grupo.cajas_total}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          color: "#888",
+                          marginBottom: bajada ? 0 : "8px",
+                        }}
+                      >
+                        {grupo.cajas_total === 1 ? "caja" : "cajas"}
+                      </div>
+                      {!bajada && (
                         <div
                           style={{
                             fontSize: "11px",
-                            color: "#888",
-                            marginBottom: "8px",
+                            fontWeight: 600,
+                            color: "#854D0E",
+                            background: "#FEF9C3",
+                            borderRadius: "8px",
+                            padding: "8px 12px",
+                            minWidth: "80px",
                           }}
                         >
-                          {item.cantidad_cajas === 1 ? "caja" : "cajas"}
+                          Escanea para bajar
                         </div>
-                        {!bajada && (
-                          <button
-                            onClick={() => marcarBajada(item.id)}
-                            disabled={cargando}
-                            style={{
-                              background: "#00FF87",
-                              color: "#0A0A0A",
-                              border: "none",
-                              borderRadius: "8px",
-                              padding: "10px 16px",
-                              fontSize: "13px",
-                              fontWeight: 700,
-                              cursor: "pointer",
-                              fontFamily: "Outfit, sans-serif",
-                              minHeight: "44px",
-                              minWidth: "80px",
-                              display: "block",
-                            }}
-                          >
-                            Bajar ↓
-                          </button>
-                        )}
-                      </div>
+                      )}
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

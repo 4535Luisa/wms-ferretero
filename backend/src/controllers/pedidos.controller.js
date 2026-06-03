@@ -2,6 +2,7 @@ const supabase = require("../utils/supabase");
 const { ORDEN_BODEGAS, splitCajaSaldo } = require("../utils/picking");
 const { sendServerError } = require("../utils/errors");
 const { toFiniteNumber } = require("../utils/validate");
+const { verificarYRegistrar, normalizarRef } = require("../utils/escaneo");
 
 const cargarCSV = async (req, res) => {
   const { pedidos } = req.body;
@@ -74,7 +75,7 @@ const adjuntarUsuarios = async (pedidos) => {
   const ids = [
     ...new Set(
       pedidos.flatMap((p) =>
-        [p.operario_id, p.montacarguista_id].filter(Boolean),
+        [p.operario_id, p.montacarguista_id, p.facturador_id].filter(Boolean),
       ),
     ),
   ];
@@ -90,6 +91,7 @@ const adjuntarUsuarios = async (pedidos) => {
     ...p,
     operario: p.operario_id ? mapa[p.operario_id] || null : null,
     montacarguista: p.montacarguista_id ? mapa[p.montacarguista_id] || null : null,
+    facturador: p.facturador_id ? mapa[p.facturador_id] || null : null,
   }));
 };
 
@@ -250,13 +252,15 @@ const generarReposicionSaldos = async (operario_id, repoRep) => {
         ubicCodigo = u?.codigo || null;
       }
 
-      // Reserva la caja (comprometido) e inserta el ítem con destino SALDOS.
-      await supabase
-        .from("inventario")
-        .update({
-          cantidad_comprometida: (inv.cantidad_comprometida || 0) + ue,
-        })
-        .eq("id", inv.id);
+      // Reserva ATÓMICA de la caja (comprometido) — solo si hay disponible real
+      // (RPC con FOR UPDATE, anti doble-picking). Si otro proceso tomó el stock
+      // entremedias, prueba la siguiente bodega en vez de sobre-comprometer.
+      // Ver sql/2026-06-02_rpc_reservar_picking.sql
+      const { data: rsv } = await supabase.rpc("reservar_inventario_picking", {
+        p_inventario_id: inv.id,
+        p_unidades: ue,
+      });
+      if (rsv?.status !== "ok") continue;
 
       await supabase.from("lista_picking_items").insert({
         lista_id: lista.id,
@@ -394,6 +398,152 @@ const asignarPedido = async (req, res) => {
 
   if (error) return sendServerError(res, error, req);
   return res.json({ data, mensaje: "Pedido asignado correctamente" });
+};
+
+// Reasigna un pedido a otro operario CONSERVANDO el avance: no se tocan los
+// estados de los ítems (los ya 'listo' siguen 'listo'), ni cantidad_picking ni
+// las estibas vinculadas. Mueve los saldos pendientes del operario anterior al
+// nuevo solo cuando es seguro (nunca toca inventario). Notifica a ambos.
+const reasignarPedido = async (req, res) => {
+  const { id } = req.params;
+  const { operario_id } = req.body;
+  const usuario_id = req.usuario?.id || null;
+
+  if (!operario_id)
+    return res.status(400).json({ error: "Debe indicar el operario destino" });
+
+  const { data: pedido } = await supabase
+    .from("pedidos")
+    .select("*, pedido_items(id, producto_id, estado, cantidad_saldos)")
+    .eq("id", id)
+    .single();
+  if (!pedido) return res.status(404).json({ error: "Pedido no encontrado" });
+
+  if (["cerrado", "despachado"].includes(pedido.estado)) {
+    return res.status(400).json({
+      error: "No se puede reasignar un pedido cerrado o despachado",
+    });
+  }
+  if (pedido.operario_id === operario_id) {
+    return res
+      .status(400)
+      .json({ error: "El pedido ya está asignado a ese operario" });
+  }
+
+  const operarioAnterior = pedido.operario_id;
+
+  const { error } = await supabase
+    .from("pedidos")
+    .update({ operario_id })
+    .eq("id", id);
+  if (error) return sendServerError(res, error, req);
+
+  // Mueve los saldos PENDIENTES de los productos de este pedido del operario
+  // anterior al nuevo, solo si el anterior no tiene OTRO pedido activo que
+  // necesite ese producto en saldos (la cola de saldos se consolida por
+  // operario, así que no se puede partir una fila compartida).
+  const productosSaldo = [
+    ...new Set(
+      (pedido.pedido_items || [])
+        .filter((i) => (i.cantidad_saldos || 0) > 0)
+        .map((i) => i.producto_id),
+    ),
+  ];
+  const saldosNoMovidos = [];
+  if (operarioAnterior && productosSaldo.length > 0) {
+    const { data: otrosPedidos } = await supabase
+      .from("pedidos")
+      .select("id, pedido_items(producto_id, cantidad_saldos)")
+      .eq("operario_id", operarioAnterior)
+      .neq("id", id)
+      .in("estado", ["asignado", "en_proceso", "en_picking"]);
+    const productosEnOtros = new Set();
+    for (const p of otrosPedidos || [])
+      for (const it of p.pedido_items || [])
+        if ((it.cantidad_saldos || 0) > 0) productosEnOtros.add(it.producto_id);
+
+    for (const productoId of productosSaldo) {
+      if (productosEnOtros.has(productoId)) {
+        saldosNoMovidos.push(productoId);
+        continue;
+      }
+      const { data: saldoAnt } = await supabase
+        .from("saldos")
+        .select("id, cantidad_total")
+        .eq("operario_id", operarioAnterior)
+        .eq("producto_id", productoId)
+        .eq("estado", "pendiente")
+        .maybeSingle();
+      if (!saldoAnt) {
+        saldosNoMovidos.push(productoId);
+        continue;
+      }
+      const { data: saldoNuevo } = await supabase
+        .from("saldos")
+        .select("id, cantidad_total")
+        .eq("operario_id", operario_id)
+        .eq("producto_id", productoId)
+        .eq("estado", "pendiente")
+        .maybeSingle();
+      if (saldoNuevo) {
+        await supabase
+          .from("saldos")
+          .update({
+            cantidad_total:
+              (saldoNuevo.cantidad_total || 0) + (saldoAnt.cantidad_total || 0),
+          })
+          .eq("id", saldoNuevo.id);
+        await supabase.from("saldos").delete().eq("id", saldoAnt.id);
+      } else {
+        await supabase
+          .from("saldos")
+          .update({ operario_id })
+          .eq("id", saldoAnt.id);
+      }
+    }
+  }
+
+  const itemsListos = (pedido.pedido_items || []).filter(
+    (i) => i.estado === "listo",
+  ).length;
+  const totalItems = (pedido.pedido_items || []).length;
+
+  if (operarioAnterior) {
+    await supabase.from("notificaciones").insert({
+      usuario_id: operarioAnterior,
+      tipo: "pedido_reasignado",
+      titulo: "Pedido reasignado",
+      mensaje: `El pedido ${pedido.numero} se reasignó a otro operario`,
+      datos: { pedido_id: id, pedido_numero: pedido.numero },
+    });
+  }
+  await supabase.from("notificaciones").insert({
+    usuario_id: operario_id,
+    tipo: "pedido_asignado",
+    titulo: "Pedido heredado",
+    mensaje: `Recibiste el pedido ${pedido.numero} (${itemsListos}/${totalItems} referencias ya listas)`,
+    datos: { pedido_id: id, pedido_numero: pedido.numero },
+  });
+
+  await supabase.from("bitacora").insert({
+    usuario_id,
+    accion: "REASIGNACION_PEDIDO",
+    tabla: "pedidos",
+    registro_id: id,
+    valores_antes: { operario_id: operarioAnterior },
+    valores_despues: {
+      operario_id,
+      pedido_numero: pedido.numero,
+      items_listos: itemsListos,
+      total_items: totalItems,
+      saldos_no_movidos: saldosNoMovidos,
+    },
+  });
+
+  return res.json({
+    mensaje: `Pedido reasignado conservando el avance (${itemsListos}/${totalItems} referencias listas)`,
+    saldos_no_movidos: saldosNoMovidos.length,
+  });
 };
 
 const obtenerPedido = async (req, res) => {
@@ -586,25 +736,50 @@ const misPedidosOperario = async (req, res) => {
 // Si la cantidad difiere de la pedida, el motivo es obligatorio (railguard).
 const actualizarItemOperario = async (req, res) => {
   const { itemId } = req.params;
-  const { cantidad_picking, motivo_diferencia, estado } = req.body;
+  const { cantidad_picking, motivo_diferencia, estado, referencia_escaneada } =
+    req.body;
   const usuario_id = req.usuario?.id;
+  const esAdmin = req.usuario?.rol === "administrador";
 
   const { data: item, error: errItem } = await supabase
     .from("pedido_items")
-    .select("*, pedidos(operario_id, estado, numero)")
+    .select("*, pedidos(operario_id, estado, numero), productos(codigo_interno)")
     .eq("id", itemId)
     .single();
   if (errItem || !item)
     return res.status(404).json({ error: "Ítem no encontrado" });
 
-  if (req.usuario?.rol !== "administrador" &&
-      item.pedidos?.operario_id !== usuario_id) {
+  if (!esAdmin && item.pedidos?.operario_id !== usuario_id) {
     return res.status(403).json({ error: "Este ítem no es de tu pedido" });
   }
   if (item.pedidos?.estado === "cerrado") {
     return res.status(400).json({
       error: "El pedido está cerrado. Solo el administrador puede reabrirlo.",
     });
+  }
+
+  // Verificación de escaneo (railguard): el operario debe escanear la caja que
+  // recoge de la estiba y coincidir con la referencia del pedido antes de
+  // alistarla. El admin (corrección manual) queda exento.
+  if (!esAdmin) {
+    const refEsperada = item.referencia || item.productos?.codigo_interno;
+    const { ok, resultado } = await verificarYRegistrar({
+      usuario_id,
+      tabla: "pedido_items",
+      registro_id: itemId,
+      esperada: refEsperada,
+      escaneada: referencia_escaneada,
+    });
+    if (!ok) {
+      return res.status(422).json({
+        error:
+          resultado === "faltante"
+            ? "Debes escanear el código de barras de la caja antes de alistarla"
+            : `Referencia incorrecta: escaneaste ${normalizarRef(referencia_escaneada)}, pero este ítem es ${refEsperada}`,
+        resultado,
+        referencia_esperada: refEsperada,
+      });
+    }
   }
 
   let cantidadFinal;
@@ -780,6 +955,7 @@ module.exports = {
   listarPedidos,
   asignarPedido,
   asignarTanda,
+  reasignarPedido,
   obtenerPedido,
   listarOperarios,
   facturarPedido,

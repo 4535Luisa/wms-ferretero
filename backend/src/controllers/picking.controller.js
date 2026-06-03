@@ -1,6 +1,7 @@
 const supabase = require("../utils/supabase");
 const { ORDEN_BODEGAS, splitCajaSaldo } = require("../utils/picking");
 const { sendServerError } = require("../utils/errors");
+const { verificarYRegistrar, normalizarRef } = require("../utils/escaneo");
 
 const generarListasPicking = async (req, res) => {
   const { pedido_ids } = req.body;
@@ -101,24 +102,41 @@ const generarListasPicking = async (req, res) => {
             // (bloqueo: dos pickers no pueden tomar el mismo stock).
             const disponibleReal =
               inv.cantidad_disponible - (inv.cantidad_comprometida || 0);
-            const cajasDisponibles = Math.floor(disponibleReal / unidadEmpaque);
+            let cajasDisponibles = Math.floor(disponibleReal / unidadEmpaque);
             if (cajasDisponibles <= 0) continue;
-            const cajasATomar = Math.min(cajasRestantes, cajasDisponibles);
-            const unidadesATomar = cajasATomar * unidadEmpaque;
+
+            // Reserva ATÓMICA: el stock pasa a COMPROMETIDO solo si hay
+            // disponible real (RPC con FOR UPDATE, anti doble-picking). Si otro
+            // proceso se adelantó entre la lectura y este punto, reintenta con
+            // lo que realmente quede. Ver sql/2026-06-02_rpc_reservar_picking.sql
+            let cajasATomar = 0;
+            let unidadesATomar = 0;
+            for (let intento = 0; intento < 2; intento++) {
+              const cajas = Math.min(cajasRestantes, cajasDisponibles);
+              if (cajas <= 0) break;
+              const unidades = cajas * unidadEmpaque;
+              const { data: rsv } = await supabase.rpc(
+                "reservar_inventario_picking",
+                { p_inventario_id: inv.id, p_unidades: unidades },
+              );
+              if (rsv?.status === "ok") {
+                cajasATomar = cajas;
+                unidadesATomar = unidades;
+                break;
+              }
+              if (rsv?.status === "insufficient") {
+                cajasDisponibles = Math.floor(
+                  (rsv.disponible || 0) / unidadEmpaque,
+                );
+                continue; // reintenta con lo que quede
+              }
+              break; // not_found u otro estado: no reservar
+            }
+            if (cajasATomar <= 0) continue;
 
             const ubicCodigo = inv.ubicacion_id
               ? ubicMap[inv.ubicacion_id] || null
               : null;
-
-            // Reserva: el stock pasa a COMPROMETIDO al asignar el picking
-            // (railguard), no se descuenta el disponible hasta la bajada física.
-            await supabase
-              .from("inventario")
-              .update({
-                cantidad_comprometida:
-                  (inv.cantidad_comprometida || 0) + unidadesATomar,
-              })
-              .eq("id", inv.id);
 
             listasPorBodega[bodegaId].items.push({
               pedido_id: pedidoId,
@@ -280,7 +298,7 @@ const asignarMontacarguista = async (req, res) => {
 
 const bajarCaja = async (req, res) => {
   const { id } = req.params;
-  const { estiba_id } = req.body || {};
+  const { estiba_id, referencia_escaneada } = req.body || {};
   const usuario_id = req.usuario?.id;
   const esAdmin = req.usuario?.rol === "administrador";
 
@@ -294,6 +312,28 @@ const bajarCaja = async (req, res) => {
   // Idempotencia: si ya fue procesada, no volver a descontar inventario.
   if (item.estado !== "pendiente") {
     return res.status(400).json({ error: "Esta caja ya fue bajada" });
+  }
+
+  // Verificación de escaneo (railguard): la referencia de la caja escaneada
+  // debe coincidir con la del ítem. Si no coincide, no se registra la bajada
+  // ni se toca inventario. El intento queda trazado en bitácora.
+  const refEsperada = item.referencia || item.productos?.codigo_interno;
+  const { ok, resultado } = await verificarYRegistrar({
+    usuario_id,
+    tabla: "lista_picking_items",
+    registro_id: id,
+    esperada: refEsperada,
+    escaneada: referencia_escaneada,
+  });
+  if (!ok) {
+    return res.status(422).json({
+      error:
+        resultado === "faltante"
+          ? "Debes escanear el código de barras de la caja antes de bajarla"
+          : `Caja incorrecta: escaneaste ${normalizarRef(referencia_escaneada)}, pero esta línea es ${refEsperada}`,
+      resultado,
+      referencia_esperada: refEsperada,
+    });
   }
 
   // La estiba debe existir y tener foto (railguard) — se valida al crearla.

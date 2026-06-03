@@ -28,13 +28,15 @@ El esquema vive en Supabase. El repo versiona solo las migraciones en
 3. `2026-06-01_rpc_picking_saldos.sql`
 4. `2026-06-01_rpc_recepciones.sql`
 5. `2026-06-01_rpc_cancelar_lista.sql`
+6. `2026-06-02_rpc_reservar_picking.sql`
 
-Las funciones RPC (3 últimos archivos) son **obligatorias**: el backend las
-invoca para que las operaciones de inventario sean atómicas/idempotentes. Si no
-se aplican, estos flujos responden **500**:
+Las funciones RPC (archivos 2-6) son **obligatorias**: el backend las invoca
+para que las operaciones de inventario sean atómicas/idempotentes. Si no se
+aplican, estos flujos responden **500**:
 
 - Entregar saldo, confirmar caja SALDOS, bajar caja (picking).
 - Confirmar recepción (con inspección y directa).
+- Generar listas de picking y reposición SALDOS (reserva atómica de stock).
 
 Si una RPC recién creada no aparece para PostgREST:
 
@@ -46,6 +48,7 @@ notify pgrst, 'reload schema';
 
 ```sql
 select entregar_saldo('00000000-0000-0000-0000-000000000000', null);
+select reservar_inventario_picking('00000000-0000-0000-0000-000000000000', 1);
 ```
 
 ---

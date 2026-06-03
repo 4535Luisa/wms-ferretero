@@ -1,5 +1,6 @@
 const supabase = require("../utils/supabase");
 const { sendServerError } = require("../utils/errors");
+const { verificarYRegistrar, normalizarRef } = require("../utils/escaneo");
 
 // Semáforo de urgencia calculado desde la hora límite de despacho (railguard).
 const calcularSemaforo = (horaLimite, hayUrgente) => {
@@ -90,7 +91,36 @@ const colaSaldos = async (req, res) => {
 // de SALDOS sube SOLO en este momento (railguard).
 const confirmarCajaSaldos = async (req, res) => {
   const { itemId } = req.params;
+  const { referencia_escaneada } = req.body || {};
   const usuario_id = req.usuario?.id;
+
+  // Verificación de escaneo (railguard): la caja de reposición recibida debe
+  // ser exactamente la referencia esperada antes de subir inventario.
+  const { data: item } = await supabase
+    .from("lista_picking_items")
+    .select("referencia, productos(codigo_interno)")
+    .eq("id", itemId)
+    .single();
+  if (!item) return res.status(404).json({ error: "Caja no encontrada" });
+
+  const refEsperada = item.referencia || item.productos?.codigo_interno;
+  const { ok, resultado } = await verificarYRegistrar({
+    usuario_id,
+    tabla: "lista_picking_items",
+    registro_id: itemId,
+    esperada: refEsperada,
+    escaneada: referencia_escaneada,
+  });
+  if (!ok) {
+    return res.status(422).json({
+      error:
+        resultado === "faltante"
+          ? "Debes escanear el código de barras de la caja antes de confirmarla"
+          : `Caja incorrecta: escaneaste ${normalizarRef(referencia_escaneada)}, pero esta caja es ${refEsperada}`,
+      resultado,
+      referencia_esperada: refEsperada,
+    });
+  }
 
   // Suba de inventario SALDOS + marca del ítem + bitácora en UNA transacción
   // con bloqueo de filas. Ver backend/sql/2026-06-01_rpc_picking_saldos.sql

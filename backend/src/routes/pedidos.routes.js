@@ -6,6 +6,7 @@ const {
   listarPedidos,
   asignarPedido,
   asignarTanda,
+  reasignarPedido,
   obtenerPedido,
   listarOperarios,
   facturarPedido,
@@ -22,6 +23,7 @@ router.get("/operarios", requireRoles("administrador"), listarOperarios);
 router.get("/mis-pedidos", requireRoles("operario"), misPedidosOperario);
 router.get("/:id", requireRoles("facturacion"), obtenerPedido);
 router.patch("/:id/asignar", requireRoles("administrador"), asignarPedido);
+router.patch("/:id/reasignar", requireRoles("administrador"), reasignarPedido);
 router.post("/tanda", requireRoles("administrador"), asignarTanda);
 router.patch("/:id/facturar", requireRoles("facturacion"), facturarPedido);
 router.patch("/:id/prioridad", requireRoles("administrador"), cambiarPrioridad);
