@@ -27,6 +27,7 @@ Datos del proyecto (a fecha de esta guía):
    3. `2026-06-01_rpc_picking_saldos.sql`
    4. `2026-06-01_rpc_recepciones.sql`
    5. `2026-06-01_rpc_cancelar_lista.sql`
+   6. `2026-06-02_rpc_reservar_picking.sql`
 
 3. Si una función recién creada no aparece para la API, ejecuta una vez:
 
@@ -46,6 +47,7 @@ Datos del proyecto (a fecha de esta guía):
    select confirmar_recepcion('00000000-0000-0000-0000-000000000000', null);
    select confirmar_recepcion_directo('00000000-0000-0000-0000-000000000000', null);
    select cancelar_lista_picking('00000000-0000-0000-0000-000000000000', null);
+   select reservar_inventario_picking('00000000-0000-0000-0000-000000000000', 1);
    ```
 
 ---

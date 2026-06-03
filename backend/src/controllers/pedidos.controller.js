@@ -252,13 +252,15 @@ const generarReposicionSaldos = async (operario_id, repoRep) => {
         ubicCodigo = u?.codigo || null;
       }
 
-      // Reserva la caja (comprometido) e inserta el ítem con destino SALDOS.
-      await supabase
-        .from("inventario")
-        .update({
-          cantidad_comprometida: (inv.cantidad_comprometida || 0) + ue,
-        })
-        .eq("id", inv.id);
+      // Reserva ATÓMICA de la caja (comprometido) — solo si hay disponible real
+      // (RPC con FOR UPDATE, anti doble-picking). Si otro proceso tomó el stock
+      // entremedias, prueba la siguiente bodega en vez de sobre-comprometer.
+      // Ver sql/2026-06-02_rpc_reservar_picking.sql
+      const { data: rsv } = await supabase.rpc("reservar_inventario_picking", {
+        p_inventario_id: inv.id,
+        p_unidades: ue,
+      });
+      if (rsv?.status !== "ok") continue;
 
       await supabase.from("lista_picking_items").insert({
         lista_id: lista.id,

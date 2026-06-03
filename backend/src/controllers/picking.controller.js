@@ -102,24 +102,41 @@ const generarListasPicking = async (req, res) => {
             // (bloqueo: dos pickers no pueden tomar el mismo stock).
             const disponibleReal =
               inv.cantidad_disponible - (inv.cantidad_comprometida || 0);
-            const cajasDisponibles = Math.floor(disponibleReal / unidadEmpaque);
+            let cajasDisponibles = Math.floor(disponibleReal / unidadEmpaque);
             if (cajasDisponibles <= 0) continue;
-            const cajasATomar = Math.min(cajasRestantes, cajasDisponibles);
-            const unidadesATomar = cajasATomar * unidadEmpaque;
+
+            // Reserva ATÓMICA: el stock pasa a COMPROMETIDO solo si hay
+            // disponible real (RPC con FOR UPDATE, anti doble-picking). Si otro
+            // proceso se adelantó entre la lectura y este punto, reintenta con
+            // lo que realmente quede. Ver sql/2026-06-02_rpc_reservar_picking.sql
+            let cajasATomar = 0;
+            let unidadesATomar = 0;
+            for (let intento = 0; intento < 2; intento++) {
+              const cajas = Math.min(cajasRestantes, cajasDisponibles);
+              if (cajas <= 0) break;
+              const unidades = cajas * unidadEmpaque;
+              const { data: rsv } = await supabase.rpc(
+                "reservar_inventario_picking",
+                { p_inventario_id: inv.id, p_unidades: unidades },
+              );
+              if (rsv?.status === "ok") {
+                cajasATomar = cajas;
+                unidadesATomar = unidades;
+                break;
+              }
+              if (rsv?.status === "insufficient") {
+                cajasDisponibles = Math.floor(
+                  (rsv.disponible || 0) / unidadEmpaque,
+                );
+                continue; // reintenta con lo que quede
+              }
+              break; // not_found u otro estado: no reservar
+            }
+            if (cajasATomar <= 0) continue;
 
             const ubicCodigo = inv.ubicacion_id
               ? ubicMap[inv.ubicacion_id] || null
               : null;
-
-            // Reserva: el stock pasa a COMPROMETIDO al asignar el picking
-            // (railguard), no se descuenta el disponible hasta la bajada física.
-            await supabase
-              .from("inventario")
-              .update({
-                cantidad_comprometida:
-                  (inv.cantidad_comprometida || 0) + unidadesATomar,
-              })
-              .eq("id", inv.id);
 
             listasPorBodega[bodegaId].items.push({
               pedido_id: pedidoId,
