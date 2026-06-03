@@ -4,6 +4,8 @@ import api from "../services/api";
 
 export default function Facturacion() {
   const [pedidos, setPedidos] = useState([]);
+  const [facturados, setFacturados] = useState([]);
+  const [tab, setTab] = useState("pendientes");
   const [pedidoActivo, setPedidoActivo] = useState(null);
   const [vista, setVista] = useState("lista");
   const [mensaje, setMensaje] = useState({ texto: "", tipo: "" });
@@ -18,9 +20,20 @@ export default function Facturacion() {
     }
   };
 
+  // Historial: los pedidos facturados pasan a estado "despachado".
+  const cargarFacturados = async () => {
+    try {
+      const { data } = await api.get("/api/pedidos?estado=despachado");
+      setFacturados(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     cargarPedidos();
+    cargarFacturados();
   }, []);
 
   const mostrarMensaje = (texto, tipo = "ok") => {
@@ -45,6 +58,7 @@ export default function Facturacion() {
       await api.patch(`/api/pedidos/${pedidoActivo.id}/facturar`);
       mostrarMensaje("✓ Pedido facturado — inventario actualizado");
       cargarPedidos();
+      cargarFacturados();
       setVista("lista");
       setPedidoActivo(null);
     } catch (err) {
@@ -62,7 +76,9 @@ export default function Facturacion() {
       titulo="Facturación"
       subtitulo={
         vista === "lista"
-          ? `${pedidos.length} pedidos pendientes de facturar`
+          ? tab === "pendientes"
+            ? `${pedidos.length} pedidos pendientes de facturar`
+            : `${facturados.length} pedidos facturados`
           : `Pedido ${pedidoActivo?.numero}`
       }
     >
@@ -106,6 +122,40 @@ export default function Facturacion() {
       )}
 
       {vista === "lista" && (
+        <div
+          style={{
+            display: "flex",
+            gap: "8px",
+            marginBottom: "1.25rem",
+            borderBottom: "1px solid #F0F0F0",
+          }}
+        >
+          {[
+            { id: "pendientes", label: `Por facturar (${pedidos.length})` },
+            { id: "historial", label: `Historial (${facturados.length})` },
+          ].map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              style={{
+                background: "transparent",
+                border: "none",
+                borderBottom: `2px solid ${tab === t.id ? "#00CC6A" : "transparent"}`,
+                color: tab === t.id ? "#0A0A0A" : "#888",
+                fontSize: "14px",
+                fontWeight: 600,
+                cursor: "pointer",
+                padding: "8px 4px",
+                fontFamily: "Outfit, sans-serif",
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {vista === "lista" && tab === "pendientes" && (
         <div>
           {pedidos.length === 0 ? (
             <div
@@ -223,6 +273,136 @@ export default function Facturacion() {
                   >
                     Ver →
                   </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {vista === "lista" && tab === "historial" && (
+        <div>
+          {facturados.length === 0 ? (
+            <div
+              style={{
+                background: "#FFFFFF",
+                border: "1px solid #E8E8E8",
+                borderRadius: "12px",
+                padding: "3rem",
+                textAlign: "center",
+              }}
+            >
+              <div style={{ fontSize: "40px", marginBottom: "1rem" }}>📚</div>
+              <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
+                Aún no hay pedidos facturados
+              </p>
+            </div>
+          ) : (
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+            >
+              {facturados.map((pedido) => (
+                <div
+                  key={pedido.id}
+                  onClick={() => abrirPedido(pedido.id)}
+                  style={{
+                    background: "#FFFFFF",
+                    border: "1px solid #E8E8E8",
+                    borderRadius: "12px",
+                    padding: "1.25rem 1.5rem",
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = "#00FF87";
+                    e.currentTarget.style.boxShadow =
+                      "0 0 0 3px rgba(0,255,135,0.08)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = "#E8E8E8";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontFamily: "DM Mono, monospace",
+                          fontSize: "14px",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {pedido.numero}
+                      </span>
+                      <span
+                        style={{
+                          background: "#F3F4F6",
+                          color: "#374151",
+                          padding: "2px 10px",
+                          borderRadius: "20px",
+                          fontSize: "10px",
+                          fontWeight: 700,
+                          letterSpacing: "0.06em",
+                        }}
+                      >
+                        FACTURADO
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "#888",
+                        marginTop: "4px",
+                      }}
+                    >
+                      {pedido.pedido_items?.length || 0} referencias ·{" "}
+                      {pedido.pedido_items?.reduce(
+                        (a, i) =>
+                          a + (i.cantidad_picking ?? i.cantidad_pedida ?? 0),
+                        0,
+                      ) || 0}{" "}
+                      unidades
+                      {pedido.facturador?.nombre && (
+                        <span style={{ marginLeft: "8px" }}>
+                          · Por: {pedido.facturador.nombre}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    {pedido.hora_facturacion && (
+                      <div style={{ fontSize: "12px", color: "#888" }}>
+                        {new Date(pedido.hora_facturacion).toLocaleString(
+                          "es-CO",
+                          {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          },
+                        )}
+                      </div>
+                    )}
+                    <span
+                      style={{
+                        fontSize: "13px",
+                        color: "#00CC6A",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Ver →
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -350,38 +530,76 @@ export default function Facturacion() {
             })}
           </div>
 
-          <button
-            onClick={marcarFacturado}
-            disabled={cargando}
-            style={{
-              width: "100%",
-              background: "#00FF87",
-              color: "#0A0A0A",
-              border: "none",
-              borderRadius: "10px",
-              padding: "14px",
-              fontSize: "16px",
-              fontWeight: 700,
-              cursor: cargando ? "not-allowed" : "pointer",
-              fontFamily: "Outfit, sans-serif",
-              opacity: cargando ? 0.6 : 1,
-            }}
-          >
-            {cargando
-              ? "Procesando..."
-              : "✓ Marcar como facturado — descontar inventario"}
-          </button>
-          <p
-            style={{
-              fontSize: "11px",
-              color: "#AAA",
-              textAlign: "center",
-              marginTop: "8px",
-            }}
-          >
-            Esta acción descuenta las unidades del inventario general y no se
-            puede deshacer
-          </p>
+          {pedidoActivo.facturado ? (
+            <div
+              style={{
+                background: "rgba(0,255,135,0.06)",
+                border: "1px solid rgba(0,255,135,0.25)",
+                borderRadius: "10px",
+                padding: "14px",
+                textAlign: "center",
+              }}
+            >
+              <p
+                style={{
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  color: "#007A40",
+                  margin: 0,
+                }}
+              >
+                ✓ Pedido facturado
+                {pedidoActivo.hora_facturacion &&
+                  ` — ${new Date(pedidoActivo.hora_facturacion).toLocaleString("es-CO", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}`}
+              </p>
+              {pedidoActivo.facturador?.nombre && (
+                <p
+                  style={{
+                    fontSize: "12px",
+                    color: "#888",
+                    margin: "4px 0 0",
+                  }}
+                >
+                  Por: {pedidoActivo.facturador.nombre}
+                </p>
+              )}
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={marcarFacturado}
+                disabled={cargando}
+                style={{
+                  width: "100%",
+                  background: "#00FF87",
+                  color: "#0A0A0A",
+                  border: "none",
+                  borderRadius: "10px",
+                  padding: "14px",
+                  fontSize: "16px",
+                  fontWeight: 700,
+                  cursor: cargando ? "not-allowed" : "pointer",
+                  fontFamily: "Outfit, sans-serif",
+                  opacity: cargando ? 0.6 : 1,
+                }}
+              >
+                {cargando
+                  ? "Procesando..."
+                  : "✓ Marcar como facturado — descontar inventario"}
+              </button>
+              <p
+                style={{
+                  fontSize: "11px",
+                  color: "#AAA",
+                  textAlign: "center",
+                  marginTop: "8px",
+                }}
+              >
+                Esta acción descuenta las unidades del inventario general y no se
+                puede deshacer
+              </p>
+            </>
+          )}
         </div>
       )}
     </Layout>

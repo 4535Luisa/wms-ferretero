@@ -75,7 +75,7 @@ const adjuntarUsuarios = async (pedidos) => {
   const ids = [
     ...new Set(
       pedidos.flatMap((p) =>
-        [p.operario_id, p.montacarguista_id].filter(Boolean),
+        [p.operario_id, p.montacarguista_id, p.facturador_id].filter(Boolean),
       ),
     ),
   ];
@@ -91,6 +91,7 @@ const adjuntarUsuarios = async (pedidos) => {
     ...p,
     operario: p.operario_id ? mapa[p.operario_id] || null : null,
     montacarguista: p.montacarguista_id ? mapa[p.montacarguista_id] || null : null,
+    facturador: p.facturador_id ? mapa[p.facturador_id] || null : null,
   }));
 };
 
