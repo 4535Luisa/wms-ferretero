@@ -7,6 +7,7 @@ import Login from "./pages/Login";
 import Admin from "./pages/Admin";
 import AdminUsuarios from "./pages/AdminUsuarios";
 import AdminPedidos from "./pages/AdminPedidos";
+import Dashboard from "./pages/Dashboard";
 import HistorialProducto from "./pages/HistorialProducto";
 import Montacarguista from "./pages/Montacarguista";
 import Operario from "./pages/Operario";
@@ -45,6 +46,14 @@ createRoot(document.getElementById("root")).render(
             element={
               <PrivateRoute roles={["administrador"]}>
                 <AdminPedidos />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/admin/dashboard"
+            element={
+              <PrivateRoute roles={["administrador"]}>
+                <Dashboard />
               </PrivateRoute>
             }
           />

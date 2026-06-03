@@ -10,6 +10,7 @@ const pedidosRoutes = require("./routes/pedidos.routes");
 const authMiddleware = require("./middlewares/auth.middleware");
 const pickingRoutes = require("./routes/picking.routes");
 const saldosRoutes = require("./routes/saldos.routes");
+const dashboardRoutes = require("./routes/dashboard.routes");
 const { errorHandler, notFoundHandler } = require("./utils/errors");
 const { apiLimiter, authLimiter } = require("./middlewares/rateLimit");
 const { construirCorsOptions } = require("./utils/cors");
@@ -48,6 +49,7 @@ app.use("/api/usuarios", authMiddleware, usuariosRoutes);
 app.use("/api/pedidos", authMiddleware, pedidosRoutes);
 app.use("/api/picking", authMiddleware, pickingRoutes);
 app.use("/api/saldos", authMiddleware, saldosRoutes);
+app.use("/api/dashboard", authMiddleware, dashboardRoutes);
 
 // Rutas no encontradas + manejador de errores global (siempre al final).
 app.use(notFoundHandler);

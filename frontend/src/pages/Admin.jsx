@@ -27,12 +27,12 @@ const modulos = [
     fase: "Fase 6",
   },
   {
-    path: null,
+    path: "/admin/dashboard",
     icon: "⚡",
     titulo: "Dashboard en vivo",
     descripcion: "Pedidos activos y operarios en tiempo real",
-    activo: false,
-    fase: "Fase 3",
+    activo: true,
+    fase: null,
   },
 ];
 
