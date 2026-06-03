@@ -400,6 +400,152 @@ const asignarPedido = async (req, res) => {
   return res.json({ data, mensaje: "Pedido asignado correctamente" });
 };
 
+// Reasigna un pedido a otro operario CONSERVANDO el avance: no se tocan los
+// estados de los ítems (los ya 'listo' siguen 'listo'), ni cantidad_picking ni
+// las estibas vinculadas. Mueve los saldos pendientes del operario anterior al
+// nuevo solo cuando es seguro (nunca toca inventario). Notifica a ambos.
+const reasignarPedido = async (req, res) => {
+  const { id } = req.params;
+  const { operario_id } = req.body;
+  const usuario_id = req.usuario?.id || null;
+
+  if (!operario_id)
+    return res.status(400).json({ error: "Debe indicar el operario destino" });
+
+  const { data: pedido } = await supabase
+    .from("pedidos")
+    .select("*, pedido_items(id, producto_id, estado, cantidad_saldos)")
+    .eq("id", id)
+    .single();
+  if (!pedido) return res.status(404).json({ error: "Pedido no encontrado" });
+
+  if (["cerrado", "despachado"].includes(pedido.estado)) {
+    return res.status(400).json({
+      error: "No se puede reasignar un pedido cerrado o despachado",
+    });
+  }
+  if (pedido.operario_id === operario_id) {
+    return res
+      .status(400)
+      .json({ error: "El pedido ya está asignado a ese operario" });
+  }
+
+  const operarioAnterior = pedido.operario_id;
+
+  const { error } = await supabase
+    .from("pedidos")
+    .update({ operario_id })
+    .eq("id", id);
+  if (error) return sendServerError(res, error, req);
+
+  // Mueve los saldos PENDIENTES de los productos de este pedido del operario
+  // anterior al nuevo, solo si el anterior no tiene OTRO pedido activo que
+  // necesite ese producto en saldos (la cola de saldos se consolida por
+  // operario, así que no se puede partir una fila compartida).
+  const productosSaldo = [
+    ...new Set(
+      (pedido.pedido_items || [])
+        .filter((i) => (i.cantidad_saldos || 0) > 0)
+        .map((i) => i.producto_id),
+    ),
+  ];
+  const saldosNoMovidos = [];
+  if (operarioAnterior && productosSaldo.length > 0) {
+    const { data: otrosPedidos } = await supabase
+      .from("pedidos")
+      .select("id, pedido_items(producto_id, cantidad_saldos)")
+      .eq("operario_id", operarioAnterior)
+      .neq("id", id)
+      .in("estado", ["asignado", "en_proceso", "en_picking"]);
+    const productosEnOtros = new Set();
+    for (const p of otrosPedidos || [])
+      for (const it of p.pedido_items || [])
+        if ((it.cantidad_saldos || 0) > 0) productosEnOtros.add(it.producto_id);
+
+    for (const productoId of productosSaldo) {
+      if (productosEnOtros.has(productoId)) {
+        saldosNoMovidos.push(productoId);
+        continue;
+      }
+      const { data: saldoAnt } = await supabase
+        .from("saldos")
+        .select("id, cantidad_total")
+        .eq("operario_id", operarioAnterior)
+        .eq("producto_id", productoId)
+        .eq("estado", "pendiente")
+        .maybeSingle();
+      if (!saldoAnt) {
+        saldosNoMovidos.push(productoId);
+        continue;
+      }
+      const { data: saldoNuevo } = await supabase
+        .from("saldos")
+        .select("id, cantidad_total")
+        .eq("operario_id", operario_id)
+        .eq("producto_id", productoId)
+        .eq("estado", "pendiente")
+        .maybeSingle();
+      if (saldoNuevo) {
+        await supabase
+          .from("saldos")
+          .update({
+            cantidad_total:
+              (saldoNuevo.cantidad_total || 0) + (saldoAnt.cantidad_total || 0),
+          })
+          .eq("id", saldoNuevo.id);
+        await supabase.from("saldos").delete().eq("id", saldoAnt.id);
+      } else {
+        await supabase
+          .from("saldos")
+          .update({ operario_id })
+          .eq("id", saldoAnt.id);
+      }
+    }
+  }
+
+  const itemsListos = (pedido.pedido_items || []).filter(
+    (i) => i.estado === "listo",
+  ).length;
+  const totalItems = (pedido.pedido_items || []).length;
+
+  if (operarioAnterior) {
+    await supabase.from("notificaciones").insert({
+      usuario_id: operarioAnterior,
+      tipo: "pedido_reasignado",
+      titulo: "Pedido reasignado",
+      mensaje: `El pedido ${pedido.numero} se reasignó a otro operario`,
+      datos: { pedido_id: id, pedido_numero: pedido.numero },
+    });
+  }
+  await supabase.from("notificaciones").insert({
+    usuario_id: operario_id,
+    tipo: "pedido_asignado",
+    titulo: "Pedido heredado",
+    mensaje: `Recibiste el pedido ${pedido.numero} (${itemsListos}/${totalItems} referencias ya listas)`,
+    datos: { pedido_id: id, pedido_numero: pedido.numero },
+  });
+
+  await supabase.from("bitacora").insert({
+    usuario_id,
+    accion: "REASIGNACION_PEDIDO",
+    tabla: "pedidos",
+    registro_id: id,
+    valores_antes: { operario_id: operarioAnterior },
+    valores_despues: {
+      operario_id,
+      pedido_numero: pedido.numero,
+      items_listos: itemsListos,
+      total_items: totalItems,
+      saldos_no_movidos: saldosNoMovidos,
+    },
+  });
+
+  return res.json({
+    mensaje: `Pedido reasignado conservando el avance (${itemsListos}/${totalItems} referencias listas)`,
+    saldos_no_movidos: saldosNoMovidos.length,
+  });
+};
+
 const obtenerPedido = async (req, res) => {
   const { id } = req.params;
 
@@ -809,6 +955,7 @@ module.exports = {
   listarPedidos,
   asignarPedido,
   asignarTanda,
+  reasignarPedido,
   obtenerPedido,
   listarOperarios,
   facturarPedido,
