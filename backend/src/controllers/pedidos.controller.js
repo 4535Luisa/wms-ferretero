@@ -2,6 +2,7 @@ const supabase = require("../utils/supabase");
 const { ORDEN_BODEGAS, splitCajaSaldo } = require("../utils/picking");
 const { sendServerError } = require("../utils/errors");
 const { toFiniteNumber } = require("../utils/validate");
+const { verificarYRegistrar, normalizarRef } = require("../utils/escaneo");
 
 const cargarCSV = async (req, res) => {
   const { pedidos } = req.body;
@@ -586,25 +587,50 @@ const misPedidosOperario = async (req, res) => {
 // Si la cantidad difiere de la pedida, el motivo es obligatorio (railguard).
 const actualizarItemOperario = async (req, res) => {
   const { itemId } = req.params;
-  const { cantidad_picking, motivo_diferencia, estado } = req.body;
+  const { cantidad_picking, motivo_diferencia, estado, referencia_escaneada } =
+    req.body;
   const usuario_id = req.usuario?.id;
+  const esAdmin = req.usuario?.rol === "administrador";
 
   const { data: item, error: errItem } = await supabase
     .from("pedido_items")
-    .select("*, pedidos(operario_id, estado, numero)")
+    .select("*, pedidos(operario_id, estado, numero), productos(codigo_interno)")
     .eq("id", itemId)
     .single();
   if (errItem || !item)
     return res.status(404).json({ error: "Ítem no encontrado" });
 
-  if (req.usuario?.rol !== "administrador" &&
-      item.pedidos?.operario_id !== usuario_id) {
+  if (!esAdmin && item.pedidos?.operario_id !== usuario_id) {
     return res.status(403).json({ error: "Este ítem no es de tu pedido" });
   }
   if (item.pedidos?.estado === "cerrado") {
     return res.status(400).json({
       error: "El pedido está cerrado. Solo el administrador puede reabrirlo.",
     });
+  }
+
+  // Verificación de escaneo (railguard): el operario debe escanear la caja que
+  // recoge de la estiba y coincidir con la referencia del pedido antes de
+  // alistarla. El admin (corrección manual) queda exento.
+  if (!esAdmin) {
+    const refEsperada = item.referencia || item.productos?.codigo_interno;
+    const { ok, resultado } = await verificarYRegistrar({
+      usuario_id,
+      tabla: "pedido_items",
+      registro_id: itemId,
+      esperada: refEsperada,
+      escaneada: referencia_escaneada,
+    });
+    if (!ok) {
+      return res.status(422).json({
+        error:
+          resultado === "faltante"
+            ? "Debes escanear el código de barras de la caja antes de alistarla"
+            : `Referencia incorrecta: escaneaste ${normalizarRef(referencia_escaneada)}, pero este ítem es ${refEsperada}`,
+        resultado,
+        referencia_esperada: refEsperada,
+      });
+    }
   }
 
   let cantidadFinal;

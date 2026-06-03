@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import Layout from "../components/Layout";
+import ScanInput from "../components/ScanInput";
 import api from "../services/api";
 
 const C = {
@@ -44,17 +45,37 @@ export default function Saldos() {
     setTimeout(() => setMensaje({ texto: "", tipo: "" }), 3500);
   };
 
-  const confirmarCaja = async (itemId) => {
+  const confirmarCaja = async (itemId, referenciaEscaneada) => {
     setCargando(true);
     try {
-      await api.patch(`/api/saldos/caja/${itemId}/confirmar`);
-      aviso("✓ Caja confirmada — inventario de SALDOS actualizado");
+      await api.patch(`/api/saldos/caja/${itemId}/confirmar`, {
+        referencia_escaneada: referenciaEscaneada,
+      });
+      aviso("✓ Caja verificada y confirmada — inventario de SALDOS actualizado");
       await cargar();
     } catch (err) {
       aviso(err.response?.data?.error || "Error al confirmar", "error");
     } finally {
       setCargando(false);
     }
+  };
+
+  // El escaneo dispara la confirmación: cruza la referencia leída contra las
+  // cajas de reposición entrantes. El backend re-verifica antes de subir
+  // inventario (no se puede saltar desde el frontend).
+  const onEscanearEntrante = async (refEscaneada) => {
+    const norm = refEscaneada.trim().toUpperCase();
+    const objetivo = entrantes.find(
+      (e) => (e.referencia || "").trim().toUpperCase() === norm,
+    );
+    if (!objetivo) {
+      aviso(
+        `Caja incorrecta: ${norm} no está entre las cajas por confirmar`,
+        "error",
+      );
+      return;
+    }
+    await confirmarCaja(objetivo.id, refEscaneada);
   };
 
   const entregar = async (id) => {
@@ -108,6 +129,12 @@ export default function Saldos() {
           >
             📥 Cajas de reposición por confirmar
           </h3>
+          <ScanInput
+            onScan={onEscanearEntrante}
+            disabled={cargando}
+            label="Escanea la caja de reposición para confirmarla"
+            hint="El inventario de SALDOS sube solo si la referencia coincide"
+          />
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {entrantes.map((e) => (
               <div
@@ -130,23 +157,19 @@ export default function Saldos() {
                     Ref: {e.referencia} · {e.cantidad_unidades} unidades
                   </div>
                 </div>
-                <button
-                  onClick={() => confirmarCaja(e.id)}
-                  disabled={cargando}
+                <span
                   style={{
-                    background: "#0A0A0A",
-                    color: "#00FF87",
-                    border: "none",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: "#854D0E",
+                    background: "#FEF3C7",
                     borderRadius: "8px",
-                    padding: "10px 16px",
-                    fontSize: "13px",
-                    fontWeight: 700,
-                    cursor: "pointer",
+                    padding: "8px 12px",
                     flexShrink: 0,
                   }}
                 >
-                  Confirmar recepción
-                </button>
+                  Escanea para confirmar
+                </span>
               </div>
             ))}
           </div>

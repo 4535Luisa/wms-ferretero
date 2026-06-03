@@ -1,6 +1,7 @@
 const supabase = require("../utils/supabase");
 const { ORDEN_BODEGAS, splitCajaSaldo } = require("../utils/picking");
 const { sendServerError } = require("../utils/errors");
+const { verificarYRegistrar, normalizarRef } = require("../utils/escaneo");
 
 const generarListasPicking = async (req, res) => {
   const { pedido_ids } = req.body;
@@ -280,7 +281,7 @@ const asignarMontacarguista = async (req, res) => {
 
 const bajarCaja = async (req, res) => {
   const { id } = req.params;
-  const { estiba_id } = req.body || {};
+  const { estiba_id, referencia_escaneada } = req.body || {};
   const usuario_id = req.usuario?.id;
   const esAdmin = req.usuario?.rol === "administrador";
 
@@ -294,6 +295,28 @@ const bajarCaja = async (req, res) => {
   // Idempotencia: si ya fue procesada, no volver a descontar inventario.
   if (item.estado !== "pendiente") {
     return res.status(400).json({ error: "Esta caja ya fue bajada" });
+  }
+
+  // Verificación de escaneo (railguard): la referencia de la caja escaneada
+  // debe coincidir con la del ítem. Si no coincide, no se registra la bajada
+  // ni se toca inventario. El intento queda trazado en bitácora.
+  const refEsperada = item.referencia || item.productos?.codigo_interno;
+  const { ok, resultado } = await verificarYRegistrar({
+    usuario_id,
+    tabla: "lista_picking_items",
+    registro_id: id,
+    esperada: refEsperada,
+    escaneada: referencia_escaneada,
+  });
+  if (!ok) {
+    return res.status(422).json({
+      error:
+        resultado === "faltante"
+          ? "Debes escanear el código de barras de la caja antes de bajarla"
+          : `Caja incorrecta: escaneaste ${normalizarRef(referencia_escaneada)}, pero esta línea es ${refEsperada}`,
+      resultado,
+      referencia_esperada: refEsperada,
+    });
   }
 
   // La estiba debe existir y tener foto (railguard) — se valida al crearla.

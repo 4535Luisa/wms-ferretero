@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import Layout from "../components/Layout";
+import ScanInput from "../components/ScanInput";
 import api from "../services/api";
 
 const C = {
@@ -21,6 +22,9 @@ export default function Operario() {
   const [editando, setEditando] = useState(null);
   const [cantidadEdit, setCantidadEdit] = useState("");
   const [motivoEdit, setMotivoEdit] = useState("");
+  // Referencia escaneada por ítem (itemId -> ref). El escaneo habilita las
+  // acciones de alistado; el backend re-verifica antes de marcar listo.
+  const [refsEscaneadas, setRefsEscaneadas] = useState({});
 
   const cargar = async () => {
     try {
@@ -51,6 +55,27 @@ export default function Operario() {
     setActivo(p);
     setVista("detalle");
     setEditando(null);
+    setRefsEscaneadas({});
+  };
+
+  // El escaneo verifica que la caja recogida de la estiba es del pedido y
+  // habilita su alistado. Cruza contra la referencia de cada ítem pendiente.
+  const onEscanear = (refEscaneada) => {
+    const norm = refEscaneada.trim().toUpperCase();
+    const objetivo = (activo?.pedido_items || []).find(
+      (i) =>
+        i.estado !== "listo" &&
+        (i.productos?.codigo_interno || "").trim().toUpperCase() === norm,
+    );
+    if (!objetivo) {
+      aviso(
+        `Referencia incorrecta: ${norm} no pertenece a este pedido o ya está lista`,
+        "error",
+      );
+      return;
+    }
+    setRefsEscaneadas((prev) => ({ ...prev, [objetivo.id]: refEscaneada }));
+    aviso(`✓ ${objetivo.productos?.descripcion_corta || norm} verificada — ya puedes alistarla`);
   };
 
   const progreso = (p) => {
@@ -63,8 +88,11 @@ export default function Operario() {
   const marcarListo = async (item) => {
     setCargando(true);
     try {
-      await api.patch(`/api/pedidos/items/${item.id}`, { estado: "listo" });
-      aviso("✓ Referencia marcada como lista");
+      await api.patch(`/api/pedidos/items/${item.id}`, {
+        estado: "listo",
+        referencia_escaneada: refsEscaneadas[item.id],
+      });
+      aviso("✓ Referencia verificada y marcada como lista");
       await cargar();
     } catch (err) {
       aviso(err.response?.data?.error || "Error al marcar", "error");
@@ -89,6 +117,7 @@ export default function Operario() {
         cantidad_picking: cantidad,
         motivo_diferencia: motivoEdit.trim(),
         estado: "listo",
+        referencia_escaneada: refsEscaneadas[item.id],
       });
       aviso("✓ Cantidad actualizada");
       setEditando(null);
@@ -284,10 +313,19 @@ export default function Operario() {
 
       {vista === "detalle" && activo && (
         <div style={{ maxWidth: "780px" }}>
+          {!cerrado && (
+            <ScanInput
+              onScan={onEscanear}
+              disabled={cargando}
+              label="Escanea la caja que recoges de la estiba"
+              hint="Verifica que la referencia es de este pedido antes de alistarla"
+            />
+          )}
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {(activo.pedido_items || []).map((item) => {
               const listo = item.estado === "listo";
               const enEdicion = editando === item.id;
+              const escaneado = !!refsEscaneadas[item.id];
               const cajaUnidades =
                 (item.cantidad_pedida || 0) - (item.cantidad_saldos || 0);
               return (
@@ -398,6 +436,20 @@ export default function Operario() {
                         {listo ? (
                           <span style={{ color: "#00CC6A", fontWeight: 700, fontSize: "20px" }}>
                             ✓
+                          </span>
+                        ) : !escaneado ? (
+                          <span
+                            style={{
+                              display: "inline-block",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              color: "#854D0E",
+                              background: "#FEF9C3",
+                              borderRadius: "8px",
+                              padding: "8px 12px",
+                            }}
+                          >
+                            Escanea para alistar
                           </span>
                         ) : (
                           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import Layout from "../components/Layout";
+import ScanInput from "../components/ScanInput";
 import api from "../services/api";
 
 export default function Montacarguista() {
@@ -102,7 +103,7 @@ export default function Montacarguista() {
     setVista("barrido");
   };
 
-  const marcarBajada = async (itemId) => {
+  const marcarBajada = async (itemId, referenciaEscaneada) => {
     if (!estibaActiva) {
       mostrarMensaje("Registra o selecciona una estiba antes de bajar", "error");
       return;
@@ -111,8 +112,9 @@ export default function Montacarguista() {
     try {
       await api.patch(`/api/picking/items/${itemId}/bajar`, {
         estiba_id: estibaActiva,
+        referencia_escaneada: referenciaEscaneada,
       });
-      mostrarMensaje("✓ Caja registrada como bajada — inventario actualizado");
+      mostrarMensaje("✓ Caja verificada y registrada como bajada");
       const { data } = await api.get("/api/picking/mis-listas");
       setListas(data);
       const listaActualizada = data.find((l) => l.id === listaActiva?.id);
@@ -122,6 +124,31 @@ export default function Montacarguista() {
     } finally {
       setCargando(false);
     }
+  };
+
+  // El escaneo es el disparador de la bajada: cruza la referencia leída contra
+  // los ítems pendientes de la lista. La verificación definitiva la hace el
+  // backend (no se puede saltar manipulando el frontend).
+  const onEscanear = async (refEscaneada) => {
+    if (!estibaActiva) {
+      mostrarMensaje("Registra o selecciona una estiba antes de bajar", "error");
+      return;
+    }
+    const norm = refEscaneada.trim().toUpperCase();
+    const pendientes = (listaActiva?.lista_picking_items || []).filter(
+      (i) => i.estado === "pendiente",
+    );
+    const objetivo = pendientes.find(
+      (i) => (i.referencia || "").trim().toUpperCase() === norm,
+    );
+    if (!objetivo) {
+      mostrarMensaje(
+        `Caja incorrecta: ${norm} no pertenece a esta lista o ya fue bajada`,
+        "error",
+      );
+      return;
+    }
+    await marcarBajada(objetivo.id, refEscaneada);
   };
 
   return (
@@ -489,6 +516,13 @@ export default function Montacarguista() {
             )}
           </div>
 
+          <ScanInput
+            onScan={onEscanear}
+            disabled={cargando}
+            label="Escanea la caja antes de bajarla"
+            hint="Verifica que la referencia coincide con la lista antes de descontar inventario"
+          />
+
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {(listaActiva.lista_picking_items || [])
               .sort((a, b) =>
@@ -612,32 +646,25 @@ export default function Montacarguista() {
                           style={{
                             fontSize: "11px",
                             color: "#888",
-                            marginBottom: "8px",
+                            marginBottom: bajada ? 0 : "8px",
                           }}
                         >
                           {item.cantidad_cajas === 1 ? "caja" : "cajas"}
                         </div>
                         {!bajada && (
-                          <button
-                            onClick={() => marcarBajada(item.id)}
-                            disabled={cargando}
+                          <div
                             style={{
-                              background: "#00FF87",
-                              color: "#0A0A0A",
-                              border: "none",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              color: "#854D0E",
+                              background: "#FEF9C3",
                               borderRadius: "8px",
-                              padding: "10px 16px",
-                              fontSize: "13px",
-                              fontWeight: 700,
-                              cursor: "pointer",
-                              fontFamily: "Outfit, sans-serif",
-                              minHeight: "44px",
+                              padding: "8px 12px",
                               minWidth: "80px",
-                              display: "block",
                             }}
                           >
-                            Bajar ↓
-                          </button>
+                            Escanea para bajar
+                          </div>
                         )}
                       </div>
                     </div>
