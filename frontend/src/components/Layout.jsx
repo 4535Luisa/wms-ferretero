@@ -100,7 +100,7 @@ export default function Layout({ children, titulo, subtitulo }) {
           .wms-content { padding:1rem; padding-bottom:calc(56px + env(safe-area-inset-bottom) + 1rem); }
           .wms-bottomnav { display:flex; align-items:stretch; height:calc(56px + env(safe-area-inset-bottom)); }
         }
-        @media(min-width:769px) and (max-width:1024px) {
+        @media(min-width:769px) and (max-width:900px) {
           .wms-layout { grid-template-columns:72px 1fr; }
           .wms-sidebar-label { display:none; }
           .wms-sidebar-nav-btn { justify-content:center; padding:11px 8px; }
