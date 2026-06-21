@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Layout from "../components/Layout";
 import ScanInput from "../components/ScanInput";
 import api from "../services/api";
+
+const REFRESCO_MS = 15000;
 
 const C = {
   card: {
@@ -24,26 +26,68 @@ export default function Saldos() {
   const [entrantes, setEntrantes] = useState([]);
   const [mensaje, setMensaje] = useState({ texto: "", tipo: "" });
   const [cargando, setCargando] = useState(false);
+  // Ids de cajas entrantes ya vistas, para detectar las nuevas entre refrescos.
+  // null = aún no hubo primera carga (no alertar en el arranque).
+  const idsEntrantes = useRef(null);
+
+  const aviso = (texto, tipo = "ok") => {
+    setMensaje({ texto, tipo });
+    setTimeout(() => setMensaje({ texto: "", tipo: "" }), 3500);
+  };
+
+  // Beep corto best-effort para alertar en el piso de bodega. Si el navegador
+  // bloquea el audio (sin interacción previa), la alerta visual basta.
+  const beep = () => {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = new Ctx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      gain.gain.value = 0.08;
+      osc.start();
+      osc.stop(ctx.currentTime + 0.15);
+    } catch {
+      /* sin audio disponible */
+    }
+  };
 
   const cargar = async () => {
     try {
       const { data } = await api.get("/api/saldos");
+      const nuevasEntrantes = data.entrantes || [];
       setCola(data.cola || []);
-      setEntrantes(data.entrantes || []);
+      setEntrantes(nuevasEntrantes);
+
+      // Alerta en tiempo real: cajas de reposición que no estaban en el refresco
+      // anterior (el montacarguista acaba de bajar una con destino SALDOS).
+      const idsActuales = new Set(nuevasEntrantes.map((e) => e.id));
+      if (idsEntrantes.current) {
+        const nuevas = nuevasEntrantes.filter(
+          (e) => !idsEntrantes.current.has(e.id),
+        );
+        if (nuevas.length > 0) {
+          beep();
+          aviso(
+            `🔔 Llegó ${nuevas.length} caja(s) de reposición para confirmar`,
+          );
+        }
+      }
+      idsEntrantes.current = idsActuales;
     } catch (err) {
       console.error(err);
     }
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargar();
+    const id = setInterval(cargar, REFRESCO_MS);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const aviso = (texto, tipo = "ok") => {
-    setMensaje({ texto, tipo });
-    setTimeout(() => setMensaje({ texto: "", tipo: "" }), 3500);
-  };
 
   const confirmarCaja = async (itemId, referenciaEscaneada) => {
     setCargando(true);

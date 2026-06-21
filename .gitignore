@@ -27,3 +27,10 @@ logs/
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# Documentos confidenciales (contienen credenciales — NUNCA commitear)
+*.docx
+*.doc
+*.xlsx
+*.xlsm
+*.xls

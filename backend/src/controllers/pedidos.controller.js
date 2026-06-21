@@ -323,14 +323,15 @@ const asignarTanda = async (req, res) => {
     // Calcula el split caja/saldo de cada ítem y lo persiste para que el
     // operario vea qué recoge del montacarguista y qué en bodega de saldos.
     for (const item of pedido.pedido_items || []) {
-      const { aplica, unidadesSueltas } = splitCajaSaldo(
+      const { unidadesSueltas } = splitCajaSaldo(
         item.cantidad_pedida,
         item.productos?.unidad_empaque,
       );
-      if (!aplica) continue;
 
       // cantidad_saldos = unidades sueltas (informativo para el operario y la
-      // cola de saldos). cantidad_picking lo confirma el operario al alistar.
+      // cola de saldos). Si el empaque es desconocido, unidadesSueltas es la
+      // cantidad completa: todo el ítem va a SALDOS en vez de omitirse.
+      // cantidad_picking lo confirma el operario al alistar.
       await supabase
         .from("pedido_items")
         .update({
