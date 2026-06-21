@@ -744,7 +744,9 @@ const actualizarItemOperario = async (req, res) => {
 
   const { data: item, error: errItem } = await supabase
     .from("pedido_items")
-    .select("*, pedidos(operario_id, estado, numero), productos(codigo_interno)")
+    .select(
+      "*, pedidos(operario_id, estado, numero, bodega_id), productos(codigo_interno)",
+    )
     .eq("id", itemId)
     .single();
   if (errItem || !item)
@@ -834,6 +836,18 @@ const actualizarItemOperario = async (req, res) => {
       pedido_numero: item.pedidos?.numero,
     },
   });
+
+  // Mini-conteo automático: si el operario alistó una cantidad distinta a la
+  // pedida, encola un mini-conteo (origen picking) para que inventarios
+  // verifique el stock real de esa referencia. Es informativo: no bloquea.
+  if (cantidadFinal !== item.cantidad_pedida) {
+    await supabase.from("mini_conteos").insert({
+      producto_id: item.producto_id,
+      bodega_id: item.pedidos?.bodega_id || null,
+      origen: "picking",
+      estado: "pendiente",
+    });
+  }
 
   return res.json({ data, mensaje: "Ítem actualizado" });
 };

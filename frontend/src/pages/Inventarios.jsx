@@ -18,6 +18,10 @@ const estadoColor = {
   en_transito: { bg: "#FEF9C3", fg: "#854D0E" },
   completado: { bg: "rgba(0,255,135,0.12)", fg: "#007A40" },
   cancelado: { bg: "#FEE2E2", fg: "#991B1B" },
+  pendiente_conteo: { bg: "#E0E7FF", fg: "#3730A3" },
+  contado: { bg: "#FEF9C3", fg: "#854D0E" },
+  sin_diferencia: { bg: "rgba(0,255,135,0.12)", fg: "#007A40" },
+  ajustado: { bg: "rgba(0,255,135,0.12)", fg: "#007A40" },
 };
 
 const C = {
@@ -166,6 +170,13 @@ export default function Inventarios() {
   const [cantTras, setCantTras] = useState("");
   const [motivoTras, setMotivoTras] = useState("");
 
+  // Conteos.
+  const [conteos, setConteos] = useState([]);
+  const [prodConteo, setProdConteo] = useState(null);
+  const [bodegaConteo, setBodegaConteo] = useState("");
+  const [cantContada, setCantContada] = useState("");
+  const [miniConteoId, setMiniConteoId] = useState(null);
+
   const aviso = (texto, tipo = "ok") => {
     setMensaje({ texto, tipo });
     setTimeout(() => setMensaje({ texto: "", tipo: "" }), 3500);
@@ -173,14 +184,16 @@ export default function Inventarios() {
 
   const cargar = async () => {
     try {
-      const [b, a, t] = await Promise.all([
+      const [b, a, t, c] = await Promise.all([
         api.get("/api/usuarios/bodegas"),
         api.get("/api/ajustes"),
         api.get("/api/traslados"),
+        api.get("/api/conteos"),
       ]);
       setBodegas(b.data || []);
       setAjustes(a.data || []);
       setTraslados(t.data || []);
+      setConteos(c.data || []);
     } catch (err) {
       console.error(err);
     }
@@ -265,6 +278,59 @@ export default function Inventarios() {
     }
   };
 
+  const registrarConteo = async () => {
+    if (!prodConteo) return aviso("Selecciona un producto", "error");
+    if (!bodegaConteo) return aviso("Selecciona una bodega", "error");
+    if (cantContada === "" || Number(cantContada) < 0)
+      return aviso("Ingresa la cantidad contada", "error");
+
+    setCargando(true);
+    try {
+      const { data } = await api.post("/api/conteos", {
+        producto_id: prodConteo.id,
+        bodega_id: bodegaConteo,
+        cantidad_contada: Number(cantContada),
+        mini_conteo_id: miniConteoId || undefined,
+      });
+      aviso(`✓ ${data.mensaje}`);
+      setProdConteo(null);
+      setBodegaConteo("");
+      setCantContada("");
+      setMiniConteoId(null);
+      await cargar();
+    } catch (err) {
+      aviso(err.response?.data?.error || "Error al registrar el conteo", "error");
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const generarAjusteConteo = async (id) => {
+    setCargando(true);
+    try {
+      await api.patch(`/api/conteos/${id}/generar-ajuste`);
+      aviso("✓ Ajuste generado — pendiente de aprobación del gerente");
+      await cargar();
+    } catch (err) {
+      aviso(err.response?.data?.error || "Error al generar el ajuste", "error");
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  // Prepara el formulario para contar un mini-conteo pendiente (p. ej. de picking).
+  const contarPendiente = (mc) => {
+    setTab("conteos");
+    setMiniConteoId(mc.id);
+    setProdConteo(
+      mc.productos
+        ? { id: mc.producto_id, codigo_interno: mc.productos.codigo_interno }
+        : { id: mc.producto_id },
+    );
+    setBodegaConteo(mc.bodega_id || "");
+    setCantContada("");
+  };
+
   const Tabs = (
     <div
       style={{
@@ -277,6 +343,7 @@ export default function Inventarios() {
       {[
         { id: "ajustes", label: "Ajustes" },
         { id: "traslados", label: "Traslados" },
+        { id: "conteos", label: "Conteos" },
       ].map((t) => (
         <button
           key={t.id}
@@ -694,6 +761,193 @@ export default function Inventarios() {
                           {t.estado}
                         </span>
                       )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ---------- CONTEOS ---------- */}
+      {tab === "conteos" && (
+        <>
+          <div style={{ ...C.card, maxWidth: "640px", marginBottom: "2rem" }}>
+            <h3
+              style={{
+                fontFamily: "Bebas Neue, sans-serif",
+                fontSize: "20px",
+                letterSpacing: "0.04em",
+                margin: "0 0 1rem",
+              }}
+            >
+              Registrar conteo
+            </h3>
+
+            <div style={{ marginBottom: "12px" }}>
+              <BuscadorProducto onSelect={setProdConteo} />
+              {prodConteo && (
+                <div
+                  style={{
+                    ...C.mono,
+                    fontSize: "12px",
+                    color: "#007A40",
+                    marginTop: "6px",
+                  }}
+                >
+                  Seleccionado: {prodConteo.codigo_interno || prodConteo.id}
+                </div>
+              )}
+            </div>
+
+            <div style={{ marginBottom: "12px" }}>
+              <label style={C.label}>Bodega *</label>
+              <select
+                style={C.input}
+                value={bodegaConteo}
+                onChange={(e) => setBodegaConteo(e.target.value)}
+              >
+                <option value="">Selecciona…</option>
+                {bodegas.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.codigo} — {b.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: "16px" }}>
+              <label style={C.label}>Cantidad contada *</label>
+              <input
+                type="number"
+                min="0"
+                style={C.input}
+                value={cantContada}
+                onChange={(e) => setCantContada(e.target.value)}
+                placeholder="Unidades contadas físicamente"
+              />
+            </div>
+
+            <button
+              onClick={registrarConteo}
+              disabled={cargando}
+              style={{ ...C.btnPrimary, opacity: cargando ? 0.6 : 1 }}
+            >
+              Registrar conteo
+            </button>
+          </div>
+
+          <h3
+            style={{
+              fontSize: "13px",
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              color: "#666",
+              marginBottom: "0.75rem",
+            }}
+          >
+            Cola de conteos
+          </h3>
+          {conteos.length === 0 ? (
+            <div style={{ ...C.card, textAlign: "center", color: "#888" }}>
+              Aún no hay conteos
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {conteos.map((c) => {
+                const ec = estadoColor[c.estado] || estadoColor.pendiente_conteo;
+                return (
+                  <div
+                    key={c.id}
+                    style={{
+                      ...C.card,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: "12px",
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "14px", fontWeight: 600 }}>
+                        {c.productos?.descripcion_corta || "—"}
+                      </div>
+                      <div
+                        style={{
+                          ...C.mono,
+                          fontSize: "12px",
+                          color: "#888",
+                          marginTop: "3px",
+                        }}
+                      >
+                        {c.productos?.codigo_interno}
+                        {c.bodegas?.codigo ? ` · ${c.bodegas.codigo}` : ""}
+                        {c.origen === "picking" ? " · desde picking" : ""}
+                        {c.diferencia != null && c.estado !== "pendiente"
+                          ? ` · sistema ${c.cantidad_sistema} / contado ${c.cantidad_contada} (${c.diferencia > 0 ? "+" : ""}${c.diferencia})`
+                          : ""}
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "8px",
+                        alignItems: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {c.estado === "pendiente" && (
+                        <button
+                          onClick={() => contarPendiente(c)}
+                          disabled={cargando}
+                          style={{
+                            background: "#0A0A0A",
+                            color: "#FFF",
+                            border: "none",
+                            borderRadius: "8px",
+                            padding: "8px 12px",
+                            fontSize: "12px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            fontFamily: "Outfit, sans-serif",
+                          }}
+                        >
+                          Contar
+                        </button>
+                      )}
+                      {c.estado === "contado" && (
+                        <button
+                          onClick={() => generarAjusteConteo(c.id)}
+                          disabled={cargando}
+                          style={{
+                            background: "#00FF87",
+                            color: "#0A0A0A",
+                            border: "none",
+                            borderRadius: "8px",
+                            padding: "8px 12px",
+                            fontSize: "12px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            fontFamily: "Outfit, sans-serif",
+                          }}
+                        >
+                          Generar ajuste
+                        </button>
+                      )}
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          background: ec.bg,
+                          color: ec.fg,
+                          borderRadius: "20px",
+                          padding: "4px 10px",
+                        }}
+                      >
+                        {c.estado}
+                      </span>
                     </div>
                   </div>
                 );
