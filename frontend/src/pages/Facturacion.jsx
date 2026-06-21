@@ -11,22 +11,23 @@ export default function Facturacion() {
   const [mensaje, setMensaje] = useState({ texto: "", tipo: "" });
   const [cargando, setCargando] = useState(false);
 
+  // Cola "por facturar": pedidos ya despachados por el jefe que aún no se han
+  // facturado. (El estado se mantiene en "despachado"; el flag `facturado`
+  // distingue la cola del historial.)
   const cargarPedidos = async () => {
     try {
-      // Solo pedidos verificados por el jefe de bodega (Fase 4) están listos
-      // para facturar.
-      const { data } = await api.get("/api/pedidos?estado=verificado");
+      const { data } = await api.get("/api/pedidos?estado=despachado");
       setPedidos(data.filter((p) => !p.facturado));
     } catch (err) {
       console.error(err);
     }
   };
 
-  // Historial: los pedidos facturados pasan a estado "despachado".
+  // Historial: pedidos despachados que ya fueron facturados.
   const cargarFacturados = async () => {
     try {
       const { data } = await api.get("/api/pedidos?estado=despachado");
-      setFacturados(data);
+      setFacturados(data.filter((p) => p.facturado));
     } catch (err) {
       console.error(err);
     }
@@ -174,7 +175,7 @@ export default function Facturacion() {
                 No hay pedidos pendientes de facturar
               </p>
               <p style={{ fontSize: "13px", color: "#BBB", marginTop: "4px" }}>
-                Cuando el jefe de bodega verifique un pedido aparecerá aquí
+                Cuando el jefe de bodega despache un pedido aparecerá aquí
               </p>
             </div>
           ) : (

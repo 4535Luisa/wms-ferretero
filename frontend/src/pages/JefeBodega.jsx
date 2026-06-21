@@ -23,8 +23,8 @@ const modulos = [
     icon: "🚚",
     titulo: "Despacho",
     descripcion: "Registrar salida de pedidos",
-    activo: false,
-    fase: "Fase 4",
+    activo: true,
+    fase: null,
   },
   {
     path: null,

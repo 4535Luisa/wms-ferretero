@@ -126,19 +126,20 @@ const confirmarVerificacion = async (req, res) => {
     .eq("id", id);
   if (error) return sendServerError(res, error, req);
 
-  // Notifica a facturación: el pedido quedó verificado y listo para facturar.
-  const { data: facturadores } = await supabase
+  // Notifica a los jefes de bodega: el pedido quedó verificado y listo para el
+  // despacho físico (registro de bultos/peso).
+  const { data: jefes } = await supabase
     .from("usuarios")
     .select("id")
-    .eq("rol", "facturacion")
+    .eq("rol", "jefe_bodega")
     .eq("activo", true);
-  if (facturadores && facturadores.length > 0) {
+  if (jefes && jefes.length > 0) {
     await supabase.from("notificaciones").insert(
-      facturadores.map((f) => ({
-        usuario_id: f.id,
-        tipo: "pedido_verificado",
-        titulo: "Pedido verificado",
-        mensaje: `El pedido ${pedido.numero} fue verificado y está listo para facturar`,
+      jefes.map((j) => ({
+        usuario_id: j.id,
+        tipo: "pedido_por_despachar",
+        titulo: "Pedido por despachar",
+        mensaje: `El pedido ${pedido.numero} fue verificado y está listo para despachar`,
         datos: { pedido_id: id, pedido_numero: pedido.numero },
       })),
     );
@@ -153,7 +154,7 @@ const confirmarVerificacion = async (req, res) => {
     valores_despues: { estado: "verificado", pedido_numero: pedido.numero },
   });
 
-  return res.json({ mensaje: "Pedido verificado y enviado a facturación" });
+  return res.json({ mensaje: "Pedido verificado y enviado a despacho" });
 };
 
 module.exports = {

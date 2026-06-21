@@ -15,6 +15,7 @@ import Saldos from "./pages/Saldos";
 import JefeBodega from "./pages/JefeBodega";
 import JefeBodegaRecepcion from "./pages/JefeBodegaRecepcion";
 import Verificacion from "./pages/Verificacion";
+import Despacho from "./pages/Despacho";
 import Gerente from "./pages/Gerente";
 import Inventarios from "./pages/Inventarios";
 import Facturacion from "./pages/Facturacion";
@@ -130,7 +131,7 @@ createRoot(document.getElementById("root")).render(
             path="/jefe-bodega/despacho"
             element={
               <PrivateRoute roles={["jefe_bodega"]}>
-                <JefeBodega />
+                <Despacho />
               </PrivateRoute>
             }
           />

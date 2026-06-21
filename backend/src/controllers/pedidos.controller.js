@@ -590,9 +590,9 @@ const facturarPedido = async (req, res) => {
     return res.status(404).json({ error: "Pedido no encontrado" });
   if (pedido.facturado)
     return res.status(400).json({ error: "El pedido ya fue facturado" });
-  if (pedido.estado !== "verificado") {
+  if (pedido.estado !== "despachado") {
     return res.status(400).json({
-      error: "Solo se pueden facturar pedidos verificados por el jefe de bodega",
+      error: "Solo se pueden facturar pedidos despachados por el jefe de bodega",
     });
   }
 
@@ -623,7 +623,7 @@ const facturarPedido = async (req, res) => {
     accion: "FACTURACION",
     tabla: "pedidos",
     registro_id: id,
-    valores_antes: { estado: "verificado", facturado: false },
+    valores_antes: { estado: "despachado", facturado: false },
     valores_despues: {
       estado: "despachado",
       facturado: true,
