@@ -12,6 +12,7 @@ const pickingRoutes = require("./routes/picking.routes");
 const saldosRoutes = require("./routes/saldos.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
 const notificacionesRoutes = require("./routes/notificaciones.routes");
+const verificacionRoutes = require("./routes/verificacion.routes");
 const { errorHandler, notFoundHandler } = require("./utils/errors");
 const { apiLimiter, authLimiter } = require("./middlewares/rateLimit");
 const { construirCorsOptions } = require("./utils/cors");
@@ -52,6 +53,7 @@ app.use("/api/picking", authMiddleware, pickingRoutes);
 app.use("/api/saldos", authMiddleware, saldosRoutes);
 app.use("/api/dashboard", authMiddleware, dashboardRoutes);
 app.use("/api/notificaciones", authMiddleware, notificacionesRoutes);
+app.use("/api/verificacion", authMiddleware, verificacionRoutes);
 
 // Rutas no encontradas + manejador de errores global (siempre al final).
 app.use(notFoundHandler);

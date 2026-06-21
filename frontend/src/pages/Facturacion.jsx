@@ -13,7 +13,9 @@ export default function Facturacion() {
 
   const cargarPedidos = async () => {
     try {
-      const { data } = await api.get("/api/pedidos?estado=cerrado");
+      // Solo pedidos verificados por el jefe de bodega (Fase 4) están listos
+      // para facturar.
+      const { data } = await api.get("/api/pedidos?estado=verificado");
       setPedidos(data.filter((p) => !p.facturado));
     } catch (err) {
       console.error(err);
@@ -172,7 +174,7 @@ export default function Facturacion() {
                 No hay pedidos pendientes de facturar
               </p>
               <p style={{ fontSize: "13px", color: "#BBB", marginTop: "4px" }}>
-                Cuando un operario cierre un pedido aparecerá aquí
+                Cuando el jefe de bodega verifique un pedido aparecerá aquí
               </p>
             </div>
           ) : (

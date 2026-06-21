@@ -15,8 +15,8 @@ const modulos = [
     icon: "✅",
     titulo: "Verificación",
     descripcion: "Verificar pedidos antes de despachar",
-    activo: false,
-    fase: "Fase 4",
+    activo: true,
+    fase: null,
   },
   {
     path: "/jefe-bodega/despacho",
