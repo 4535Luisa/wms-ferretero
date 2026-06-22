@@ -46,15 +46,15 @@ const verificarItem = async (req, res) => {
 
   const { data: item } = await supabase
     .from("pedido_items")
-    .select("id, pedido_id, referencia, productos(codigo_interno)")
+    .select("id, pedido_id, productos(codigo_interno)")
     .eq("id", itemId)
     .eq("pedido_id", id)
     .single();
   if (!item) return res.status(404).json({ error: "Ítem no encontrado" });
 
   // Verificación de escaneo (railguard): la referencia escaneada debe coincidir
-  // con la del ítem. El intento (éxito o error) queda registrado en bitácora.
-  const refEsperada = item.referencia || item.productos?.codigo_interno;
+  // con la del producto. El intento (éxito o error) queda registrado en bitácora.
+  const refEsperada = item.productos?.codigo_interno;
   const { ok, resultado } = await verificarYRegistrar({
     usuario_id,
     tabla: "pedido_items",
