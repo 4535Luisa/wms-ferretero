@@ -26,14 +26,12 @@ const menuPorRol = {
   ],
   gerente_logistico: [
     { path: "/gerente", label: "Dashboard", icon: "◼" },
-    { path: "/gerente/inventario", label: "Inventario", icon: "📦" },
-    { path: "/gerente/ajustes", label: "Ajustes", icon: "⚙" },
-    { path: "/gerente/reportes", label: "Reportes", icon: "📊" },
+    { path: "/gerente/reportes", label: "Indicadores", icon: "📊" },
+    { path: "/kits", label: "Kits", icon: "🧩" },
   ],
   inventarios: [
     { path: "/inventarios", label: "Panel", icon: "◼" },
-    { path: "/inventarios/conteos", label: "Conteos", icon: "🔢" },
-    { path: "/inventarios/mini-conteos", label: "Mini-conteos", icon: "⚡" },
+    { path: "/kits", label: "Kits", icon: "🧩" },
   ],
   facturacion: [
     { path: "/facturacion", label: "Por facturar", icon: "🧾" },

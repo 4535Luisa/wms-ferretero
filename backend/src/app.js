@@ -19,6 +19,7 @@ const trasladosRoutes = require("./routes/traslados.routes");
 const conteosRoutes = require("./routes/conteos.routes");
 const devolucionesRoutes = require("./routes/devoluciones.routes");
 const reportesRoutes = require("./routes/reportes.routes");
+const kitsRoutes = require("./routes/kits.routes");
 const { errorHandler, notFoundHandler } = require("./utils/errors");
 const { apiLimiter, authLimiter } = require("./middlewares/rateLimit");
 const { construirCorsOptions } = require("./utils/cors");
@@ -66,6 +67,7 @@ app.use("/api/traslados", authMiddleware, trasladosRoutes);
 app.use("/api/conteos", authMiddleware, conteosRoutes);
 app.use("/api/devoluciones", authMiddleware, devolucionesRoutes);
 app.use("/api/reportes", authMiddleware, reportesRoutes);
+app.use("/api/kits", authMiddleware, kitsRoutes);
 
 // Rutas no encontradas + manejador de errores global (siempre al final).
 app.use(notFoundHandler);
