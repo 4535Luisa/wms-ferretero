@@ -323,14 +323,15 @@ const asignarTanda = async (req, res) => {
     // Calcula el split caja/saldo de cada ítem y lo persiste para que el
     // operario vea qué recoge del montacarguista y qué en bodega de saldos.
     for (const item of pedido.pedido_items || []) {
-      const { aplica, unidadesSueltas } = splitCajaSaldo(
+      const { unidadesSueltas } = splitCajaSaldo(
         item.cantidad_pedida,
         item.productos?.unidad_empaque,
       );
-      if (!aplica) continue;
 
       // cantidad_saldos = unidades sueltas (informativo para el operario y la
-      // cola de saldos). cantidad_picking lo confirma el operario al alistar.
+      // cola de saldos). Si el empaque es desconocido, unidadesSueltas es la
+      // cantidad completa: todo el ítem va a SALDOS en vez de omitirse.
+      // cantidad_picking lo confirma el operario al alistar.
       await supabase
         .from("pedido_items")
         .update({
@@ -419,9 +420,9 @@ const reasignarPedido = async (req, res) => {
     .single();
   if (!pedido) return res.status(404).json({ error: "Pedido no encontrado" });
 
-  if (["cerrado", "despachado"].includes(pedido.estado)) {
+  if (["cerrado", "verificado", "despachado"].includes(pedido.estado)) {
     return res.status(400).json({
-      error: "No se puede reasignar un pedido cerrado o despachado",
+      error: "No se puede reasignar un pedido cerrado, verificado o despachado",
     });
   }
   if (pedido.operario_id === operario_id) {
@@ -589,9 +590,9 @@ const facturarPedido = async (req, res) => {
     return res.status(404).json({ error: "Pedido no encontrado" });
   if (pedido.facturado)
     return res.status(400).json({ error: "El pedido ya fue facturado" });
-  if (pedido.estado !== "cerrado") {
+  if (pedido.estado !== "despachado") {
     return res.status(400).json({
-      error: "Solo se pueden facturar pedidos cerrados por el operario",
+      error: "Solo se pueden facturar pedidos despachados por el jefe de bodega",
     });
   }
 
@@ -622,7 +623,7 @@ const facturarPedido = async (req, res) => {
     accion: "FACTURACION",
     tabla: "pedidos",
     registro_id: id,
-    valores_antes: { estado: "cerrado", facturado: false },
+    valores_antes: { estado: "despachado", facturado: false },
     valores_despues: {
       estado: "despachado",
       facturado: true,
@@ -743,7 +744,9 @@ const actualizarItemOperario = async (req, res) => {
 
   const { data: item, error: errItem } = await supabase
     .from("pedido_items")
-    .select("*, pedidos(operario_id, estado, numero), productos(codigo_interno)")
+    .select(
+      "*, pedidos(operario_id, estado, numero, bodega_id), productos(codigo_interno)",
+    )
     .eq("id", itemId)
     .single();
   if (errItem || !item)
@@ -834,6 +837,18 @@ const actualizarItemOperario = async (req, res) => {
     },
   });
 
+  // Mini-conteo automático: si el operario alistó una cantidad distinta a la
+  // pedida, encola un mini-conteo (origen picking) para que inventarios
+  // verifique el stock real de esa referencia. Es informativo: no bloquea.
+  if (cantidadFinal !== item.cantidad_pedida) {
+    await supabase.from("mini_conteos").insert({
+      producto_id: item.producto_id,
+      bodega_id: item.pedidos?.bodega_id || null,
+      origen: "picking",
+      estado: "pendiente",
+    });
+  }
+
   return res.json({ data, mensaje: "Ítem actualizado" });
 };
 
@@ -880,20 +895,21 @@ const cerrarPedido = async (req, res) => {
     .eq("id", id);
   if (errUpd) return sendServerError(res, errUpd, req);
 
-  // Notifica a todos los usuarios de facturación.
-  const { data: facturadores } = await supabase
+  // Notifica a los jefes de bodega: el pedido quedó cerrado y debe verificarse
+  // (con escaneo) antes de pasar a facturación (Fase 4).
+  const { data: jefes } = await supabase
     .from("usuarios")
     .select("id")
-    .eq("rol", "facturacion")
+    .eq("rol", "jefe_bodega")
     .eq("activo", true);
 
-  if (facturadores && facturadores.length > 0) {
+  if (jefes && jefes.length > 0) {
     await supabase.from("notificaciones").insert(
-      facturadores.map((f) => ({
-        usuario_id: f.id,
-        tipo: "pedido_cerrado",
-        titulo: "Pedido listo para facturar",
-        mensaje: `El pedido ${pedido.numero} fue cerrado por el operario`,
+      jefes.map((j) => ({
+        usuario_id: j.id,
+        tipo: "pedido_por_verificar",
+        titulo: "Pedido por verificar",
+        mensaje: `El pedido ${pedido.numero} fue cerrado y espera verificación`,
         datos: { pedido_id: id, pedido_numero: pedido.numero },
       })),
     );
@@ -908,7 +924,7 @@ const cerrarPedido = async (req, res) => {
     valores_despues: { estado: "cerrado", pedido_numero: pedido.numero },
   });
 
-  return res.json({ mensaje: "Pedido cerrado y enviado a facturación" });
+  return res.json({ mensaje: "Pedido cerrado y enviado a verificación" });
 };
 
 // Solo el administrador puede reabrir un pedido cerrado (railguard).

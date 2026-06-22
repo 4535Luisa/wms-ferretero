@@ -73,12 +73,14 @@ const generarListasPicking = async (req, res) => {
 
     for (const item of pedido.pedido_items || []) {
       const unidadEmpaque = item.productos?.unidad_empaque || 0;
-      const { aplica, cajasCompletas } = splitCajaSaldo(
+      const { cajasCompletas } = splitCajaSaldo(
         item.cantidad_pedida,
         unidadEmpaque,
       );
-      if (!aplica) continue;
 
+      // Sin unidad_empaque conocida (>1), cajasCompletas = 0: el producto no
+      // genera caja para el montacarguista y toda su cantidad va a SALDOS (se
+      // resuelve al asignar el pedido, ver asignarTanda). Ya no se omite.
       // Las unidades sueltas (saldos) y su reposición se resuelven al asignar
       // el pedido a un operario (consolidado por operario, ver asignarTanda).
       if (cajasCompletas > 0) {

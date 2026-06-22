@@ -1,6 +1,7 @@
 import { useAuth } from "../context/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
+import Campana from "./Campana";
 
 const menuPorRol = {
   administrador: [
@@ -21,17 +22,16 @@ const menuPorRol = {
     { path: "/jefe-bodega/recepcion", label: "Recepciones", icon: "📥" },
     { path: "/jefe-bodega/verificacion", label: "Verificación", icon: "✅" },
     { path: "/jefe-bodega/despacho", label: "Despacho", icon: "🚚" },
+    { path: "/jefe-bodega/devoluciones", label: "Devoluciones", icon: "↩" },
   ],
   gerente_logistico: [
     { path: "/gerente", label: "Dashboard", icon: "◼" },
-    { path: "/gerente/inventario", label: "Inventario", icon: "📦" },
-    { path: "/gerente/ajustes", label: "Ajustes", icon: "⚙" },
-    { path: "/gerente/reportes", label: "Reportes", icon: "📊" },
+    { path: "/gerente/reportes", label: "Indicadores", icon: "📊" },
+    { path: "/kits", label: "Kits", icon: "🧩" },
   ],
   inventarios: [
     { path: "/inventarios", label: "Panel", icon: "◼" },
-    { path: "/inventarios/conteos", label: "Conteos", icon: "🔢" },
-    { path: "/inventarios/mini-conteos", label: "Mini-conteos", icon: "⚡" },
+    { path: "/kits", label: "Kits", icon: "🧩" },
   ],
   facturacion: [
     { path: "/facturacion", label: "Por facturar", icon: "🧾" },
@@ -132,36 +132,39 @@ export default function Layout({ children, titulo, subtitulo }) {
               MACHO WMS
             </div>
           </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              background: "rgba(0,255,135,0.08)",
-              border: "1px solid rgba(0,255,135,0.15)",
-              borderRadius: "6px",
-              padding: "4px 10px",
-            }}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <Campana variant="dark" />
             <div
               style={{
-                width: "6px",
-                height: "6px",
-                borderRadius: "50%",
-                background: "#00FF87",
-                boxShadow: "0 0 6px #00FF87",
-              }}
-            />
-            <span
-              style={{
-                fontSize: "11px",
-                fontWeight: 600,
-                color: "#00CC6A",
-                letterSpacing: "0.06em",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                background: "rgba(0,255,135,0.08)",
+                border: "1px solid rgba(0,255,135,0.15)",
+                borderRadius: "6px",
+                padding: "4px 10px",
               }}
             >
-              EN LÍNEA
-            </span>
+              <div
+                style={{
+                  width: "6px",
+                  height: "6px",
+                  borderRadius: "50%",
+                  background: "#00FF87",
+                  boxShadow: "0 0 6px #00FF87",
+                }}
+              />
+              <span
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  color: "#00CC6A",
+                  letterSpacing: "0.06em",
+                }}
+              >
+                EN LÍNEA
+              </span>
+            </div>
           </div>
         </div>
 
@@ -310,37 +313,40 @@ export default function Layout({ children, titulo, subtitulo }) {
               </p>
             )}
           </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              background: "rgba(0,255,135,0.06)",
-              border: "1px solid rgba(0,255,135,0.15)",
-              borderRadius: "8px",
-              padding: "6px 12px",
-            }}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <Campana variant="light" />
             <div
               style={{
-                width: "7px",
-                height: "7px",
-                borderRadius: "50%",
-                background: "#00FF87",
-                boxShadow: "0 0 6px #00FF87",
-              }}
-            />
-            <span
-              style={{
-                fontSize: "12px",
-                fontWeight: 600,
-                color: "#007A40",
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                background: "rgba(0,255,135,0.06)",
+                border: "1px solid rgba(0,255,135,0.15)",
+                borderRadius: "8px",
+                padding: "6px 12px",
               }}
             >
-              En línea
-            </span>
+              <div
+                style={{
+                  width: "7px",
+                  height: "7px",
+                  borderRadius: "50%",
+                  background: "#00FF87",
+                  boxShadow: "0 0 6px #00FF87",
+                }}
+              />
+              <span
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  color: "#007A40",
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                }}
+              >
+                En línea
+              </span>
+            </div>
           </div>
         </div>
 

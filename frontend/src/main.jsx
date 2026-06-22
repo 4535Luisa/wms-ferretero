@@ -14,6 +14,10 @@ import Operario from "./pages/Operario";
 import Saldos from "./pages/Saldos";
 import JefeBodega from "./pages/JefeBodega";
 import JefeBodegaRecepcion from "./pages/JefeBodegaRecepcion";
+import Verificacion from "./pages/Verificacion";
+import Despacho from "./pages/Despacho";
+import Devoluciones from "./pages/Devoluciones";
+import Kits from "./pages/Kits";
 import Gerente from "./pages/Gerente";
 import Inventarios from "./pages/Inventarios";
 import Facturacion from "./pages/Facturacion";
@@ -121,7 +125,7 @@ createRoot(document.getElementById("root")).render(
             path="/jefe-bodega/verificacion"
             element={
               <PrivateRoute roles={["jefe_bodega"]}>
-                <JefeBodega />
+                <Verificacion />
               </PrivateRoute>
             }
           />
@@ -129,7 +133,15 @@ createRoot(document.getElementById("root")).render(
             path="/jefe-bodega/despacho"
             element={
               <PrivateRoute roles={["jefe_bodega"]}>
-                <JefeBodega />
+                <Despacho />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/jefe-bodega/devoluciones"
+            element={
+              <PrivateRoute roles={["jefe_bodega"]}>
+                <Devoluciones />
               </PrivateRoute>
             }
           />
@@ -163,6 +175,15 @@ createRoot(document.getElementById("root")).render(
             element={
               <PrivateRoute roles={["gerente_logistico"]}>
                 <Gerente />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/kits"
+            element={
+              <PrivateRoute roles={["inventarios", "gerente_logistico"]}>
+                <Kits />
               </PrivateRoute>
             }
           />
