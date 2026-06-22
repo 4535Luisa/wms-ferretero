@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import Layout from "../components/Layout";
+import BuscadorProducto from "../components/BuscadorProducto";
 import api from "../services/api";
 
 const TIPOS = [
@@ -61,91 +62,6 @@ const C = {
     fontFamily: "Outfit, sans-serif",
   },
 };
-
-// Buscador de producto reutilizable: muestra resultados y llama onSelect.
-function BuscadorProducto({ onSelect }) {
-  const [busqueda, setBusqueda] = useState("");
-  const [resultados, setResultados] = useState([]);
-
-  const buscar = async (term) => {
-    setBusqueda(term);
-    onSelect(null);
-    if (term.trim().length < 2) {
-      setResultados([]);
-      return;
-    }
-    try {
-      const { data } = await api.get(
-        `/api/productos?buscar=${encodeURIComponent(term.trim())}&limit=8`,
-      );
-      setResultados(data || []);
-    } catch {
-      setResultados([]);
-    }
-  };
-
-  const elegir = (p) => {
-    onSelect(p);
-    setBusqueda(`${p.codigo_interno} — ${p.descripcion_corta}`);
-    setResultados([]);
-  };
-
-  return (
-    <div style={{ position: "relative" }}>
-      <label style={C.label}>Producto *</label>
-      <input
-        style={C.input}
-        value={busqueda}
-        onChange={(e) => buscar(e.target.value)}
-        placeholder="Busca por referencia o descripción"
-      />
-      {resultados.length > 0 && (
-        <div
-          style={{
-            position: "absolute",
-            top: "100%",
-            left: 0,
-            right: 0,
-            background: "#FFF",
-            border: "1px solid #E8E8E8",
-            borderRadius: "8px",
-            marginTop: "4px",
-            zIndex: 20,
-            maxHeight: "220px",
-            overflowY: "auto",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-          }}
-        >
-          {resultados.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => elegir(p)}
-              style={{
-                display: "block",
-                width: "100%",
-                textAlign: "left",
-                padding: "10px 12px",
-                border: "none",
-                borderBottom: "1px solid #F5F5F5",
-                background: "#FFF",
-                cursor: "pointer",
-                fontFamily: "Outfit, sans-serif",
-              }}
-            >
-              <span style={{ ...C.mono, fontSize: "12px", fontWeight: 700 }}>
-                {p.codigo_interno}
-              </span>
-              <span style={{ fontSize: "12px", color: "#666" }}>
-                {" "}
-                — {p.descripcion_corta}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function Inventarios() {
   const [tab, setTab] = useState("ajustes");

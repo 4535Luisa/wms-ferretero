@@ -27,6 +27,14 @@ const modulos = [
     fase: null,
   },
   {
+    path: "/jefe-bodega/devoluciones",
+    icon: "↩",
+    titulo: "Devoluciones",
+    descripcion: "Registrar devoluciones de cliente y proveedor",
+    activo: true,
+    fase: null,
+  },
+  {
     path: null,
     icon: "📊",
     titulo: "Reportes",

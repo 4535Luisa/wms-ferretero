@@ -22,6 +22,7 @@ const menuPorRol = {
     { path: "/jefe-bodega/recepcion", label: "Recepciones", icon: "📥" },
     { path: "/jefe-bodega/verificacion", label: "Verificación", icon: "✅" },
     { path: "/jefe-bodega/despacho", label: "Despacho", icon: "🚚" },
+    { path: "/jefe-bodega/devoluciones", label: "Devoluciones", icon: "↩" },
   ],
   gerente_logistico: [
     { path: "/gerente", label: "Dashboard", icon: "◼" },
