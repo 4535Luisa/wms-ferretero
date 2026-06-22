@@ -43,6 +43,7 @@ DECLARE
   v_n int;
   v_kit_id uuid;
   v_kit_disp numeric;
+  v_row_id uuid;
 BEGIN
   IF p_cantidad IS NULL OR p_cantidad <= 0 THEN
     RETURN jsonb_build_object('status', 'invalid');
@@ -53,19 +54,21 @@ BEGIN
     RETURN jsonb_build_object('status', 'no_recipe');
   END IF;
 
-  -- Verifica y bloquea cada componente (no modifica nada todavía).
+  -- Verifica y bloquea la fila canónica de cada componente (la más antigua por
+  -- producto+bodega, igual que recepción). No modifica nada todavía.
   FOR v_comp IN
     SELECT componente_producto_id, cantidad
       FROM kit_componentes WHERE kit_producto_id = p_kit_producto_id
   LOOP
     v_req := v_comp.cantidad * p_cantidad;
-    SELECT COALESCE(cantidad_disponible, 0) INTO v_disp
+    SELECT id, COALESCE(cantidad_disponible, 0) INTO v_row_id, v_disp
       FROM inventario
      WHERE producto_id = v_comp.componente_producto_id
        AND bodega_id = p_bodega_id
-       AND ubicacion_id IS NULL
+     ORDER BY created_at ASC
+     LIMIT 1
      FOR UPDATE;
-    IF NOT FOUND OR v_disp < v_req THEN
+    IF v_row_id IS NULL OR v_disp < v_req THEN
       RETURN jsonb_build_object('status', 'insufficient',
                                 'componente', v_comp.componente_producto_id,
                                 'disponible', COALESCE(v_disp, 0),
@@ -73,30 +76,34 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- Descuenta los componentes.
+  -- Descuenta los componentes (sobre su fila canónica).
   FOR v_comp IN
     SELECT componente_producto_id, cantidad
       FROM kit_componentes WHERE kit_producto_id = p_kit_producto_id
   LOOP
     v_req := v_comp.cantidad * p_cantidad;
-    UPDATE inventario
-       SET cantidad_disponible = cantidad_disponible - v_req, updated_at = now()
+    SELECT id INTO v_row_id
+      FROM inventario
      WHERE producto_id = v_comp.componente_producto_id
        AND bodega_id = p_bodega_id
-       AND ubicacion_id IS NULL;
+     ORDER BY created_at ASC
+     LIMIT 1;
+    UPDATE inventario
+       SET cantidad_disponible = cantidad_disponible - v_req, updated_at = now()
+     WHERE id = v_row_id;
   END LOOP;
 
-  -- Suma el kit terminado.
+  -- Suma el kit terminado (fila canónica; se crea sin ubicación si no existe).
   SELECT id, COALESCE(cantidad_disponible, 0) INTO v_kit_id, v_kit_disp
     FROM inventario
    WHERE producto_id = p_kit_producto_id
      AND bodega_id = p_bodega_id
-     AND ubicacion_id IS NULL
+   ORDER BY created_at ASC
+   LIMIT 1
    FOR UPDATE;
-  IF NOT FOUND THEN
-    INSERT INTO inventario (producto_id, bodega_id, ubicacion_id,
-                            cantidad_disponible, cantidad_comprometida)
-    VALUES (p_kit_producto_id, p_bodega_id, NULL, p_cantidad, 0);
+  IF v_kit_id IS NULL THEN
+    INSERT INTO inventario (producto_id, bodega_id, cantidad_disponible)
+    VALUES (p_kit_producto_id, p_bodega_id, p_cantidad);
   ELSE
     UPDATE inventario
        SET cantidad_disponible = v_kit_disp + p_cantidad, updated_at = now()
@@ -140,13 +147,15 @@ BEGIN
     RETURN jsonb_build_object('status', 'no_recipe');
   END IF;
 
+  -- Fila canónica del kit por (producto, bodega): la más antigua.
   SELECT id, COALESCE(cantidad_disponible, 0) INTO v_kit_id, v_kit_disp
     FROM inventario
    WHERE producto_id = p_kit_producto_id
      AND bodega_id = p_bodega_id
-     AND ubicacion_id IS NULL
+   ORDER BY created_at ASC
+   LIMIT 1
    FOR UPDATE;
-  IF NOT FOUND OR v_kit_disp < p_cantidad THEN
+  IF v_kit_id IS NULL OR v_kit_disp < p_cantidad THEN
     RETURN jsonb_build_object('status', 'insufficient',
                               'disponible', COALESCE(v_kit_disp, 0));
   END IF;
@@ -155,7 +164,7 @@ BEGIN
      SET cantidad_disponible = v_kit_disp - p_cantidad, updated_at = now()
    WHERE id = v_kit_id;
 
-  -- Devuelve los componentes.
+  -- Devuelve los componentes a su fila canónica (se crea sin ubicación si no existe).
   FOR v_comp IN
     SELECT componente_producto_id, cantidad
       FROM kit_componentes WHERE kit_producto_id = p_kit_producto_id
@@ -165,12 +174,12 @@ BEGIN
       FROM inventario
      WHERE producto_id = v_comp.componente_producto_id
        AND bodega_id = p_bodega_id
-       AND ubicacion_id IS NULL
+     ORDER BY created_at ASC
+     LIMIT 1
      FOR UPDATE;
-    IF NOT FOUND THEN
-      INSERT INTO inventario (producto_id, bodega_id, ubicacion_id,
-                              cantidad_disponible, cantidad_comprometida)
-      VALUES (v_comp.componente_producto_id, p_bodega_id, NULL, v_dev, 0);
+    IF v_comp_id IS NULL THEN
+      INSERT INTO inventario (producto_id, bodega_id, cantidad_disponible)
+      VALUES (v_comp.componente_producto_id, p_bodega_id, v_dev);
     ELSE
       UPDATE inventario
          SET cantidad_disponible = cantidad_disponible + v_dev, updated_at = now()

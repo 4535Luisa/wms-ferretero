@@ -54,21 +54,22 @@ BEGIN
   -- Cliente devuelve -> entra stock (+). Devolución a proveedor -> sale (-).
   v_delta := CASE WHEN p_tipo = 'cliente' THEN p_cantidad ELSE -p_cantidad END;
 
+  -- Fila canónica por (producto, bodega): la más antigua, igual que recepción.
   SELECT id, COALESCE(cantidad_disponible, 0)
     INTO v_inv_id, v_disp
     FROM inventario
    WHERE producto_id = p_producto_id
      AND bodega_id = p_bodega_id
-     AND (ubicacion_id IS NOT DISTINCT FROM p_ubicacion_id)
+   ORDER BY created_at ASC
+   LIMIT 1
    FOR UPDATE;
 
-  IF NOT FOUND THEN
+  IF v_inv_id IS NULL THEN
     IF v_delta < 0 THEN
       RETURN jsonb_build_object('status', 'insufficient', 'disponible', 0);
     END IF;
-    INSERT INTO inventario (producto_id, bodega_id, ubicacion_id,
-                            cantidad_disponible, cantidad_comprometida)
-    VALUES (p_producto_id, p_bodega_id, p_ubicacion_id, v_delta, 0);
+    INSERT INTO inventario (producto_id, bodega_id, cantidad_disponible)
+    VALUES (p_producto_id, p_bodega_id, v_delta);
     v_disp := 0;
     v_nuevo := v_delta;
   ELSE

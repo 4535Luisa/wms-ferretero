@@ -49,15 +49,17 @@ BEGIN
     RETURN jsonb_build_object('status', 'same_bodega');
   END IF;
 
+  -- Fila canónica por (producto, bodega): la más antigua, igual que recepción.
   SELECT id, COALESCE(cantidad_disponible, 0)
     INTO v_inv_id, v_disp
     FROM inventario
    WHERE producto_id = p_producto_id
      AND bodega_id = p_bodega_origen
-     AND (ubicacion_id IS NOT DISTINCT FROM p_ubicacion_origen)
+   ORDER BY created_at ASC
+   LIMIT 1
    FOR UPDATE;
 
-  IF NOT FOUND OR v_disp < p_cantidad THEN
+  IF v_inv_id IS NULL OR v_disp < p_cantidad THEN
     RETURN jsonb_build_object('status', 'insufficient',
                               'disponible', COALESCE(v_disp, 0));
   END IF;
@@ -105,19 +107,20 @@ BEGIN
     RETURN jsonb_build_object('status', 'already_done');
   END IF;
 
-  -- Inventario destino a nivel de bodega (ubicación NULL).
+  -- Fila canónica del destino por (producto, bodega): la más antigua, igual que
+  -- recepción. Si no existe, se crea (sin ubicación, como hace recepción).
   SELECT id, COALESCE(cantidad_disponible, 0)
     INTO v_inv_id, v_disp
     FROM inventario
    WHERE producto_id = v_t.producto_id
      AND bodega_id = v_t.bodega_destino_id
-     AND ubicacion_id IS NULL
+   ORDER BY created_at ASC
+   LIMIT 1
    FOR UPDATE;
 
-  IF NOT FOUND THEN
-    INSERT INTO inventario (producto_id, bodega_id, ubicacion_id,
-                            cantidad_disponible, cantidad_comprometida)
-    VALUES (v_t.producto_id, v_t.bodega_destino_id, NULL, v_t.cantidad, 0);
+  IF v_inv_id IS NULL THEN
+    INSERT INTO inventario (producto_id, bodega_id, cantidad_disponible)
+    VALUES (v_t.producto_id, v_t.bodega_destino_id, v_t.cantidad);
   ELSE
     UPDATE inventario
        SET cantidad_disponible = v_disp + v_t.cantidad, updated_at = now()
@@ -158,19 +161,19 @@ BEGIN
     RETURN jsonb_build_object('status', 'already_done');
   END IF;
 
+  -- Fila canónica del origen por (producto, bodega): la más antigua.
   SELECT id, COALESCE(cantidad_disponible, 0)
     INTO v_inv_id, v_disp
     FROM inventario
    WHERE producto_id = v_t.producto_id
      AND bodega_id = v_t.bodega_origen_id
-     AND (ubicacion_id IS NOT DISTINCT FROM v_t.ubicacion_origen_id)
+   ORDER BY created_at ASC
+   LIMIT 1
    FOR UPDATE;
 
-  IF NOT FOUND THEN
-    INSERT INTO inventario (producto_id, bodega_id, ubicacion_id,
-                            cantidad_disponible, cantidad_comprometida)
-    VALUES (v_t.producto_id, v_t.bodega_origen_id, v_t.ubicacion_origen_id,
-            v_t.cantidad, 0);
+  IF v_inv_id IS NULL THEN
+    INSERT INTO inventario (producto_id, bodega_id, cantidad_disponible)
+    VALUES (v_t.producto_id, v_t.bodega_origen_id, v_t.cantidad);
   ELSE
     UPDATE inventario
        SET cantidad_disponible = v_disp + v_t.cantidad, updated_at = now()

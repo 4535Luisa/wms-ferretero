@@ -36,18 +36,19 @@ const registrarConteo = async (req, res) => {
   if (contada === null || contada < 0)
     return res.status(400).json({ error: "Cantidad contada inválida" });
 
-  // Stock de sistema actual (suma de disponible en esa bodega/ubicación).
-  let invQuery = supabase
+  // Stock de sistema: fila canónica por (producto, bodega) — la más antigua,
+  // que es la misma que el ajuste generado va a corregir (consistencia conteo
+  // ↔ ajuste). Coincide con cómo recepción y los demás movimientos casan el
+  // inventario.
+  const { data: invRow } = await supabase
     .from("inventario")
     .select("cantidad_disponible")
     .eq("producto_id", producto_id)
-    .eq("bodega_id", bodega_id);
-  if (ubicacion_id) invQuery = invQuery.eq("ubicacion_id", ubicacion_id);
-  const { data: invs } = await invQuery;
-  const sistema = (invs || []).reduce(
-    (a, r) => a + (r.cantidad_disponible || 0),
-    0,
-  );
+    .eq("bodega_id", bodega_id)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  const sistema = invRow?.cantidad_disponible || 0;
   const diferencia = contada - sistema;
   const estado = diferencia === 0 ? "sin_diferencia" : "contado";
 

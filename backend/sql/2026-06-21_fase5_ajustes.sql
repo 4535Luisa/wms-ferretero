@@ -53,23 +53,25 @@ BEGIN
   v_delta := CASE WHEN v_aj.sentido = 'incremento' THEN v_aj.cantidad
                   ELSE -v_aj.cantidad END;
 
-  -- Localiza la fila de inventario destino (la ubicación puede ser NULL).
+  -- Fila canónica de inventario por (producto, bodega): la más antigua, igual
+  -- que recepción (ignora la ubicación). Así el ajuste toca el mismo stock que
+  -- ve el picking, en vez de una fila aparte por ubicación.
   SELECT id, COALESCE(cantidad_disponible, 0)
     INTO v_inv_id, v_antes
     FROM inventario
    WHERE producto_id = v_aj.producto_id
      AND bodega_id = v_aj.bodega_id
-     AND (ubicacion_id IS NOT DISTINCT FROM v_aj.ubicacion_id)
+   ORDER BY created_at ASC
+   LIMIT 1
    FOR UPDATE;
 
-  IF NOT FOUND THEN
+  IF v_inv_id IS NULL THEN
     -- No hay fila: solo se puede crear con incremento.
     IF v_delta < 0 THEN
       RETURN jsonb_build_object('status', 'insufficient', 'disponible', 0);
     END IF;
-    INSERT INTO inventario (producto_id, bodega_id, ubicacion_id,
-                            cantidad_disponible, cantidad_comprometida)
-    VALUES (v_aj.producto_id, v_aj.bodega_id, v_aj.ubicacion_id, v_delta, 0)
+    INSERT INTO inventario (producto_id, bodega_id, cantidad_disponible)
+    VALUES (v_aj.producto_id, v_aj.bodega_id, v_delta)
     RETURNING id INTO v_inv_id;
     v_antes := 0;
     v_nuevo := v_delta;
