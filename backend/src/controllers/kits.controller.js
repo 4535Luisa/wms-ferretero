@@ -114,18 +114,16 @@ const configurarPreensamble = async (req, res) => {
   return res.json({ mensaje: "Configuración de preensamble guardada" });
 };
 
-// Alertas de preensamble: notifica a inventarios y gerencia los kits
-// preensamblados cuyo stock listo cayó por debajo del mínimo. Deduplicado por día
-// (no repite el mismo kit el mismo día). Invocable a mano o agendable (cron).
-const alertarPreensamble = async (req, res) => {
+// Núcleo reutilizable (controlador HTTP y script de cron). Lanza en error.
+const alertarPreensambleCore = async () => {
   const { data: configs, error } = await supabase
     .from("kits_config")
     .select("kit_producto_id, min_listas, bodega_id")
     .eq("preensamblado", true)
     .gt("min_listas", 0);
-  if (error) return sendServerError(res, error, req);
+  if (error) throw error;
   if (!configs || configs.length === 0)
-    return res.json({ generadas: 0, mensaje: "No hay kits preensamblados" });
+    return { generadas: 0, mensaje: "No hay kits preensamblados" };
 
   const kitIds = configs.map((c) => c.kit_producto_id);
   const [{ data: inv }, { data: prods }, { data: dest }] = await Promise.all([
@@ -145,10 +143,10 @@ const alertarPreensamble = async (req, res) => {
   ]);
   const destinatarios = (dest || []).map((u) => u.id);
   if (destinatarios.length === 0)
-    return res.json({
+    return {
       generadas: 0,
       mensaje: "No hay destinatarios activos (inventarios / gerente_logistico)",
-    });
+    };
   const pInfo = Object.fromEntries((prods || []).map((p) => [p.id, p]));
 
   // Dedup: alertas de preensamble ya creadas hoy.
@@ -196,11 +194,22 @@ const alertarPreensamble = async (req, res) => {
   for (let i = 0; i < inserts.length; i += 500)
     await supabase.from("notificaciones").insert(inserts.slice(i, i + 500));
 
-  return res.json({
+  return {
     generadas: inserts.length,
     kits_en_falta: kitsEnFalta,
     destinatarios: destinatarios.length,
-  });
+  };
+};
+
+// Alertas de preensamble: notifica a inventarios y gerencia los kits
+// preensamblados cuyo stock listo cayó por debajo del mínimo. Deduplicado por día
+// (no repite el mismo kit el mismo día). Invocable a mano o agendable (cron).
+const alertarPreensamble = async (req, res) => {
+  try {
+    return res.json(await alertarPreensambleCore());
+  } catch (error) {
+    return sendServerError(res, error, req);
+  }
 };
 
 // Define (o redefine) la receta de un kit: reemplaza sus componentes.
@@ -322,4 +331,5 @@ module.exports = {
   desensamblar,
   configurarPreensamble,
   alertarPreensamble,
+  alertarPreensambleCore,
 };

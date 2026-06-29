@@ -232,14 +232,12 @@ const movimientos = async (req, res) => {
 // día (no re-notifica el mismo producto+tipo si ya se alertó hoy), de modo que se
 // puede invocar manualmente o agendar (cron) sin spamear. Tope de 100 productos
 // por tipo (los más críticos).
-const generarAlertasInventario = async (req, res) => {
-  const bajo = Number.isFinite(Number(req.query.bajo)) ? Number(req.query.bajo) : 5;
-  const alto = Number(req.query.alto) > 0 ? Number(req.query.alto) : 1000;
-
+// Núcleo reutilizable (controlador HTTP y script de cron). Lanza en error.
+const generarAlertasInventarioCore = async ({ bajo = 5, alto = 1000 } = {}) => {
   const { data: inv, error } = await supabase
     .from("inventario")
     .select("producto_id, cantidad_disponible");
-  if (error) return sendServerError(res, error, req);
+  if (error) throw error;
 
   const disp = {};
   for (const r of inv || [])
@@ -261,10 +259,10 @@ const generarAlertasInventario = async (req, res) => {
     .eq("activo", true);
   const destinatarios = (dest || []).map((u) => u.id);
   if (destinatarios.length === 0)
-    return res.json({
+    return {
       generadas: 0,
       mensaje: "No hay destinatarios activos (inventarios / gerente_logistico)",
-    });
+    };
 
   // Dedup: alertas del mismo tipo+producto ya creadas hoy.
   const hoy = new Date();
@@ -321,14 +319,35 @@ const generarAlertasInventario = async (req, res) => {
   for (let i = 0; i < inserts.length; i += 500)
     await supabase.from("notificaciones").insert(inserts.slice(i, i + 500));
 
-  return res.json({
+  return {
     generadas: inserts.length,
     productos_quiebre_nuevos: nuevosQuiebre,
     productos_sobrestock_nuevos: nuevosSobre,
     destinatarios: destinatarios.length,
     omitidos_ya_alertados_hoy:
       quiebre.length - nuevosQuiebre + (sobre.length - nuevosSobre),
-  });
+  };
 };
 
-module.exports = { kpis, filtros, movimientos, generarAlertasInventario };
+// Genera alertas proactivas de quiebre (stock bajo) y sobrestock: crea
+// notificaciones para los roles inventarios y gerente_logistico. Deduplicado por
+// día (no re-notifica el mismo producto+tipo si ya se alertó hoy), de modo que se
+// puede invocar manualmente o agendar (cron) sin spamear. Tope de 100 productos
+// por tipo (los más críticos).
+const generarAlertasInventario = async (req, res) => {
+  const bajo = Number.isFinite(Number(req.query.bajo)) ? Number(req.query.bajo) : 5;
+  const alto = Number(req.query.alto) > 0 ? Number(req.query.alto) : 1000;
+  try {
+    return res.json(await generarAlertasInventarioCore({ bajo, alto }));
+  } catch (error) {
+    return sendServerError(res, error, req);
+  }
+};
+
+module.exports = {
+  kpis,
+  filtros,
+  movimientos,
+  generarAlertasInventario,
+  generarAlertasInventarioCore,
+};

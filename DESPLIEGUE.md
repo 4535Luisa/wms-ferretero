@@ -160,3 +160,29 @@ cabeceras de seguridad para mitigar XSS y clickjacking. Como el token vive en
 cd backend && pnpm test      # node --test (lógica pura)
 cd frontend && pnpm lint     # ESLint
 ```
+
+---
+
+## 10. Alertas proactivas automáticas (cron)
+
+Las alertas de inventario (quiebre/sobrestock) y de kits preensamblados se pueden
+disparar a mano (botones en los paneles de Gerente/Kits) o **agendar**. El script
+`backend/scripts/generar-alertas.js` (`pnpm alertas`) ejecuta ambas y crea las
+notificaciones. Es **idempotente por día** (no repite el mismo producto/kit el
+mismo día), así que es seguro correrlo varias veces.
+
+Requiere las mismas variables que el backend: `SUPABASE_URL`,
+`SUPABASE_SERVICE_KEY`. Opciones para agendarlo (elige una):
+
+- **Render Cron Job** (recomendado): nuevo servicio tipo *Cron Job* en Render,
+  mismo repo, **Command** `cd backend && pnpm install && pnpm alertas`, schedule
+  p. ej. `0 12 * * *` (7am Colombia, UTC−5). Define ahí `SUPABASE_URL` y
+  `SUPABASE_SERVICE_KEY`.
+- **GitHub Actions**: workflow con `schedule: cron` que llame por HTTP a
+  `POST /api/reportes/alertas` y `POST /api/kits/alertas` (requiere un token de
+  un usuario con rol gerente/inventarios), o que ejecute el script con los
+  secrets del repo.
+- **Supabase pg_cron + pg_net**: programa `POST` a los endpoints del backend.
+
+> Nota: en Render Free tier el servicio web duerme; un Cron Job es un servicio
+> aparte y no depende de que el web esté despierto.
