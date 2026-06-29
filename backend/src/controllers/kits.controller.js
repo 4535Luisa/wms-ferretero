@@ -2,7 +2,8 @@ const supabase = require("../utils/supabase");
 const { sendServerError } = require("../utils/errors");
 const { isUuid, toFiniteNumber } = require("../utils/validate");
 
-// Lista los kits definidos con sus componentes y los nombres de producto.
+// Lista los kits definidos con sus componentes, los nombres de producto y, si es
+// preensamblado, su stock listo / mínimo y el faltante a reponer.
 const listarKits = async (req, res) => {
   const { data: comps, error } = await supabase
     .from("kit_componentes")
@@ -16,19 +17,53 @@ const listarKits = async (req, res) => {
       comps.flatMap((c) => [c.kit_producto_id, c.componente_producto_id]),
     ),
   ];
-  const { data: prods } = await supabase
-    .from("productos")
-    .select("id, codigo_interno, descripcion_corta")
-    .in("id", ids);
+  const kitIds = [...new Set(comps.map((c) => c.kit_producto_id))];
+
+  const [{ data: prods }, { data: configs }, { data: inv }] = await Promise.all([
+    supabase
+      .from("productos")
+      .select("id, codigo_interno, descripcion_corta")
+      .in("id", ids),
+    supabase
+      .from("kits_config")
+      .select("kit_producto_id, preensamblado, min_listas, bodega_id")
+      .in("kit_producto_id", kitIds),
+    supabase
+      .from("inventario")
+      .select("producto_id, bodega_id, cantidad_disponible")
+      .in("producto_id", kitIds),
+  ]);
   const pmap = Object.fromEntries((prods || []).map((p) => [p.id, p]));
+  const cfgMap = Object.fromEntries(
+    (configs || []).map((c) => [c.kit_producto_id, c]),
+  );
+
+  // Stock listo del kit: disponible en la bodega designada (o total si no hay).
+  const stockListo = (kitId, bodegaId) =>
+    (inv || [])
+      .filter(
+        (r) =>
+          r.producto_id === kitId && (!bodegaId || r.bodega_id === bodegaId),
+      )
+      .reduce((a, r) => a + (r.cantidad_disponible || 0), 0);
 
   const kits = {};
   for (const c of comps) {
     if (!kits[c.kit_producto_id]) {
+      const cfg = cfgMap[c.kit_producto_id] || {};
+      const listo = stockListo(c.kit_producto_id, cfg.bodega_id);
       kits[c.kit_producto_id] = {
         kit_producto_id: c.kit_producto_id,
         kit: pmap[c.kit_producto_id] || null,
         componentes: [],
+        preensamblado: !!cfg.preensamblado,
+        min_listas: cfg.min_listas || 0,
+        bodega_preensamble: cfg.bodega_id || null,
+        stock_listo: listo,
+        deficit:
+          cfg.preensamblado && cfg.min_listas
+            ? Math.max(0, cfg.min_listas - listo)
+            : 0,
       };
     }
     kits[c.kit_producto_id].componentes.push({
@@ -39,6 +74,133 @@ const listarKits = async (req, res) => {
     });
   }
   return res.json(Object.values(kits));
+};
+
+// Configura un kit como preensamblado: mínimo de unidades listas y bodega donde
+// se mantiene ese stock. Upsert por kit_producto_id.
+const configurarPreensamble = async (req, res) => {
+  const { kitId } = req.params;
+  const { preensamblado, min_listas, bodega_id } = req.body || {};
+  if (!isUuid(kitId)) return res.status(400).json({ error: "Kit inválido" });
+
+  const min = toFiniteNumber(min_listas);
+  if (min === null || min < 0)
+    return res
+      .status(400)
+      .json({ error: "El mínimo de unidades listas no puede ser negativo" });
+  if (bodega_id != null && bodega_id !== "" && !isUuid(bodega_id))
+    return res.status(400).json({ error: "Bodega inválida" });
+
+  const fila = {
+    kit_producto_id: kitId,
+    preensamblado: !!preensamblado,
+    min_listas: min,
+    bodega_id: bodega_id || null,
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = await supabase
+    .from("kits_config")
+    .upsert(fila, { onConflict: "kit_producto_id" });
+  if (error) return sendServerError(res, error, req);
+
+  await supabase.from("bitacora").insert({
+    usuario_id: req.usuario?.id || null,
+    accion: "CONFIG_PREENSAMBLE_KIT",
+    tabla: "kits_config",
+    registro_id: kitId,
+    valores_despues: fila,
+  });
+
+  return res.json({ mensaje: "Configuración de preensamble guardada" });
+};
+
+// Alertas de preensamble: notifica a inventarios y gerencia los kits
+// preensamblados cuyo stock listo cayó por debajo del mínimo. Deduplicado por día
+// (no repite el mismo kit el mismo día). Invocable a mano o agendable (cron).
+const alertarPreensamble = async (req, res) => {
+  const { data: configs, error } = await supabase
+    .from("kits_config")
+    .select("kit_producto_id, min_listas, bodega_id")
+    .eq("preensamblado", true)
+    .gt("min_listas", 0);
+  if (error) return sendServerError(res, error, req);
+  if (!configs || configs.length === 0)
+    return res.json({ generadas: 0, mensaje: "No hay kits preensamblados" });
+
+  const kitIds = configs.map((c) => c.kit_producto_id);
+  const [{ data: inv }, { data: prods }, { data: dest }] = await Promise.all([
+    supabase
+      .from("inventario")
+      .select("producto_id, bodega_id, cantidad_disponible")
+      .in("producto_id", kitIds),
+    supabase
+      .from("productos")
+      .select("id, codigo_interno, descripcion_corta")
+      .in("id", kitIds),
+    supabase
+      .from("usuarios")
+      .select("id")
+      .in("rol", ["inventarios", "gerente_logistico"])
+      .eq("activo", true),
+  ]);
+  const destinatarios = (dest || []).map((u) => u.id);
+  if (destinatarios.length === 0)
+    return res.json({
+      generadas: 0,
+      mensaje: "No hay destinatarios activos (inventarios / gerente_logistico)",
+    });
+  const pInfo = Object.fromEntries((prods || []).map((p) => [p.id, p]));
+
+  // Dedup: alertas de preensamble ya creadas hoy.
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const { data: existentes } = await supabase
+    .from("notificaciones")
+    .select("datos")
+    .eq("tipo", "alerta_preensamble")
+    .gte("created_at", hoy.toISOString());
+  const yaAlertado = new Set(
+    (existentes || []).map((n) => n.datos?.producto_id),
+  );
+
+  const inserts = [];
+  let kitsEnFalta = 0;
+  for (const cfg of configs) {
+    const listo = (inv || [])
+      .filter(
+        (r) =>
+          r.producto_id === cfg.kit_producto_id &&
+          (!cfg.bodega_id || r.bodega_id === cfg.bodega_id),
+      )
+      .reduce((a, r) => a + (r.cantidad_disponible || 0), 0);
+    if (listo >= cfg.min_listas) continue;
+    if (yaAlertado.has(cfg.kit_producto_id)) continue;
+    kitsEnFalta++;
+    const faltan = cfg.min_listas - listo;
+    const p = pInfo[cfg.kit_producto_id];
+    for (const uid of destinatarios)
+      inserts.push({
+        usuario_id: uid,
+        tipo: "alerta_preensamble",
+        titulo: "Kit por reponer",
+        mensaje: `${p?.codigo_interno || cfg.kit_producto_id} (${p?.descripcion_corta || "—"}): ${listo} listo(s) de ${cfg.min_listas} — ensamblar ${faltan}`,
+        datos: {
+          producto_id: cfg.kit_producto_id,
+          listo,
+          min_listas: cfg.min_listas,
+          faltan,
+        },
+      });
+  }
+
+  for (let i = 0; i < inserts.length; i += 500)
+    await supabase.from("notificaciones").insert(inserts.slice(i, i + 500));
+
+  return res.json({
+    generadas: inserts.length,
+    kits_en_falta: kitsEnFalta,
+    destinatarios: destinatarios.length,
+  });
 };
 
 // Define (o redefine) la receta de un kit: reemplaza sus componentes.
@@ -153,4 +315,11 @@ const desensamblar = async (req, res) => {
   return res.json({ mensaje: `${cant} kit(s) desensamblado(s)` });
 };
 
-module.exports = { listarKits, definirKit, ensamblar, desensamblar };
+module.exports = {
+  listarKits,
+  definirKit,
+  ensamblar,
+  desensamblar,
+  configurarPreensamble,
+  alertarPreensamble,
+};

@@ -7,10 +7,25 @@ const {
   definirKit,
   ensamblar,
   desensamblar,
+  configurarPreensamble,
+  alertarPreensamble,
 } = require("../controllers/kits.controller");
 
 router.get("/", requireRoles("inventarios", "gerente_logistico"), listarKits);
 router.post("/", requireRoles("inventarios"), definirKit);
+
+// Preensamblados: configurar mínimo/bodega y generar alertas de reposición.
+router.put(
+  "/:kitId/preensamble",
+  requireRoles("inventarios", "gerente_logistico"),
+  requireUuidParam("kitId"),
+  configurarPreensamble,
+);
+router.post(
+  "/alertas",
+  requireRoles("inventarios", "gerente_logistico"),
+  alertarPreensamble,
+);
 router.post(
   "/:kitId/ensamblar",
   requireRoles("inventarios", "gerente_logistico"),

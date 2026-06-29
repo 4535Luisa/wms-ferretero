@@ -48,6 +48,9 @@ export default function Kits() {
   // Acción por kit: bodega + cantidad (mapas por kit_producto_id).
   const [accion, setAccion] = useState({}); // { [kitId]: { bodega, cantidad } }
 
+  // Edición de preensamble por kit (se inicializa desde los datos del kit).
+  const [pre, setPre] = useState({}); // { [kitId]: { preensamblado, min_listas, bodega_id } }
+
   const aviso = (texto, tipo = "ok") => {
     setMensaje({ texto, tipo });
     setTimeout(() => setMensaje({ texto: "", tipo: "" }), 3500);
@@ -130,8 +133,81 @@ export default function Kits() {
       });
       aviso(`✓ ${data.mensaje}`);
       setAccion((prev) => ({ ...prev, [kitId]: { bodega: a.bodega, cantidad: "" } }));
+      await cargar();
     } catch (err) {
       aviso(err.response?.data?.error || "Error en la operación", "error");
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  // Estado actual de edición de preensamble (lo guardado en el kit por defecto).
+  const getPre = (k) =>
+    pre[k.kit_producto_id] || {
+      preensamblado: k.preensamblado,
+      min_listas: k.min_listas,
+      bodega_id: k.bodega_preensamble || "",
+    };
+  const setPreCampo = (kitId, campo, valor) =>
+    setPre((prev) => ({
+      ...prev,
+      [kitId]: { ...prev[kitId], [campo]: valor },
+    }));
+
+  const guardarPre = async (k) => {
+    const p = getPre(k);
+    setCargando(true);
+    try {
+      await api.put(`/api/kits/${k.kit_producto_id}/preensamble`, {
+        preensamblado: !!p.preensamblado,
+        min_listas: Number(p.min_listas) || 0,
+        bodega_id: p.bodega_id || null,
+      });
+      aviso("✓ Preensamble guardado");
+      setPre((prev) => {
+        const next = { ...prev };
+        delete next[k.kit_producto_id]; // recarga desde el servidor
+        return next;
+      });
+      await cargar();
+    } catch (err) {
+      aviso(err.response?.data?.error || "Error al guardar", "error");
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  // Ensambla el faltante para alcanzar el mínimo, en la bodega designada.
+  const reponer = async (k) => {
+    if (!k.bodega_preensamble)
+      return aviso("Configura la bodega del preensamble primero", "error");
+    if (!k.deficit) return;
+    setCargando(true);
+    try {
+      const { data } = await api.post(`/api/kits/${k.kit_producto_id}/ensamblar`, {
+        bodega_id: k.bodega_preensamble,
+        cantidad: k.deficit,
+      });
+      aviso(`✓ ${data.mensaje}`);
+      await cargar();
+    } catch (err) {
+      aviso(err.response?.data?.error || "Error al reponer", "error");
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const generarAlertasPre = async () => {
+    setCargando(true);
+    try {
+      const { data } = await api.post("/api/kits/alertas");
+      aviso(
+        data.generadas
+          ? `✓ ${data.generadas} alerta(s) por ${data.kits_en_falta} kit(s) en falta`
+          : data.mensaje || "Sin kits por reponer",
+      );
+    } catch (err) {
+      aviso(err.response?.data?.error || "Error al generar alertas", "error");
     } finally {
       setCargando(false);
     }
@@ -280,18 +356,46 @@ export default function Kits() {
       </div>
 
       {/* Kits definidos */}
-      <h3
+      <div
         style={{
-          fontSize: "13px",
-          fontWeight: 700,
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          color: "#666",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "8px",
           marginBottom: "0.75rem",
+          flexWrap: "wrap",
         }}
       >
-        Kits definidos
-      </h3>
+        <h3
+          style={{
+            fontSize: "13px",
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            color: "#666",
+            margin: 0,
+          }}
+        >
+          Kits definidos
+        </h3>
+        <button
+          onClick={generarAlertasPre}
+          disabled={cargando}
+          style={{
+            background: "#0A0A0A",
+            color: "#00FF87",
+            border: "none",
+            borderRadius: "8px",
+            padding: "8px 14px",
+            fontSize: "12px",
+            fontWeight: 700,
+            cursor: cargando ? "not-allowed" : "pointer",
+            fontFamily: "Outfit, sans-serif",
+          }}
+        >
+          🔔 Alertas de preensamble
+        </button>
+      </div>
       {kits.length === 0 ? (
         <div style={{ ...C.card, textAlign: "center", color: "#888" }}>
           Aún no hay kits definidos
@@ -388,6 +492,156 @@ export default function Kits() {
                     </button>
                   )}
                 </div>
+
+                {/* Preensamblado: mínimo de unidades listas + reposición */}
+                {(() => {
+                  const p = getPre(k);
+                  const enFalta = k.preensamblado && k.deficit > 0;
+                  return (
+                    <div
+                      style={{
+                        marginTop: "12px",
+                        paddingTop: "12px",
+                        borderTop: "1px dashed #ECECEC",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "10px",
+                          alignItems: "center",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={!!p.preensamblado}
+                            onChange={(e) =>
+                              setPreCampo(
+                                k.kit_producto_id,
+                                "preensamblado",
+                                e.target.checked,
+                              )
+                            }
+                          />
+                          Preensamblado
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          style={{ ...C.input, width: "110px" }}
+                          value={p.min_listas ?? ""}
+                          onChange={(e) =>
+                            setPreCampo(
+                              k.kit_producto_id,
+                              "min_listas",
+                              e.target.value,
+                            )
+                          }
+                          placeholder="Mín. listas"
+                          disabled={!p.preensamblado}
+                        />
+                        <select
+                          style={{ ...C.input, width: "auto", minWidth: "120px" }}
+                          value={p.bodega_id || ""}
+                          onChange={(e) =>
+                            setPreCampo(
+                              k.kit_producto_id,
+                              "bodega_id",
+                              e.target.value,
+                            )
+                          }
+                          disabled={!p.preensamblado}
+                        >
+                          <option value="">Bodega del stock…</option>
+                          {bodegas.map((b) => (
+                            <option key={b.id} value={b.id}>
+                              {b.codigo}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => guardarPre(k)}
+                          disabled={cargando}
+                          style={{
+                            background: "transparent",
+                            color: "#0A0A0A",
+                            border: "1.5px solid #E8E8E8",
+                            borderRadius: "8px",
+                            padding: "9px 14px",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            fontFamily: "Outfit, sans-serif",
+                          }}
+                        >
+                          Guardar
+                        </button>
+                      </div>
+
+                      {k.preensamblado && (
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "10px",
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                            marginTop: "10px",
+                            fontSize: "13px",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontWeight: 700,
+                              color: enFalta ? "#B91C1C" : "#007A40",
+                            }}
+                          >
+                            {enFalta ? "⚠ " : "✓ "}
+                            Stock listo: {k.stock_listo} / {k.min_listas}
+                          </span>
+                          {enFalta && (
+                            <button
+                              onClick={() => reponer(k)}
+                              disabled={cargando || !k.bodega_preensamble}
+                              title={
+                                k.bodega_preensamble
+                                  ? ""
+                                  : "Configura la bodega del preensamble"
+                              }
+                              style={{
+                                background: "#00FF87",
+                                color: "#0A0A0A",
+                                border: "none",
+                                borderRadius: "8px",
+                                padding: "8px 14px",
+                                fontSize: "13px",
+                                fontWeight: 700,
+                                cursor:
+                                  cargando || !k.bodega_preensamble
+                                    ? "not-allowed"
+                                    : "pointer",
+                                fontFamily: "Outfit, sans-serif",
+                                opacity: !k.bodega_preensamble ? 0.5 : 1,
+                              }}
+                            >
+                              Ensamblar para reponer ({k.deficit})
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })}

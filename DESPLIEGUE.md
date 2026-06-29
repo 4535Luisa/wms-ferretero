@@ -42,6 +42,8 @@ Migraciones por funcionalidad (fases 2/4/5, también obligatorias):
 14. `2026-06-21_fase5_traslados.sql`
 15. `2026-06-29_fase4_despacho_transportista.sql` — columnas del transportista
     (transportadora, guía, conductor, placa) en `pedidos`.
+16. `2026-06-29_fase4_kits_preensamblados.sql` — tabla `kits_config`
+    (preensamblado, mínimo de unidades listas, bodega).
 
 Las funciones RPC (archivos 2-6) son **obligatorias**: el backend las invoca
 para que las operaciones de inventario sean atómicas/idempotentes. Si no se
