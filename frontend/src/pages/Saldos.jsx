@@ -83,6 +83,7 @@ export default function Saldos() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargar();
     const id = setInterval(cargar, REFRESCO_MS);
     return () => clearInterval(id);

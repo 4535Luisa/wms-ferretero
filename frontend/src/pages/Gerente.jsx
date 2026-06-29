@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import * as XLSX from "xlsx";
 import Layout from "../components/Layout";
 import api from "../services/api";
 
@@ -15,6 +16,23 @@ const C = {
 const estadoColor = {
   aprobado: { bg: "rgba(0,255,135,0.12)", fg: "#007A40" },
   rechazado: { bg: "#FEE2E2", fg: "#991B1B" },
+};
+
+const labelStyle = {
+  fontSize: "12px",
+  fontWeight: 600,
+  color: "#555",
+  display: "block",
+  marginBottom: "4px",
+};
+const inputStyle = {
+  width: "100%",
+  padding: "10px 12px",
+  border: "1.5px solid #E8E8E8",
+  borderRadius: "8px",
+  fontSize: "14px",
+  fontFamily: "Outfit, sans-serif",
+  boxSizing: "border-box",
 };
 
 // Descarga un arreglo de objetos como CSV (se abre en Excel).
@@ -76,6 +94,16 @@ export default function Gerente() {
   const [rechazandoId, setRechazandoId] = useState(null);
   const [comentario, setComentario] = useState("");
 
+  // Reportes: catálogos para los selectores y filtros del export.
+  const [opciones, setOpciones] = useState({ bodegas: [], operarios: [] });
+  const [filtro, setFiltro] = useState({
+    desde: "",
+    hasta: "",
+    bodega_id: "",
+    operario_id: "",
+  });
+  const [exportando, setExportando] = useState(false);
+
   const aviso = (texto, tipo = "ok") => {
     setMensaje({ texto, tipo });
     setTimeout(() => setMensaje({ texto: "", tipo: "" }), 3500);
@@ -83,14 +111,149 @@ export default function Gerente() {
 
   const cargar = async () => {
     try {
-      const [a, k] = await Promise.all([
+      const [a, k, f] = await Promise.all([
         api.get("/api/ajustes"),
         api.get("/api/reportes/kpis"),
+        api.get("/api/reportes/filtros"),
       ]);
       setAjustes(a.data || []);
       setKpis(k.data || null);
+      setOpciones(f.data || { bodegas: [], operarios: [] });
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  // Exporta un libro Excel (.xlsx) multi-hoja con KPIs + movimientos del período.
+  const exportarExcel = async () => {
+    if (!kpis) return;
+    setExportando(true);
+    try {
+      const params = {};
+      if (filtro.desde) params.desde = new Date(filtro.desde).toISOString();
+      if (filtro.hasta) {
+        // Incluye todo el día "hasta".
+        const h = new Date(filtro.hasta);
+        h.setHours(23, 59, 59, 999);
+        params.hasta = h.toISOString();
+      }
+      if (filtro.bodega_id) params.bodega_id = filtro.bodega_id;
+      if (filtro.operario_id) params.operario_id = filtro.operario_id;
+
+      const { data } = await api.get("/api/reportes/movimientos", { params });
+      const movs = data.movimientos || [];
+
+      const wb = XLSX.utils.book_new();
+
+      const resumen = [
+        ["Reporte WMS MACHO", ""],
+        ["Generado", new Date().toLocaleString("es-CO")],
+        ["Período desde", filtro.desde || "—"],
+        ["Período hasta", filtro.hasta || "—"],
+        [
+          "Bodega",
+          opciones.bodegas.find((b) => b.id === filtro.bodega_id)?.codigo ||
+            "Todas",
+        ],
+        [
+          "Operario",
+          opciones.operarios.find((o) => o.id === filtro.operario_id)?.nombre ||
+            "Todos",
+        ],
+        ["", ""],
+        ["Pedidos totales", kpis.pedidos.total],
+        ["Pedidos facturados", kpis.pedidos.facturados],
+        ["Urgentes activos", kpis.pedidos.urgentes_activos],
+        ["Referencias con stock", kpis.inventario.referencias_con_stock],
+        ["Unidades en stock", kpis.inventario.total_unidades],
+        ["Quiebres", kpis.inventario.quiebres_total],
+        ["Sobrestock", kpis.inventario.sobrestock_total],
+      ];
+      XLSX.utils.book_append_sheet(
+        wb,
+        XLSX.utils.aoa_to_sheet(resumen),
+        "Resumen",
+      );
+
+      XLSX.utils.book_append_sheet(
+        wb,
+        XLSX.utils.json_to_sheet(
+          (kpis.productividad || []).map((p) => ({
+            Operario: p.operario,
+            "Pedidos facturados": p.completados,
+          })),
+        ),
+        "Productividad",
+      );
+
+      XLSX.utils.book_append_sheet(
+        wb,
+        XLSX.utils.json_to_sheet(
+          (kpis.quiebres || []).map((q) => ({
+            Referencia: q.codigo,
+            Descripción: q.descripcion,
+            Disponible: q.disponible,
+          })),
+        ),
+        "Quiebres",
+      );
+
+      XLSX.utils.book_append_sheet(
+        wb,
+        XLSX.utils.json_to_sheet(
+          (kpis.sobrestock || []).map((s) => ({
+            Referencia: s.codigo,
+            Descripción: s.descripcion,
+            Disponible: s.disponible,
+          })),
+        ),
+        "Sobrestock",
+      );
+
+      XLSX.utils.book_append_sheet(
+        wb,
+        XLSX.utils.json_to_sheet(
+          movs.map((m) => ({
+            Fecha: new Date(m.fecha).toLocaleString("es-CO"),
+            Usuario: m.usuario,
+            Acción: m.accion,
+            Referencia: m.referencia,
+            Producto: m.producto,
+            Bodega: m.bodega,
+            Antes: m.antes,
+            Después: m.despues,
+          })),
+        ),
+        "Movimientos",
+      );
+
+      const hoy = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `reporte_wms_${hoy}.xlsx`);
+      aviso(
+        `✓ Excel generado — ${movs.length} movimiento(s)${data.truncado ? " (truncado a 5000)" : ""}`,
+      );
+    } catch (err) {
+      aviso(err.response?.data?.error || "Error al exportar", "error");
+    } finally {
+      setExportando(false);
+    }
+  };
+
+  // Dispara la generación de alertas proactivas (quiebre/sobrestock).
+  const generarAlertas = async () => {
+    setCargando(true);
+    try {
+      const { data } = await api.post("/api/reportes/alertas");
+      aviso(
+        `✓ ${data.generadas} alerta(s) enviadas a ${data.destinatarios} usuario(s)` +
+          (data.omitidos_ya_alertados_hoy
+            ? ` · ${data.omitidos_ya_alertados_hoy} omitidas (ya alertadas hoy)`
+            : ""),
+      );
+    } catch (err) {
+      aviso(err.response?.data?.error || "Error al generar alertas", "error");
+    } finally {
+      setCargando(false);
     }
   };
 
@@ -142,6 +305,7 @@ export default function Gerente() {
       {[
         { id: "aprobaciones", label: `Aprobaciones (${pendientes.length})` },
         { id: "indicadores", label: "Indicadores" },
+        { id: "reportes", label: "Reportes" },
       ].map((t) => (
         <button
           key={t.id}
@@ -649,6 +813,147 @@ export default function Gerente() {
             </div>
           </>
         ))}
+
+      {/* ---------- REPORTES ---------- */}
+      {tab === "reportes" && (
+        <>
+          <div style={{ ...C.card, marginBottom: "1.5rem" }}>
+            <h3
+              style={{
+                fontFamily: "Bebas Neue, sans-serif",
+                fontSize: "18px",
+                letterSpacing: "0.04em",
+                margin: "0 0 1rem",
+              }}
+            >
+              Exportar a Excel
+            </h3>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                gap: "12px",
+                marginBottom: "1rem",
+              }}
+            >
+              <div>
+                <label style={labelStyle}>Desde</label>
+                <input
+                  type="date"
+                  value={filtro.desde}
+                  onChange={(e) =>
+                    setFiltro((f) => ({ ...f, desde: e.target.value }))
+                  }
+                  style={inputStyle}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Hasta</label>
+                <input
+                  type="date"
+                  value={filtro.hasta}
+                  onChange={(e) =>
+                    setFiltro((f) => ({ ...f, hasta: e.target.value }))
+                  }
+                  style={inputStyle}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Bodega</label>
+                <select
+                  value={filtro.bodega_id}
+                  onChange={(e) =>
+                    setFiltro((f) => ({ ...f, bodega_id: e.target.value }))
+                  }
+                  style={inputStyle}
+                >
+                  <option value="">Todas</option>
+                  {opciones.bodegas.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.codigo} — {b.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Operario</label>
+                <select
+                  value={filtro.operario_id}
+                  onChange={(e) =>
+                    setFiltro((f) => ({ ...f, operario_id: e.target.value }))
+                  }
+                  style={inputStyle}
+                >
+                  <option value="">Todos</option>
+                  {opciones.operarios.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.nombre} ({o.rol})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <button
+              onClick={exportarExcel}
+              disabled={exportando || !kpis}
+              style={{
+                background: "#00FF87",
+                color: "#0A0A0A",
+                border: "none",
+                borderRadius: "10px",
+                padding: "12px 22px",
+                fontSize: "14px",
+                fontWeight: 700,
+                cursor: exportando ? "not-allowed" : "pointer",
+                fontFamily: "Outfit, sans-serif",
+                opacity: exportando ? 0.6 : 1,
+                minHeight: "44px",
+              }}
+            >
+              {exportando ? "Generando…" : "⬇ Exportar Excel"}
+            </button>
+            <p style={{ fontSize: "12px", color: "#AAA", marginTop: "10px" }}>
+              Hojas: Resumen, Productividad, Quiebres, Sobrestock y Movimientos
+              (filtrados por período, bodega y operario).
+            </p>
+          </div>
+
+          <div style={{ ...C.card }}>
+            <h3
+              style={{
+                fontFamily: "Bebas Neue, sans-serif",
+                fontSize: "18px",
+                letterSpacing: "0.04em",
+                margin: "0 0 0.5rem",
+              }}
+            >
+              Alertas proactivas de inventario
+            </h3>
+            <p style={{ fontSize: "13px", color: "#666", margin: "0 0 1rem" }}>
+              Notifica a inventarios y gerencia los productos en quiebre (stock
+              bajo) y sobrestock. Se omiten los ya alertados hoy.
+            </p>
+            <button
+              onClick={generarAlertas}
+              disabled={cargando}
+              style={{
+                background: "#0A0A0A",
+                color: "#00FF87",
+                border: "none",
+                borderRadius: "10px",
+                padding: "12px 22px",
+                fontSize: "14px",
+                fontWeight: 700,
+                cursor: cargando ? "not-allowed" : "pointer",
+                fontFamily: "Outfit, sans-serif",
+                minHeight: "44px",
+              }}
+            >
+              🔔 Generar alertas ahora
+            </button>
+          </div>
+        </>
+      )}
     </Layout>
   );
 }

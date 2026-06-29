@@ -37,6 +37,7 @@ export default function Campana({ variant = "light" }) {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargar();
     const id = setInterval(cargar, REFRESCO_MS);
     return () => clearInterval(id);

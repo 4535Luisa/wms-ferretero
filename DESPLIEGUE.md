@@ -30,6 +30,19 @@ El esquema vive en Supabase. El repo versiona solo las migraciones en
 5. `2026-06-01_rpc_cancelar_lista.sql`
 6. `2026-06-02_rpc_reservar_picking.sql`
 
+Migraciones por funcionalidad (fases 2/4/5, también obligatorias):
+
+7. `2026-06-21_notificaciones_leida.sql`
+8. `2026-06-21_fase2_devoluciones.sql`
+9. `2026-06-21_fase4_despacho.sql`
+10. `2026-06-21_fase4_kits.sql`
+11. `2026-06-21_fase4_verificacion.sql`
+12. `2026-06-21_fase5_ajustes.sql`
+13. `2026-06-21_fase5_conteos.sql`
+14. `2026-06-21_fase5_traslados.sql`
+15. `2026-06-29_fase4_despacho_transportista.sql` — columnas del transportista
+    (transportadora, guía, conductor, placa) en `pedidos`.
+
 Las funciones RPC (archivos 2-6) son **obligatorias**: el backend las invoca
 para que las operaciones de inventario sean atómicas/idempotentes. Si no se
 aplican, estos flujos responden **500**:

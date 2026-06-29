@@ -34,6 +34,12 @@ export default function Despacho() {
   const [obs, setObs] = useState("");
   const [pendientes, setPendientes] = useState({}); // item_id -> motivo
 
+  // Datos del transportista (opcionales).
+  const [transportadora, setTransportadora] = useState("");
+  const [guia, setGuia] = useState("");
+  const [conductor, setConductor] = useState("");
+  const [placa, setPlaca] = useState("");
+
   const aviso = (texto, tipo = "ok") => {
     setMensaje({ texto, tipo });
     setTimeout(() => setMensaje({ texto: "", tipo: "" }), 3500);
@@ -61,6 +67,10 @@ export default function Despacho() {
       setPeso("");
       setObs("");
       setPendientes({});
+      setTransportadora("");
+      setGuia("");
+      setConductor("");
+      setPlaca("");
       setVista("detalle");
     } catch (err) {
       console.error(err);
@@ -99,6 +109,10 @@ export default function Despacho() {
         peso_kg: peso,
         observaciones: obs,
         items_pendientes,
+        transportadora,
+        guia_transporte: guia,
+        conductor,
+        placa_vehiculo: placa,
       });
       aviso(data.mensaje || "Pedido despachado");
       volver();
@@ -296,6 +310,115 @@ export default function Despacho() {
               placeholder="Opcional"
               style={C.input}
             />
+
+            <div
+              style={{
+                marginTop: "16px",
+                paddingTop: "16px",
+                borderTop: "1px solid #F0F0F0",
+              }}
+            >
+              <h4
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                  color: "#666",
+                  margin: "0 0 12px 0",
+                }}
+              >
+                🚛 Datos del transportista (opcional)
+              </h4>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "12px",
+                }}
+              >
+                <div>
+                  <label
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: "#555",
+                      display: "block",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    Transportadora
+                  </label>
+                  <input
+                    type="text"
+                    value={transportadora}
+                    onChange={(e) => setTransportadora(e.target.value)}
+                    placeholder="Ej: Servientrega"
+                    style={C.input}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: "#555",
+                      display: "block",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    N° guía / remesa / factura
+                  </label>
+                  <input
+                    type="text"
+                    value={guia}
+                    onChange={(e) => setGuia(e.target.value)}
+                    placeholder="Ej: 123456789"
+                    style={C.input}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: "#555",
+                      display: "block",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    Conductor
+                  </label>
+                  <input
+                    type="text"
+                    value={conductor}
+                    onChange={(e) => setConductor(e.target.value)}
+                    placeholder="Nombre del conductor"
+                    style={C.input}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: "#555",
+                      display: "block",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    Placa del vehículo
+                  </label>
+                  <input
+                    type="text"
+                    value={placa}
+                    onChange={(e) => setPlaca(e.target.value)}
+                    placeholder="Ej: ABC123"
+                    style={C.input}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           <h3
