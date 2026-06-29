@@ -46,11 +46,19 @@ const verificarItem = async (req, res) => {
 
   const { data: item } = await supabase
     .from("pedido_items")
-    .select("id, pedido_id, productos(codigo_interno)")
+    .select("id, pedido_id, productos(codigo_interno), pedidos(estado)")
     .eq("id", itemId)
     .eq("pedido_id", id)
     .single();
   if (!item) return res.status(404).json({ error: "Ítem no encontrado" });
+
+  // Solo se verifica dentro de la ventana de verificación (pedido cerrado). Evita
+  // marcar ítems de un pedido ya verificado/despachado/facturado.
+  if (item.pedidos?.estado !== "cerrado") {
+    return res.status(400).json({
+      error: "Solo se pueden verificar pedidos cerrados pendientes de verificación",
+    });
+  }
 
   // Verificación de escaneo (railguard): la referencia escaneada debe coincidir
   // con la del producto. El intento (éxito o error) queda registrado en bitácora.
