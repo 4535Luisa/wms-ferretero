@@ -44,6 +44,8 @@ Migraciones por funcionalidad (fases 2/4/5, también obligatorias):
     (transportadora, guía, conductor, placa) en `pedidos`.
 16. `2026-06-29_fase4_kits_preensamblados.sql` — tabla `kits_config`
     (preensamblado, mínimo de unidades listas, bodega).
+17. `2026-06-29_fase5_familia_productos.sql` — columna `productos.familia`
+    (para conteos cíclicos por familia; el dato se carga aparte).
 
 Las funciones RPC (archivos 2-6) son **obligatorias**: el backend las invoca
 para que las operaciones de inventario sean atómicas/idempotentes. Si no se

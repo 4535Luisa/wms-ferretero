@@ -93,6 +93,11 @@ export default function Inventarios() {
   const [cantContada, setCantContada] = useState("");
   const [miniConteoId, setMiniConteoId] = useState(null);
 
+  // Programar conteo por familia.
+  const [familias, setFamilias] = useState([]);
+  const [familiaProg, setFamiliaProg] = useState("");
+  const [bodegaProg, setBodegaProg] = useState("");
+
   const aviso = (texto, tipo = "ok") => {
     setMensaje({ texto, tipo });
     setTimeout(() => setMensaje({ texto: "", tipo: "" }), 3500);
@@ -100,16 +105,18 @@ export default function Inventarios() {
 
   const cargar = async () => {
     try {
-      const [b, a, t, c] = await Promise.all([
+      const [b, a, t, c, f] = await Promise.all([
         api.get("/api/usuarios/bodegas"),
         api.get("/api/ajustes"),
         api.get("/api/traslados"),
         api.get("/api/conteos"),
+        api.get("/api/conteos/familias"),
       ]);
       setBodegas(b.data || []);
       setAjustes(a.data || []);
       setTraslados(t.data || []);
       setConteos(c.data || []);
+      setFamilias(f.data || []);
     } catch (err) {
       console.error(err);
     }
@@ -189,6 +196,24 @@ export default function Inventarios() {
       await cargar();
     } catch (err) {
       aviso(err.response?.data?.error || "Error", "error");
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const programarConteo = async () => {
+    if (!familiaProg) return aviso("Selecciona una familia", "error");
+    if (!bodegaProg) return aviso("Selecciona una bodega", "error");
+    setCargando(true);
+    try {
+      const { data } = await api.post("/api/conteos/programar", {
+        familia: familiaProg,
+        bodega_id: bodegaProg,
+      });
+      aviso(`✓ ${data.mensaje}`);
+      await cargar();
+    } catch (err) {
+      aviso(err.response?.data?.error || "Error al programar el conteo", "error");
     } finally {
       setCargando(false);
     }
@@ -689,6 +714,74 @@ export default function Inventarios() {
       {/* ---------- CONTEOS ---------- */}
       {tab === "conteos" && (
         <>
+          <div style={{ ...C.card, maxWidth: "640px", marginBottom: "1.5rem" }}>
+            <h3
+              style={{
+                fontFamily: "Bebas Neue, sans-serif",
+                fontSize: "20px",
+                letterSpacing: "0.04em",
+                margin: "0 0 0.25rem",
+              }}
+            >
+              Programar conteo por familia
+            </h3>
+            <p style={{ fontSize: "12px", color: "#888", margin: "0 0 1rem" }}>
+              Encola un conteo pendiente para cada producto de la familia con
+              inventario en la bodega elegida.
+            </p>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "12px",
+                marginBottom: "12px",
+              }}
+            >
+              <div>
+                <label style={C.label}>Familia *</label>
+                <select
+                  style={C.input}
+                  value={familiaProg}
+                  onChange={(e) => setFamiliaProg(e.target.value)}
+                >
+                  <option value="">
+                    {familias.length === 0 ? "Sin familias cargadas" : "Selecciona…"}
+                  </option>
+                  {familias.map((f) => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={C.label}>Bodega *</label>
+                <select
+                  style={C.input}
+                  value={bodegaProg}
+                  onChange={(e) => setBodegaProg(e.target.value)}
+                >
+                  <option value="">Selecciona…</option>
+                  {bodegas.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.codigo} — {b.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <button
+              onClick={programarConteo}
+              disabled={cargando || familias.length === 0}
+              style={{
+                ...C.btnPrimary,
+                opacity: cargando || familias.length === 0 ? 0.6 : 1,
+              }}
+            >
+              Programar conteo
+            </button>
+          </div>
+
           <div style={{ ...C.card, maxWidth: "640px", marginBottom: "2rem" }}>
             <h3
               style={{
