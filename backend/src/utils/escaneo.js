@@ -30,6 +30,7 @@ async function registrarEscaneo({
   esperada,
   escaneada,
   resultado,
+  metodo,
 }) {
   try {
     const supabase = require("./supabase");
@@ -42,6 +43,7 @@ async function registrarEscaneo({
         referencia_esperada: esperada ?? null,
         referencia_escaneada: escaneada ?? null,
         resultado, // "ok" | "mismatch" | "faltante"
+        metodo: metodo ?? null, // "camara" | "teclado" (caja sin etiqueta) | null
       },
     });
   } catch {

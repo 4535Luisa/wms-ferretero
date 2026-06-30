@@ -30,6 +30,23 @@ El esquema vive en Supabase. El repo versiona solo las migraciones en
 5. `2026-06-01_rpc_cancelar_lista.sql`
 6. `2026-06-02_rpc_reservar_picking.sql`
 
+Migraciones por funcionalidad (fases 2/4/5, también obligatorias):
+
+7. `2026-06-21_notificaciones_leida.sql`
+8. `2026-06-21_fase2_devoluciones.sql`
+9. `2026-06-21_fase4_despacho.sql`
+10. `2026-06-21_fase4_kits.sql`
+11. `2026-06-21_fase4_verificacion.sql`
+12. `2026-06-21_fase5_ajustes.sql`
+13. `2026-06-21_fase5_conteos.sql`
+14. `2026-06-21_fase5_traslados.sql`
+15. `2026-06-29_fase4_despacho_transportista.sql` — columnas del transportista
+    (transportadora, guía, conductor, placa) en `pedidos`.
+16. `2026-06-29_fase4_kits_preensamblados.sql` — tabla `kits_config`
+    (preensamblado, mínimo de unidades listas, bodega).
+17. `2026-06-29_fase5_familia_productos.sql` — columna `productos.familia`
+    (para conteos cíclicos por familia; el dato se carga aparte).
+
 Las funciones RPC (archivos 2-6) son **obligatorias**: el backend las invoca
 para que las operaciones de inventario sean atómicas/idempotentes. Si no se
 aplican, estos flujos responden **500**:
@@ -143,3 +160,29 @@ cabeceras de seguridad para mitigar XSS y clickjacking. Como el token vive en
 cd backend && pnpm test      # node --test (lógica pura)
 cd frontend && pnpm lint     # ESLint
 ```
+
+---
+
+## 10. Alertas proactivas automáticas (cron)
+
+Las alertas de inventario (quiebre/sobrestock) y de kits preensamblados se pueden
+disparar a mano (botones en los paneles de Gerente/Kits) o **agendar**. El script
+`backend/scripts/generar-alertas.js` (`pnpm alertas`) ejecuta ambas y crea las
+notificaciones. Es **idempotente por día** (no repite el mismo producto/kit el
+mismo día), así que es seguro correrlo varias veces.
+
+Requiere las mismas variables que el backend: `SUPABASE_URL`,
+`SUPABASE_SERVICE_KEY`. Opciones para agendarlo (elige una):
+
+- **Render Cron Job** (recomendado): nuevo servicio tipo *Cron Job* en Render,
+  mismo repo, **Command** `cd backend && pnpm install && pnpm alertas`, schedule
+  p. ej. `0 12 * * *` (7am Colombia, UTC−5). Define ahí `SUPABASE_URL` y
+  `SUPABASE_SERVICE_KEY`.
+- **GitHub Actions**: workflow con `schedule: cron` que llame por HTTP a
+  `POST /api/reportes/alertas` y `POST /api/kits/alertas` (requiere un token de
+  un usuario con rol gerente/inventarios), o que ejecute el script con los
+  secrets del repo.
+- **Supabase pg_cron + pg_net**: programa `POST` a los endpoints del backend.
+
+> Nota: en Render Free tier el servicio web duerme; un Cron Job es un servicio
+> aparte y no depende de que el web esté despierto.
