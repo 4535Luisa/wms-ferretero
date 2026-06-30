@@ -3,9 +3,24 @@ import Layout from "../components/Layout";
 import ScanInput from "../components/ScanInput";
 import api from "../services/api";
 
+// Parsea un código de ubicación según el sistema físico de la bodega:
+// Letra = piso (a=1, b=2, c=3...), Número = estantería, -N = posición
+// Ejemplos: a1-1, a1-2, a2-1, b1-1
+const parsearUbicacion = (codigo) => {
+  if (!codigo) return { piso: "z", estanteria: 999, posicion: 999 };
+  const m = codigo.toLowerCase().match(/^([a-z]+)(\d+)(?:-(\d+))?/);
+  if (!m) return { piso: codigo, estanteria: 0, posicion: 0 };
+  return {
+    piso: m[1],
+    estanteria: parseInt(m[2]) || 0,
+    posicion: parseInt(m[3]) || 0,
+  };
+};
+
 // Consolida los ítems de una lista por referencia + ubicación: misma referencia
 // en la misma ubicación pedida por varios pedidos se muestra como UNA línea con
 // el total de cajas (el montacarguista baja todo el grupo de una sola pasada).
+// Orden: pendientes primero (por ubicación física), bajadas al final.
 const consolidarItems = (items) => {
   const grupos = {};
   for (const it of items || []) {
@@ -34,9 +49,16 @@ const consolidarItems = (items) => {
       pendientes: g.items.filter((i) => i.estado === "pendiente"),
       bajada: g.items.every((i) => i.estado !== "pendiente"),
     }))
-    .sort((a, b) =>
-      (a.ubicacion_codigo || "").localeCompare(b.ubicacion_codigo || ""),
-    );
+    .sort((a, b) => {
+      // Pendientes siempre primero, bajadas al final
+      if (a.bajada !== b.bajada) return a.bajada ? 1 : -1;
+      // Dentro de cada grupo: orden físico piso → estantería → posición
+      const ua = parsearUbicacion(a.ubicacion_codigo);
+      const ub = parsearUbicacion(b.ubicacion_codigo);
+      if (ua.piso !== ub.piso) return ua.piso.localeCompare(ub.piso);
+      if (ua.estanteria !== ub.estanteria) return ua.estanteria - ub.estanteria;
+      return ua.posicion - ub.posicion;
+    });
 };
 
 export default function Montacarguista() {
@@ -133,7 +155,10 @@ export default function Montacarguista() {
       await cargarEstibas();
       if (data?.data?.id) setEstibaActiva(data.data.id);
     } catch (err) {
-      mostrarMensaje(err.response?.data?.error || "Error al registrar", "error");
+      mostrarMensaje(
+        err.response?.data?.error || "Error al registrar",
+        "error",
+      );
     } finally {
       setCargando(false);
     }
@@ -151,13 +176,12 @@ export default function Montacarguista() {
     if (listaActualizada) setListaActiva(listaActualizada);
   };
 
-  // Baja hasta `limite` cajas pendientes de un grupo consolidado (misma
-  // referencia + ubicación, posiblemente de varios pedidos). El backend
-  // re-verifica la referencia de cada ítem antes de descontar inventario y
-  // registra el método de captura (cámara o teclado) en la bitácora.
   const bajarGrupo = async (grupo, referenciaEscaneada, limite, metodo) => {
     if (!estibaActiva) {
-      mostrarMensaje("Registra o selecciona una estiba antes de bajar", "error");
+      mostrarMensaje(
+        "Registra o selecciona una estiba antes de bajar",
+        "error",
+      );
       return;
     }
     const aBajar = grupo.pendientes.slice(0, limite ?? grupo.pendientes.length);
@@ -176,21 +200,22 @@ export default function Montacarguista() {
         `✓ ${n} caja${n !== 1 ? "s" : ""} de ${grupo.referencia} verificada${n !== 1 ? "s" : ""} y bajada${n !== 1 ? "s" : ""}`,
       );
     } catch (err) {
-      mostrarMensaje(err.response?.data?.error || "Error al registrar", "error");
+      mostrarMensaje(
+        err.response?.data?.error || "Error al registrar",
+        "error",
+      );
     } finally {
       await recargarListaActiva();
       setCargando(false);
     }
   };
 
-  // El escaneo (o digitación manual de una caja sin etiqueta) es el disparador:
-  // cruza la referencia contra los grupos pendientes consolidados de la lista.
-  // Si el grupo tiene varias cajas pendientes, pide confirmar cuántas se
-  // bajaron; si es una sola, la baja directo. La verificación definitiva la hace
-  // el backend (no se puede saltar manipulando el frontend).
   const onEscanear = async (refEscaneada, origen) => {
     if (!estibaActiva) {
-      mostrarMensaje("Registra o selecciona una estiba antes de bajar", "error");
+      mostrarMensaje(
+        "Registra o selecciona una estiba antes de bajar",
+        "error",
+      );
       return;
     }
     const norm = refEscaneada.trim().toUpperCase();
@@ -217,10 +242,14 @@ export default function Montacarguista() {
       });
       return;
     }
-    await bajarGrupo(objetivo, refEscaneada, objetivo.pendientes.length, metodo);
+    await bajarGrupo(
+      objetivo,
+      refEscaneada,
+      objetivo.pendientes.length,
+      metodo,
+    );
   };
 
-  // Confirma la cantidad escaneada y baja solo esas cajas del grupo.
   const confirmarBajada = async () => {
     if (!confirmCantidad) return;
     const { grupo, referencia, metodo, cantidad } = confirmCantidad;
@@ -492,7 +521,9 @@ export default function Montacarguista() {
                 flexWrap: "wrap",
               }}
             >
-              <span style={{ fontSize: "13px", fontWeight: 600, color: "#0A0A0A" }}>
+              <span
+                style={{ fontSize: "13px", fontWeight: 600, color: "#0A0A0A" }}
+              >
                 📦 Estiba activa:
               </span>
               <select
@@ -553,7 +584,9 @@ export default function Montacarguista() {
                     fontSize: "14px",
                   }}
                 />
-                <label style={{ fontSize: "12px", color: "#666", fontWeight: 600 }}>
+                <label
+                  style={{ fontSize: "12px", color: "#666", fontWeight: 600 }}
+                >
                   Foto de la estiba (obligatoria)
                 </label>
                 <input
@@ -623,8 +656,8 @@ export default function Montacarguista() {
               <div
                 style={{ fontSize: "12px", color: "#888", marginTop: "4px" }}
               >
-                Hay {confirmCantidad.grupo.pendientes.length} cajas pendientes en{" "}
-                {confirmCantidad.grupo.ubicacion_codigo || "esta ubicación"}.
+                Hay {confirmCantidad.grupo.pendientes.length} cajas pendientes
+                en {confirmCantidad.grupo.ubicacion_codigo || "esta ubicación"}.
                 {confirmCantidad.metodo === "camara"
                   ? " (escaneado con cámara)"
                   : " (pistola o digitado)"}
@@ -708,10 +741,12 @@ export default function Montacarguista() {
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {consolidarItems(listaActiva.lista_picking_items).map((grupo) => {
               const bajada = grupo.bajada;
-              const cajasBajadas = grupo.cajas_total - grupo.pendientes.reduce(
-                (a, i) => a + (i.cantidad_cajas || 0),
-                0,
-              );
+              const cajasBajadas =
+                grupo.cajas_total -
+                grupo.pendientes.reduce(
+                  (a, i) => a + (i.cantidad_cajas || 0),
+                  0,
+                );
               return (
                 <div
                   key={grupo.key}
@@ -745,8 +780,8 @@ export default function Montacarguista() {
                       >
                         <span
                           style={{
-                            background: "#0A0A0A",
-                            color: "#00FF87",
+                            background: bajada ? "#E8E8E8" : "#0A0A0A",
+                            color: bajada ? "#888" : "#00FF87",
                             padding: "3px 12px",
                             borderRadius: "6px",
                             fontSize: "13px",
