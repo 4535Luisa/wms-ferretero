@@ -300,9 +300,12 @@ const asignarMontacarguista = async (req, res) => {
 
 const bajarCaja = async (req, res) => {
   const { id } = req.params;
-  const { estiba_id, referencia_escaneada } = req.body || {};
+  const { estiba_id, referencia_escaneada, metodo } = req.body || {};
   const usuario_id = req.usuario?.id;
   const esAdmin = req.usuario?.rol === "administrador";
+  // Trazabilidad de captura: "camara" (lectura óptica) o "teclado" (pistola o
+  // digitación manual de una caja sin etiqueta). Solo afecta la bitácora.
+  const metodoCaptura = metodo === "camara" ? "camara" : "teclado";
 
   const { data: item } = await supabase
     .from("lista_picking_items")
@@ -326,6 +329,7 @@ const bajarCaja = async (req, res) => {
     registro_id: id,
     esperada: refEsperada,
     escaneada: referencia_escaneada,
+    metodo: metodoCaptura,
   });
   if (!ok) {
     return res.status(422).json({

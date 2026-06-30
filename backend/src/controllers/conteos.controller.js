@@ -190,4 +190,107 @@ const generarAjuste = async (req, res) => {
   });
 };
 
-module.exports = { registrarConteo, listarConteos, generarAjuste };
+// Familias disponibles para programar conteos (distintas, no nulas).
+const listarFamilias = async (req, res) => {
+  const { data, error } = await supabase
+    .from("productos")
+    .select("familia")
+    .eq("activo", true)
+    .not("familia", "is", null)
+    .order("familia");
+  if (error) return sendServerError(res, error, req);
+  const familias = [
+    ...new Set((data || []).map((p) => (p.familia || "").trim()).filter(Boolean)),
+  ];
+  return res.json(familias);
+};
+
+// Programa un conteo cíclico por familia: encola un mini-conteo pendiente para
+// cada producto de la familia que tenga inventario en la bodega indicada. No
+// duplica los que ya tengan un conteo pendiente en esa bodega.
+const programarConteoFamilia = async (req, res) => {
+  const usuario_id = req.usuario?.id || null;
+  const { familia, bodega_id } = req.body || {};
+
+  if (!familia || !String(familia).trim())
+    return res.status(400).json({ error: "Familia requerida" });
+  if (!isUuid(bodega_id))
+    return res.status(400).json({ error: "Bodega inválida" });
+
+  const { data: prods, error: errProds } = await supabase
+    .from("productos")
+    .select("id")
+    .eq("familia", String(familia).trim())
+    .eq("activo", true);
+  if (errProds) return sendServerError(res, errProds, req);
+  const prodIds = (prods || []).map((p) => p.id);
+  if (prodIds.length === 0)
+    return res.json({ creados: 0, mensaje: "La familia no tiene productos activos" });
+
+  // Solo productos con inventario en esa bodega (algo que contar).
+  const { data: inv } = await supabase
+    .from("inventario")
+    .select("producto_id")
+    .eq("bodega_id", bodega_id)
+    .in("producto_id", prodIds);
+  const conInv = [...new Set((inv || []).map((r) => r.producto_id))];
+  if (conInv.length === 0)
+    return res.json({
+      creados: 0,
+      mensaje: "Ningún producto de la familia tiene inventario en esa bodega",
+    });
+
+  // Dedup: no recrear los que ya tienen un conteo pendiente en la bodega.
+  const { data: pend } = await supabase
+    .from("mini_conteos")
+    .select("producto_id")
+    .eq("bodega_id", bodega_id)
+    .eq("estado", "pendiente")
+    .in("producto_id", conInv);
+  const yaPend = new Set((pend || []).map((r) => r.producto_id));
+  const aCrear = conInv.filter((id) => !yaPend.has(id));
+
+  if (aCrear.length > 0) {
+    const filas = aCrear.map((producto_id) => ({
+      producto_id,
+      bodega_id,
+      estado: "pendiente",
+      origen: "ciclico",
+    }));
+    for (let i = 0; i < filas.length; i += 500) {
+      const { error } = await supabase
+        .from("mini_conteos")
+        .insert(filas.slice(i, i + 500));
+      if (error) return sendServerError(res, error, req);
+    }
+    await supabase.from("bitacora").insert({
+      usuario_id,
+      accion: "PROGRAMAR_CONTEO_FAMILIA",
+      tabla: "mini_conteos",
+      registro_id: bodega_id,
+      valores_despues: {
+        familia: String(familia).trim(),
+        bodega_id,
+        creados: aCrear.length,
+      },
+    });
+  }
+
+  return res.json({
+    creados: aCrear.length,
+    omitidos: conInv.length - aCrear.length,
+    mensaje: `${aCrear.length} conteo(s) programado(s)${
+      conInv.length - aCrear.length > 0
+        ? ` · ${conInv.length - aCrear.length} ya estaban pendientes`
+        : ""
+    }`,
+  });
+};
+
+module.exports = {
+  registrarConteo,
+  listarConteos,
+  generarAjuste,
+  listarFamilias,
+  programarConteoFamilia,
+};

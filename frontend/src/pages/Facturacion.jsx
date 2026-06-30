@@ -533,6 +533,80 @@ export default function Facturacion() {
             })}
           </div>
 
+          {(pedidoActivo.transportadora ||
+            pedidoActivo.guia_transporte ||
+            pedidoActivo.conductor ||
+            pedidoActivo.placa_vehiculo ||
+            pedidoActivo.bultos != null) && (
+            <div
+              style={{
+                background: "#FFFFFF",
+                border: "1px solid #E8E8E8",
+                borderRadius: "12px",
+                padding: "1.25rem 1.5rem",
+                marginBottom: "1rem",
+              }}
+            >
+              <h4
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                  color: "#666",
+                  margin: "0 0 12px 0",
+                }}
+              >
+                🚛 Despacho y transportista
+              </h4>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "10px 16px",
+                  fontSize: "13px",
+                }}
+              >
+                {[
+                  ["Bultos", pedidoActivo.bultos],
+                  [
+                    "Peso (kg)",
+                    pedidoActivo.peso_kg != null ? pedidoActivo.peso_kg : null,
+                  ],
+                  ["Transportadora", pedidoActivo.transportadora],
+                  ["N° guía / remesa", pedidoActivo.guia_transporte],
+                  ["Conductor", pedidoActivo.conductor],
+                  ["Placa", pedidoActivo.placa_vehiculo],
+                ]
+                  .filter(([, v]) => v != null && v !== "")
+                  .map(([k, v]) => (
+                    <div key={k}>
+                      <div style={{ color: "#888", fontSize: "11px" }}>{k}</div>
+                      <div style={{ fontWeight: 600, color: "#0A0A0A" }}>
+                        {v}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+              {pedidoActivo.despacho_parcial && (
+                <div
+                  style={{
+                    marginTop: "10px",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    color: "#854D0E",
+                    background: "#FEF9C3",
+                    borderRadius: "6px",
+                    padding: "4px 10px",
+                    display: "inline-block",
+                  }}
+                >
+                  ⚠ Despacho parcial
+                </div>
+              )}
+            </div>
+          )}
+
           {pedidoActivo.facturado ? (
             <div
               style={{

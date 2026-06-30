@@ -45,7 +45,21 @@ const registrarDespacho = async (req, res) => {
     peso_kg,
     observaciones,
     items_pendientes = [],
+    transportadora,
+    guia_transporte,
+    conductor,
+    placa_vehiculo,
   } = req.body || {};
+
+  // Datos del transportista: opcionales, se guardan recortados (o null si vacío).
+  const limpiar = (v) => {
+    const s = String(v ?? "").trim();
+    return s === "" ? null : s.slice(0, 200);
+  };
+  const transportadoraVal = limpiar(transportadora);
+  const guiaVal = limpiar(guia_transporte);
+  const conductorVal = limpiar(conductor);
+  const placaVal = limpiar(placa_vehiculo);
 
   const bultosNum = toFiniteNumber(bultos);
   if (bultosNum === null || bultosNum <= 0 || !Number.isInteger(bultosNum)) {
@@ -102,6 +116,10 @@ const registrarDespacho = async (req, res) => {
       peso_kg: pesoNum,
       despacho_parcial: esParcial,
       observaciones_despacho: (observaciones || "").trim() || null,
+      transportadora: transportadoraVal,
+      guia_transporte: guiaVal,
+      conductor: conductorVal,
+      placa_vehiculo: placaVal,
       hora_despacho: ahora,
       despachado_por: usuario_id,
     })
@@ -139,6 +157,10 @@ const registrarDespacho = async (req, res) => {
       peso_kg: pesoNum,
       despacho_parcial: esParcial,
       items_pendientes: pendientes,
+      transportadora: transportadoraVal,
+      guia_transporte: guiaVal,
+      conductor: conductorVal,
+      placa_vehiculo: placaVal,
     },
   });
 

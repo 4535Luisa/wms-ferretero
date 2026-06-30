@@ -604,6 +604,9 @@ const facturarPedido = async (req, res) => {
     referencia: item.productos?.codigo_interno,
     cantidad_facturada: item.cantidad_picking ?? item.cantidad_pedida,
     cantidad_pedida: item.cantidad_pedida,
+    // Trazabilidad de despacho parcial: deja constancia si la referencia quedó
+    // pendiente de despacho (no salió físicamente) al momento de facturar.
+    pendiente_despacho: !!item.pendiente_despacho,
   }));
 
   const { error } = await supabase
@@ -953,6 +956,13 @@ const reabrirPedido = async (req, res) => {
     .update({ estado: "en_proceso", hora_cierre: null, cerrado_por: null })
     .eq("id", id);
   if (errUpd) return sendServerError(res, errUpd, req);
+
+  // Resetea la verificación: al reabrir, el operario puede cambiar cantidades, así
+  // que el jefe debe re-escanear todo en la próxima ronda (railguard de Fase 4).
+  await supabase
+    .from("pedido_items")
+    .update({ verificado: false })
+    .eq("pedido_id", id);
 
   await supabase.from("bitacora").insert({
     usuario_id,
