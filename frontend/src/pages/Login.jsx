@@ -1,528 +1,478 @@
-import { useAuth } from "../context/AuthContext";
-import { useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
-import Campana from "./Campana";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
-const menuPorRol = {
-  administrador: [
-    { path: "/admin", label: "Dashboard", icon: "◼" },
-    { path: "/admin/usuarios", label: "Usuarios", icon: "👷" },
-    { path: "/admin/pedidos", label: "Pedidos", icon: "📋" },
-    { path: "/admin/historial", label: "Historial", icon: "🔍" },
-    { path: "/inventario", label: "Inventario", icon: "📦" },
-    { path: "/admin/reportes", label: "Reportes", icon: "📊" },
-  ],
-  montacarguista: [
-    { path: "/montacarguista", label: "Mis pedidos", icon: "◼" },
-    { path: "/montacarguista/estibas", label: "Estibas", icon: "🪵" },
-    { path: "/inventario", label: "Inventario", icon: "📦" },
-  ],
-  operario: [{ path: "/operario", label: "Mis pedidos", icon: "◼" }],
-  saldos: [
-    { path: "/saldos", label: "Cola de saldos", icon: "◼" },
-    { path: "/inventario", label: "Inventario", icon: "📦" },
-  ],
-  jefe_bodega: [
-    { path: "/jefe-bodega", label: "Panel", icon: "◼" },
-    { path: "/jefe-bodega/recepcion", label: "Recepciones", icon: "📥" },
-    { path: "/jefe-bodega/verificacion", label: "Verificación", icon: "✅" },
-    { path: "/jefe-bodega/despacho", label: "Despacho", icon: "🚚" },
-    { path: "/jefe-bodega/devoluciones", label: "Devoluciones", icon: "↩" },
-    { path: "/inventario", label: "Inventario", icon: "📦" },
-  ],
-  gerente_logistico: [
-    { path: "/gerente", label: "Dashboard", icon: "◼" },
-    { path: "/gerente/reportes", label: "Indicadores", icon: "📊" },
-    { path: "/inventario", label: "Inventario", icon: "📦" },
-    { path: "/kits", label: "Kits", icon: "🧩" },
-  ],
-  inventarios: [
-    { path: "/inventarios", label: "Panel", icon: "◼" },
-    { path: "/inventario", label: "Inventario", icon: "📦" },
-    { path: "/kits", label: "Kits", icon: "🧩" },
-  ],
-  facturacion: [
-    { path: "/facturacion", label: "Por facturar", icon: "🧾" },
-    { path: "/facturacion/historial", label: "Facturados", icon: "✅" },
-    { path: "/inventario", label: "Inventario", icon: "📦" },
-  ],
-};
-
-const labelRol = {
-  administrador: "Administrador",
-  montacarguista: "Montacarguista",
-  operario: "Operario",
-  saldos: "Saldos",
-  jefe_bodega: "Jefe de Bodega",
-  gerente_logistico: "Gerente Logístico",
-  inventarios: "Inventarios",
-  facturacion: "Facturación",
-};
-
-export default function Layout({ children, titulo, subtitulo }) {
-  const { usuario, logout } = useAuth();
+export default function Login() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [cargando, setCargando] = useState(false);
+  const { login } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-  const [menuAbierto, setMenuAbierto] = useState(false);
-  const menu = menuPorRol[usuario?.rol] || [];
 
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-  };
-
-  const handleNav = (path) => {
-    navigate(path);
-    setMenuAbierto(false);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setCargando(true);
+    setError("");
+    try {
+      const usuario = await login(email, password);
+      switch (usuario.rol) {
+        case "administrador":
+          navigate("/admin");
+          break;
+        case "montacarguista":
+          navigate("/montacarguista");
+          break;
+        case "operario":
+          navigate("/operario");
+          break;
+        case "saldos":
+          navigate("/saldos");
+          break;
+        case "jefe_bodega":
+          navigate("/jefe-bodega");
+          break;
+        case "gerente_logistico":
+          navigate("/gerente");
+          break;
+        case "inventarios":
+          navigate("/inventarios");
+          break;
+        case "facturacion":
+          navigate("/facturacion");
+          break;
+        default:
+          navigate("/");
+      }
+    } catch {
+      setError("Email o contraseña incorrectos");
+    } finally {
+      setCargando(false);
+    }
   };
 
   return (
-    <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap');
-        .wms-layout { min-height:100vh; display:grid; grid-template-columns:220px 1fr; grid-template-rows:64px 1fr; background:#F0F0F0; font-family:'Outfit',sans-serif; }
-        .wms-sidebar { grid-row:1/3; background:#0A0A0A; display:flex; flex-direction:column; position:relative; overflow:hidden; }
-        .wms-header { background:#FFFFFF; border-bottom:1px solid #E8E8E8; padding:1rem 1.5rem; display:flex; align-items:center; justify-content:space-between; }
-        .wms-content { padding:1.5rem; overflow-y:auto; }
-        .wms-mobile-title { display:none; margin-bottom:1rem; }
-        .wms-topbar { display:none; background:#0A0A0A; padding:0 1rem; height:56px; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
-        .wms-bottomnav { display:none; position:fixed; bottom:0; left:0; right:0; background:#0A0A0A; border-top:1px solid rgba(255,255,255,0.08); z-index:100; padding-bottom:env(safe-area-inset-bottom); }
-        .wms-mobile-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:200; opacity:0; pointer-events:none; transition:opacity 0.25s; }
-        .wms-mobile-overlay.open { opacity:1; pointer-events:all; }
-        .wms-mobile-menu { position:fixed; top:0; left:-280px; width:280px; height:100vh; background:#0A0A0A; z-index:210; transition:left 0.25s ease; display:flex; flex-direction:column; overflow-y:auto; }
-        .wms-mobile-menu.open { left:0; }
-        .wms-nav-btn { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:8px 4px; flex:1; background:transparent; border:none; cursor:pointer; color:rgba(255,255,255,0.4); font-family:'Outfit',sans-serif; font-size:10px; font-weight:500; min-height:56px; transition:color 0.15s; border-radius:0; }
-        .wms-nav-btn.active { color:#00FF87; }
-        .wms-nav-btn .icon { font-size:20px; line-height:1; }
-        .wms-sidebar-nav-btn { width:100%; display:flex; align-items:center; gap:10px; padding:11px 14px; border-radius:8px; margin-bottom:2px; background:transparent; color:rgba(255,255,255,0.45); border:1px solid transparent; font-size:13px; font-weight:400; text-align:left; cursor:pointer; transition:all 0.15s; font-family:'Outfit',sans-serif; min-height:44px; }
-        .wms-sidebar-nav-btn.active { background:rgba(0,255,135,0.1); color:#00FF87; border-color:rgba(0,255,135,0.2); font-weight:600; }
-        .wms-sidebar-nav-btn:hover:not(.active) { color:rgba(255,255,255,0.8); }
-        .grid-bg { position:absolute; inset:0; background-image:linear-gradient(rgba(0,255,135,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,135,0.03) 1px,transparent 1px); background-size:30px 30px; pointer-events:none; }
-        .hamburger-btn { background:transparent; border:none; cursor:pointer; padding:8px; display:flex; flex-direction:column; gap:5px; min-width:44px; min-height:44px; align-items:center; justify-content:center; }
-        .hamburger-btn span { display:block; width:22px; height:2px; background:#FFFFFF; border-radius:2px; }
-        @media(max-width:768px) {
-          .wms-layout { grid-template-columns:1fr; grid-template-rows:56px 1fr; }
-          .wms-sidebar { display:none; }
-          .wms-topbar { display:flex; }
-          .wms-header { display:none; }
-          .wms-mobile-title { display:block; }
-          .wms-content { padding:1rem; padding-bottom:calc(56px + env(safe-area-inset-bottom) + 1rem); }
-          .wms-bottomnav { display:flex; align-items:stretch; height:calc(56px + env(safe-area-inset-bottom)); }
-        }
-        @media(min-width:769px) and (max-width:900px) {
-          .wms-layout { grid-template-columns:72px 1fr; }
-          .wms-sidebar-label { display:none; }
-          .wms-sidebar-nav-btn { justify-content:center; padding:11px 8px; }
-          .wms-logo-text { display:none; }
-          .wms-user-name { display:none; }
-        }
-      `}</style>
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "grid",
+        gridTemplateColumns: "1fr 440px",
+        background: "#0A0A0A",
+        fontFamily: "Outfit, sans-serif",
+      }}
+    >
+      {/* Panel izquierdo */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          padding: "3rem 4rem",
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        {/* Grid de fondo */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage: `
+            linear-gradient(rgba(0,255,135,0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0,255,135,0.04) 1px, transparent 1px)
+          `,
+            backgroundSize: "60px 60px",
+            pointerEvents: "none",
+          }}
+        />
 
-      <div className="wms-layout">
-        <div className="wms-topbar">
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <button
-              className="hamburger-btn"
-              onClick={() => setMenuAbierto(true)}
-            >
-              <span />
-              <span />
-              <span />
-            </button>
+        {/* Glow verde */}
+        <div
+          style={{
+            position: "absolute",
+            width: "500px",
+            height: "500px",
+            borderRadius: "50%",
+            background:
+              "radial-gradient(circle, rgba(0,255,135,0.06) 0%, transparent 70%)",
+            bottom: "-100px",
+            left: "-100px",
+            pointerEvents: "none",
+          }}
+        />
+
+        {/* Logo top */}
+        <div style={{ position: "relative" }}>
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "10px",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: "8px",
+              padding: "8px 16px",
+            }}
+          >
             <div
               style={{
-                fontFamily: "Bebas Neue,sans-serif",
-                fontSize: "20px",
-                color: "#FFFFFF",
-                letterSpacing: "0.06em",
-                lineHeight: 1,
+                width: "8px",
+                height: "8px",
+                borderRadius: "50%",
+                background: "#00FF87",
+                boxShadow: "0 0 8px #00FF87",
               }}
-            >
-              MACHO WMS
-            </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <Campana variant="dark" />
-            <div
+            />
+            <span
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                background: "rgba(0,255,135,0.08)",
-                border: "1px solid rgba(0,255,135,0.15)",
-                borderRadius: "6px",
-                padding: "4px 10px",
+                color: "rgba(255,255,255,0.5)",
+                fontSize: "12px",
+                fontWeight: 500,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
               }}
             >
-              <div
-                style={{
-                  width: "6px",
-                  height: "6px",
-                  borderRadius: "50%",
-                  background: "#00FF87",
-                  boxShadow: "0 0 6px #00FF87",
-                }}
-              />
-              <span
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  color: "#00CC6A",
-                  letterSpacing: "0.06em",
-                }}
-              >
-                EN LÍNEA
-              </span>
-            </div>
+              Sistema activo
+            </span>
           </div>
         </div>
 
-        <div className="wms-sidebar">
-          <div className="grid-bg" />
+        {/* Título central */}
+        <div style={{ position: "relative" }}>
           <div
             style={{
-              padding: "1.5rem 1.25rem",
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
-              position: "relative",
+              fontSize: "13px",
+              color: "#00FF87",
+              fontWeight: 600,
+              letterSpacing: "0.25em",
+              textTransform: "uppercase",
+              marginBottom: "1.5rem",
             }}
           >
-            <div className="wms-logo-text">
-              <div
-                style={{
-                  fontFamily: "Bebas Neue,sans-serif",
-                  fontSize: "26px",
-                  color: "#FFFFFF",
-                  letterSpacing: "0.06em",
-                  lineHeight: 1,
-                }}
-              >
-                MACHO
-              </div>
-              <div
-                style={{
-                  fontFamily: "Bebas Neue,sans-serif",
-                  fontSize: "13px",
-                  color: "#00FF87",
-                  letterSpacing: "0.2em",
-                }}
-              >
-                WMS
-              </div>
-            </div>
+            Warehouse Management System
+          </div>
+
+          <div
+            style={{
+              fontFamily: "Bebas Neue, sans-serif",
+              fontSize: "110px",
+              lineHeight: 0.85,
+              letterSpacing: "0.02em",
+              color: "#FFFFFF",
+              marginBottom: "0.5rem",
+            }}
+          >
+            MACHO
           </div>
           <div
             style={{
-              padding: "1rem 1.25rem",
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
-              position: "relative",
+              fontFamily: "Bebas Neue, sans-serif",
+              fontSize: "110px",
+              lineHeight: 0.85,
+              letterSpacing: "0.02em",
+              color: "#00FF87",
+              textShadow: "0 0 40px rgba(0,255,135,0.4)",
+              marginBottom: "2.5rem",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            WMS
+          </div>
+
+          <p
+            style={{
+              color: "rgba(255,255,255,0.3)",
+              fontSize: "15px",
+              maxWidth: "360px",
+              lineHeight: 1.7,
+              fontWeight: 300,
+            }}
+          >
+            Control total de recepción, inventario, picking y despacho para las
+            bodegas de Indurruedas.
+          </p>
+        </div>
+
+        {/* Stats bottom */}
+        <div
+          style={{
+            display: "flex",
+            gap: "3rem",
+            position: "relative",
+          }}
+        >
+          {[
+            { num: "3", label: "Bodegas" },
+            { num: "1.224", label: "Referencias" },
+            { num: "476", label: "Ubicaciones activas" },
+          ].map((stat) => (
+            <div key={stat.label}>
               <div
                 style={{
-                  width: "32px",
-                  height: "32px",
-                  borderRadius: "8px",
-                  background: "#00FF87",
+                  fontFamily: "Bebas Neue, sans-serif",
+                  fontSize: "40px",
+                  color: "#FFFFFF",
+                  lineHeight: 1,
+                  letterSpacing: "0.04em",
+                }}
+              >
+                {stat.num}
+              </div>
+              <div
+                style={{
+                  fontSize: "11px",
+                  color: "rgba(255,255,255,0.25)",
+                  fontWeight: 500,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginTop: "4px",
+                }}
+              >
+                {stat.label}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Panel derecho — formulario */}
+      <div
+        style={{
+          background: "#FFFFFF",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          padding: "3.5rem",
+          position: "relative",
+        }}
+      >
+        {/* Barra verde top */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: "4px",
+            background: "linear-gradient(90deg, #00FF87, #00CC6A)",
+          }}
+        />
+
+        <div style={{ marginBottom: "2.5rem" }}>
+          <h2
+            style={{
+              fontFamily: "Bebas Neue, sans-serif",
+              fontSize: "42px",
+              letterSpacing: "0.04em",
+              color: "#0A0A0A",
+              lineHeight: 1,
+              marginBottom: "8px",
+            }}
+          >
+            Bienvenido
+          </h2>
+          <p
+            style={{
+              color: "#888",
+              fontSize: "14px",
+              fontWeight: 400,
+            }}
+          >
+            Ingresa con tu cuenta de trabajo
+          </p>
+        </div>
+
+        {error && (
+          <div
+            style={{
+              background: "#fff5f5",
+              color: "#c0392b",
+              padding: "12px 16px",
+              borderRadius: "8px",
+              fontSize: "13px",
+              marginBottom: "1.5rem",
+              borderLeft: "3px solid #FF4444",
+              fontWeight: 500,
+            }}
+          >
+            ⚠ {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: "1.25rem" }}>
+            <label
+              style={{
+                fontSize: "11px",
+                fontWeight: 600,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                color: "#999",
+                display: "block",
+                marginBottom: "8px",
+              }}
+            >
+              Email
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="usuario@indurruedas.com"
+              required
+              style={{ fontSize: "14px" }}
+            />
+          </div>
+
+          <div style={{ marginBottom: "2rem" }}>
+            <label
+              style={{
+                fontSize: "11px",
+                fontWeight: 600,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                color: "#999",
+                display: "block",
+                marginBottom: "8px",
+              }}
+            >
+              Contraseña
+            </label>
+            <div style={{ position: "relative" }}>
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                style={{
+                  fontSize: "14px",
+                  paddingRight: "48px",
+                  width: "100%",
+                  boxSizing: "border-box",
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                tabIndex={-1}
+                aria-label={
+                  showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                }
+                style={{
+                  position: "absolute",
+                  right: "12px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "4px",
+                  color: "#888",
+                  fontSize: "16px",
+                  lineHeight: 1,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontFamily: "Bebas Neue,sans-serif",
-                  fontSize: "16px",
-                  color: "#0A0A0A",
-                  fontWeight: 700,
-                  flexShrink: 0,
                 }}
               >
-                {usuario?.nombre?.charAt(0) || "U"}
-              </div>
-              <div className="wms-user-name" style={{ overflow: "hidden" }}>
-                <div
-                  style={{
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    color: "#FFFFFF",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {usuario?.nombre}
-                </div>
-                <div
-                  style={{
-                    fontSize: "11px",
-                    color: "rgba(255,255,255,0.3)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                  }}
-                >
-                  {labelRol[usuario?.rol]}
-                </div>
-              </div>
+                {showPassword ? "🙈" : "👁️"}
+              </button>
             </div>
           </div>
-          <nav
-            style={{ flex: 1, padding: "1rem 0.75rem", position: "relative" }}
-          >
-            {menu.map((item) => (
-              <button
-                key={item.path}
-                onClick={() => handleNav(item.path)}
-                className={`wms-sidebar-nav-btn${location.pathname === item.path ? " active" : ""}`}
-              >
-                <span style={{ fontSize: "16px", flexShrink: 0 }}>
-                  {item.icon}
-                </span>
-                <span className="wms-sidebar-label">{item.label}</span>
-              </button>
-            ))}
-          </nav>
-          <div
+
+          <button
+            type="submit"
+            disabled={cargando}
             style={{
-              padding: "1rem 0.75rem",
-              borderTop: "1px solid rgba(255,255,255,0.06)",
+              width: "100%",
+              padding: "14px",
+              fontSize: "15px",
+              fontWeight: 700,
+              background: cargando ? "#ccc" : "#0A0A0A",
+              color: "#FFFFFF",
+              borderRadius: "8px",
+              letterSpacing: "0.05em",
+              border: "none",
+              cursor: cargando ? "not-allowed" : "pointer",
+              transition: "all 0.2s",
               position: "relative",
+              overflow: "hidden",
+            }}
+            onMouseEnter={(e) => {
+              if (!cargando) e.target.style.background = "#00FF87";
+              e.target.style.color = "#0A0A0A";
+            }}
+            onMouseLeave={(e) => {
+              if (!cargando) e.target.style.background = "#0A0A0A";
+              e.target.style.color = "#FFFFFF";
             }}
           >
-            <button
-              onClick={handleLogout}
-              className="wms-sidebar-nav-btn"
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = "#FF4444";
-                e.currentTarget.style.background = "rgba(255,68,68,0.08)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = "rgba(255,255,255,0.3)";
-                e.currentTarget.style.background = "transparent";
-              }}
-            >
-              <span>⎋</span>
-              <span className="wms-sidebar-label">Cerrar sesión</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="wms-header">
-          <div>
-            <h1
-              style={{
-                fontFamily: "Bebas Neue,sans-serif",
-                fontSize: "26px",
-                letterSpacing: "0.04em",
-                color: "#0A0A0A",
-                lineHeight: 1,
-              }}
-            >
-              {titulo}
-            </h1>
-            {subtitulo && (
-              <p style={{ fontSize: "13px", color: "#888", marginTop: "2px" }}>
-                {subtitulo}
-              </p>
-            )}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <Campana variant="light" />
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                background: "rgba(0,255,135,0.06)",
-                border: "1px solid rgba(0,255,135,0.15)",
-                borderRadius: "8px",
-                padding: "6px 12px",
-              }}
-            >
-              <div
-                style={{
-                  width: "7px",
-                  height: "7px",
-                  borderRadius: "50%",
-                  background: "#00FF87",
-                  boxShadow: "0 0 6px #00FF87",
-                }}
-              />
-              <span
-                style={{
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  color: "#007A40",
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                }}
-              >
-                En línea
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="wms-content">
-          <div className="wms-mobile-title">
-            <h1
-              style={{
-                fontFamily: "Bebas Neue,sans-serif",
-                fontSize: "24px",
-                letterSpacing: "0.04em",
-                color: "#0A0A0A",
-                lineHeight: 1,
-              }}
-            >
-              {titulo}
-            </h1>
-            {subtitulo && (
-              <p style={{ fontSize: "13px", color: "#888", marginTop: "2px" }}>
-                {subtitulo}
-              </p>
-            )}
-          </div>
-          {children}
-        </div>
-
-        <div className="wms-bottomnav">
-          {menu.slice(0, 4).map((item) => (
-            <button
-              key={item.path}
-              className={`wms-nav-btn${location.pathname === item.path ? " active" : ""}`}
-              onClick={() => handleNav(item.path)}
-            >
-              <span className="icon">{item.icon}</span>
-              <span>{item.label}</span>
-            </button>
-          ))}
-          <button className="wms-nav-btn" onClick={handleLogout}>
-            <span className="icon">⎋</span>
-            <span>Salir</span>
+            {cargando ? "Verificando..." : "Ingresar →"}
           </button>
-        </div>
+        </form>
 
+        {/* Footer */}
         <div
-          className={`wms-mobile-overlay${menuAbierto ? " open" : ""}`}
-          onClick={() => setMenuAbierto(false)}
-        />
-        <div className={`wms-mobile-menu${menuAbierto ? " open" : ""}`}>
-          <div className="grid-bg" />
+          style={{
+            position: "absolute",
+            bottom: "2rem",
+            left: "3.5rem",
+            right: "3.5rem",
+          }}
+        >
           <div
             style={{
-              padding: "1.25rem",
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
+              height: "1px",
+              background: "#F0F0F0",
+              marginBottom: "1.25rem",
+            }}
+          />
+          <div
+            style={{
               display: "flex",
-              alignItems: "center",
               justifyContent: "space-between",
-              position: "relative",
+              alignItems: "center",
             }}
           >
             <div>
               <div
                 style={{
-                  fontFamily: "Bebas Neue,sans-serif",
-                  fontSize: "24px",
-                  color: "#FFFFFF",
-                  letterSpacing: "0.06em",
-                  lineHeight: 1,
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  color: "#0A0A0A",
                 }}
               >
-                MACHO WMS
+                INDURRUEDAS S.A.
               </div>
               <div
                 style={{
                   fontSize: "11px",
-                  color: "rgba(255,255,255,0.3)",
-                  marginTop: "2px",
+                  color: "#BBB",
+                  fontFamily: "DM Mono, monospace",
                 }}
               >
-                {labelRol[usuario?.rol]}
+                NIT 890.207.956-1
               </div>
             </div>
-            <button
-              onClick={() => setMenuAbierto(false)}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "rgba(255,255,255,0.4)",
-                fontSize: "24px",
-                cursor: "pointer",
-                padding: "4px",
-                lineHeight: 1,
-                minHeight: "44px",
-                minWidth: "44px",
-              }}
-            >
-              ×
-            </button>
-          </div>
-          <div
-            style={{
-              padding: "1rem",
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
-              position: "relative",
-            }}
-          >
             <div
               style={{
                 width: "36px",
                 height: "36px",
+                background: "#0A0A0A",
                 borderRadius: "8px",
-                background: "#00FF87",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontFamily: "Bebas Neue,sans-serif",
                 fontSize: "18px",
-                color: "#0A0A0A",
-                fontWeight: 700,
-                flexShrink: 0,
               }}
             >
-              {usuario?.nombre?.charAt(0) || "U"}
+              🔧
             </div>
-            <div>
-              <div
-                style={{ fontSize: "14px", fontWeight: 600, color: "#FFFFFF" }}
-              >
-                {usuario?.nombre}
-              </div>
-              <div style={{ fontSize: "11px", color: "#00FF87" }}>
-                {labelRol[usuario?.rol]}
-              </div>
-            </div>
-          </div>
-          <nav style={{ flex: 1, padding: "1rem", position: "relative" }}>
-            {menu.map((item) => (
-              <button
-                key={item.path}
-                onClick={() => handleNav(item.path)}
-                className={`wms-sidebar-nav-btn${location.pathname === item.path ? " active" : ""}`}
-              >
-                <span style={{ fontSize: "18px", flexShrink: 0 }}>
-                  {item.icon}
-                </span>
-                <span>{item.label}</span>
-              </button>
-            ))}
-          </nav>
-          <div
-            style={{
-              padding: "1rem",
-              borderTop: "1px solid rgba(255,255,255,0.06)",
-              position: "relative",
-            }}
-          >
-            <button
-              onClick={handleLogout}
-              className="wms-sidebar-nav-btn"
-              style={{ color: "rgba(255,255,255,0.3)" }}
-            >
-              <span>⎋</span> Cerrar sesión
-            </button>
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
