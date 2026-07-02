@@ -9,33 +9,42 @@ const menuPorRol = {
     { path: "/admin/usuarios", label: "Usuarios", icon: "👷" },
     { path: "/admin/pedidos", label: "Pedidos", icon: "📋" },
     { path: "/admin/historial", label: "Historial", icon: "🔍" },
+    { path: "/inventario", label: "Inventario", icon: "📦" },
     { path: "/admin/reportes", label: "Reportes", icon: "📊" },
   ],
   montacarguista: [
     { path: "/montacarguista", label: "Mis pedidos", icon: "◼" },
-    { path: "/montacarguista/estibas", label: "Estibas", icon: "📦" },
+    { path: "/montacarguista/estibas", label: "Estibas", icon: "🪵" },
+    { path: "/inventario", label: "Inventario", icon: "📦" },
   ],
   operario: [{ path: "/operario", label: "Mis pedidos", icon: "◼" }],
-  saldos: [{ path: "/saldos", label: "Cola de saldos", icon: "◼" }],
+  saldos: [
+    { path: "/saldos", label: "Cola de saldos", icon: "◼" },
+    { path: "/inventario", label: "Inventario", icon: "📦" },
+  ],
   jefe_bodega: [
     { path: "/jefe-bodega", label: "Panel", icon: "◼" },
     { path: "/jefe-bodega/recepcion", label: "Recepciones", icon: "📥" },
     { path: "/jefe-bodega/verificacion", label: "Verificación", icon: "✅" },
     { path: "/jefe-bodega/despacho", label: "Despacho", icon: "🚚" },
     { path: "/jefe-bodega/devoluciones", label: "Devoluciones", icon: "↩" },
+    { path: "/inventario", label: "Inventario", icon: "📦" },
   ],
   gerente_logistico: [
     { path: "/gerente", label: "Dashboard", icon: "◼" },
     { path: "/gerente/reportes", label: "Indicadores", icon: "📊" },
+    { path: "/inventario", label: "Inventario", icon: "📦" },
     { path: "/kits", label: "Kits", icon: "🧩" },
   ],
   inventarios: [
     { path: "/inventarios", label: "Panel", icon: "◼" },
+    { path: "/inventario", label: "Inventario", icon: "📦" },
     { path: "/kits", label: "Kits", icon: "🧩" },
   ],
   facturacion: [
     { path: "/facturacion", label: "Por facturar", icon: "🧾" },
     { path: "/facturacion/historial", label: "Facturados", icon: "✅" },
+    { path: "/inventario", label: "Inventario", icon: "📦" },
   ],
 };
 

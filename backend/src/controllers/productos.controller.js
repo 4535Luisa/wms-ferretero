@@ -3,7 +3,6 @@ const { sendServerError } = require("../utils/errors");
 
 const buscarProducto = async (req, res) => {
   const { referencia } = req.query;
-
   if (!referencia)
     return res.status(400).json({ error: "Referencia requerida" });
 
@@ -37,8 +36,9 @@ const listarProductos = async (req, res) => {
     .range(off, off + lim - 1);
 
   if (buscar) {
-    // Sanitiza caracteres que romperían el filtro .or de PostgREST.
-    const t = String(buscar).replace(/[,()%]/g, "").trim();
+    const t = String(buscar)
+      .replace(/[,()%]/g, "")
+      .trim();
     if (t)
       query = query.or(
         `codigo_interno.ilike.%${t}%,descripcion_corta.ilike.%${t}%`,
@@ -46,9 +46,7 @@ const listarProductos = async (req, res) => {
   }
 
   const { data, error } = await query;
-
   if (error) return sendServerError(res, error, req);
-
   return res.json(data);
 };
 
@@ -68,9 +66,10 @@ const historialProducto = async (req, res) => {
 
   const { data: movimientos, error } = await supabase
     .from("bitacora")
-    .select("*")
+    .select("*, usuarios(nombre)")
     .eq("registro_id", id)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(100);
 
   if (error) return sendServerError(res, error, req);
 
@@ -82,4 +81,42 @@ const historialProducto = async (req, res) => {
   return res.json({ producto, movimientos, inventario });
 };
 
-module.exports = { buscarProducto, listarProductos, historialProducto };
+// Inventario general: todos los productos con stock, con bodega y ubicación.
+// Accesible para todos los roles excepto operario.
+const inventarioGeneral = async (req, res) => {
+  const { data, error } = await supabase
+    .from("inventario")
+    .select(
+      `
+      producto_id,
+      cantidad_disponible,
+      cantidad_comprometida,
+      ubicaciones(codigo),
+      bodegas(codigo, nombre),
+      productos(codigo_interno, descripcion_corta)
+    `,
+    )
+    .order("producto_id");
+
+  if (error) return sendServerError(res, error, req);
+
+  const resultado = (data || []).map((r) => ({
+    producto_id: r.producto_id,
+    referencia: r.productos?.codigo_interno || "—",
+    descripcion: r.productos?.descripcion_corta || "—",
+    bodega: r.bodegas?.codigo || "—",
+    bodega_nombre: r.bodegas?.nombre || "—",
+    ubicacion: r.ubicaciones?.codigo || null,
+    cantidad_disponible: r.cantidad_disponible || 0,
+    cantidad_comprometida: r.cantidad_comprometida || 0,
+  }));
+
+  return res.json(resultado);
+};
+
+module.exports = {
+  buscarProducto,
+  listarProductos,
+  historialProducto,
+  inventarioGeneral,
+};

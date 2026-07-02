@@ -21,6 +21,7 @@ import Kits from "./pages/Kits";
 import Gerente from "./pages/Gerente";
 import Inventarios from "./pages/Inventarios";
 import Facturacion from "./pages/Facturacion";
+import InventarioGeneral from "./pages/InventarioGeneral";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
@@ -226,6 +227,25 @@ createRoot(document.getElementById("root")).render(
             element={
               <PrivateRoute roles={["facturacion"]}>
                 <Facturacion />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/inventario"
+            element={
+              <PrivateRoute
+                roles={[
+                  "administrador",
+                  "jefe_bodega",
+                  "gerente_logistico",
+                  "inventarios",
+                  "facturacion",
+                  "montacarguista",
+                  "saldos",
+                ]}
+              >
+                <InventarioGeneral />
               </PrivateRoute>
             }
           />
