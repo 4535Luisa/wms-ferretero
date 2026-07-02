@@ -376,7 +376,7 @@ export default function Login() {
                   justifyContent: "center",
                 }}
               >
-                {showPassword ? "🙈" : "👁️"}
+                {showPassword ? "👤" : "👁️"}
               </button>
             </div>
           </div>
