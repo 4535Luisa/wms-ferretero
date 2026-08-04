@@ -115,6 +115,14 @@ createRoot(document.getElementById("root")).render(
             }
           />
           <Route
+            path="/jefe-bodega/pedidos"
+            element={
+              <PrivateRoute roles={["jefe_bodega", "administrador"]}>
+                <AdminPedidos />
+              </PrivateRoute>
+            }
+          />
+          <Route
             path="/jefe-bodega/recepcion"
             element={
               <PrivateRoute roles={["jefe_bodega"]}>

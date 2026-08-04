@@ -17,30 +17,40 @@ const {
   reabrirPedido,
 } = require("../controllers/pedidos.controller");
 
-router.post("/csv", requireRoles("administrador"), cargarCSV);
+const JEFE = "jefe_bodega";
+const ADMIN = "administrador";
+
+// Carga de CSV y gestión de pedidos — jefe de bodega y admin
+router.post("/csv", requireRoles(JEFE, ADMIN), cargarCSV);
 router.get(
   "/",
-  requireRoles("administrador", "facturacion", "gerente_logistico"),
+  requireRoles(ADMIN, JEFE, "facturacion", "gerente_logistico"),
   listarPedidos,
 );
-router.get("/operarios", requireRoles("administrador"), listarOperarios);
+router.get("/operarios", requireRoles(ADMIN, JEFE), listarOperarios);
 router.get("/mis-pedidos", requireRoles("operario"), misPedidosOperario);
 router.get(
   "/:id",
-  requireRoles("administrador", "facturacion", "gerente_logistico", "operario"),
+  requireRoles(ADMIN, JEFE, "facturacion", "gerente_logistico", "operario"),
   obtenerPedido,
 );
-router.patch("/:id/asignar", requireRoles("administrador"), asignarPedido);
-router.patch("/:id/reasignar", requireRoles("administrador"), reasignarPedido);
-router.post("/tanda", requireRoles("administrador"), asignarTanda);
+
+// Asignación — jefe de bodega y admin
+router.patch("/:id/asignar", requireRoles(JEFE, ADMIN), asignarPedido);
+router.patch("/:id/reasignar", requireRoles(JEFE, ADMIN), reasignarPedido);
+router.post("/tanda", requireRoles(JEFE, ADMIN), asignarTanda);
+router.patch("/:id/prioridad", requireRoles(JEFE, ADMIN), cambiarPrioridad);
+router.patch("/:id/reabrir", requireRoles(JEFE, ADMIN), reabrirPedido);
+
+// Facturación
 router.patch("/:id/facturar", requireRoles("facturacion"), facturarPedido);
-router.patch("/:id/prioridad", requireRoles("administrador"), cambiarPrioridad);
+
+// Operario
 router.patch(
   "/items/:itemId",
   requireRoles("operario"),
   actualizarItemOperario,
 );
 router.patch("/:id/cerrar", requireRoles("operario"), cerrarPedido);
-router.patch("/:id/reabrir", requireRoles("administrador"), reabrirPedido);
 
 module.exports = router;

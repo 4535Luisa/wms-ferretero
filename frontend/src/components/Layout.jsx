@@ -24,6 +24,7 @@ const menuPorRol = {
   ],
   jefe_bodega: [
     { path: "/jefe-bodega", label: "Panel", icon: "◼" },
+    { path: "/jefe-bodega/pedidos", label: "Pedidos", icon: "📋" },
     { path: "/jefe-bodega/recepcion", label: "Recepciones", icon: "📥" },
     { path: "/jefe-bodega/verificacion", label: "Verificación", icon: "✅" },
     { path: "/jefe-bodega/despacho", label: "Despacho", icon: "🚚" },

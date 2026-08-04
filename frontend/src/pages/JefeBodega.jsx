@@ -3,6 +3,15 @@ import Layout from "../components/Layout";
 
 const modulos = [
   {
+    path: "/jefe-bodega/pedidos",
+    icon: "📋",
+    titulo: "Pedidos",
+    descripcion:
+      "Cargar CSV, seleccionar y asignar pedidos a operarios y montacarguistas",
+    activo: true,
+    fase: null,
+  },
+  {
     path: "/jefe-bodega/recepcion",
     icon: "📥",
     titulo: "Recepciones",
@@ -121,13 +130,7 @@ export default function JefeBodega() {
             >
               {mod.titulo}
             </div>
-            <div
-              style={{
-                fontSize: "13px",
-                color: "#888",
-                lineHeight: 1.5,
-              }}
-            >
+            <div style={{ fontSize: "13px", color: "#888", lineHeight: 1.5 }}>
               {mod.descripcion}
             </div>
             {mod.activo && (

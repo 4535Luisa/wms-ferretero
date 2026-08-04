@@ -90,7 +90,9 @@ const adjuntarUsuarios = async (pedidos) => {
   return pedidos.map((p) => ({
     ...p,
     operario: p.operario_id ? mapa[p.operario_id] || null : null,
-    montacarguista: p.montacarguista_id ? mapa[p.montacarguista_id] || null : null,
+    montacarguista: p.montacarguista_id
+      ? mapa[p.montacarguista_id] || null
+      : null,
     facturador: p.facturador_id ? mapa[p.facturador_id] || null : null,
   }));
 };
@@ -592,7 +594,8 @@ const facturarPedido = async (req, res) => {
     return res.status(400).json({ error: "El pedido ya fue facturado" });
   if (pedido.estado !== "despachado") {
     return res.status(400).json({
-      error: "Solo se pueden facturar pedidos despachados por el jefe de bodega",
+      error:
+        "Solo se pueden facturar pedidos despachados por el jefe de bodega",
     });
   }
 
@@ -728,7 +731,9 @@ const misPedidosOperario = async (req, res) => {
         cajas_total: totalCajas,
         cajas_bajadas: cajasBajadas,
         cajas_listas: totalCajas > 0 && cajasBajadas === totalCajas,
-        estiba_nombre: item.estiba_id ? estibasMap[item.estiba_id] || null : null,
+        estiba_nombre: item.estiba_id
+          ? estibasMap[item.estiba_id] || null
+          : null,
       };
     }),
   }));
@@ -869,8 +874,10 @@ const cerrarPedido = async (req, res) => {
   if (error || !pedido)
     return res.status(404).json({ error: "Pedido no encontrado" });
 
-  if (req.usuario?.rol !== "administrador" &&
-      pedido.operario_id !== usuario_id) {
+  if (
+    req.usuario?.rol !== "administrador" &&
+    pedido.operario_id !== usuario_id
+  ) {
     return res.status(403).json({ error: "Este pedido no es tuyo" });
   }
   if (pedido.estado === "cerrado" || pedido.facturado) {
@@ -898,21 +905,26 @@ const cerrarPedido = async (req, res) => {
     .eq("id", id);
   if (errUpd) return sendServerError(res, errUpd, req);
 
-  // Notifica a los jefes de bodega: el pedido quedó cerrado y debe verificarse
-  // (con escaneo) antes de pasar a facturación (Fase 4).
-  const { data: jefes } = await supabase
+  // Notifica a jefes de bodega Y facturación cuando el operario cierra un pedido.
+  const { data: destinatariosCierre } = await supabase
     .from("usuarios")
-    .select("id")
-    .eq("rol", "jefe_bodega")
+    .select("id, rol")
+    .in("rol", ["jefe_bodega", "facturacion"])
     .eq("activo", true);
 
-  if (jefes && jefes.length > 0) {
+  if (destinatariosCierre?.length > 0) {
     await supabase.from("notificaciones").insert(
-      jefes.map((j) => ({
-        usuario_id: j.id,
+      destinatariosCierre.map((u) => ({
+        usuario_id: u.id,
         tipo: "pedido_por_verificar",
-        titulo: "Pedido por verificar",
-        mensaje: `El pedido ${pedido.numero} fue cerrado y espera verificación`,
+        titulo:
+          u.rol === "jefe_bodega"
+            ? "Pedido listo para verificar"
+            : "Pedido listo para facturar",
+        mensaje:
+          u.rol === "jefe_bodega"
+            ? `El pedido ${pedido.numero} fue alistado y espera verificación antes del despacho`
+            : `El pedido ${pedido.numero} fue alistado por el operario`,
         datos: { pedido_id: id, pedido_numero: pedido.numero },
       })),
     );
@@ -930,7 +942,7 @@ const cerrarPedido = async (req, res) => {
   return res.json({ mensaje: "Pedido cerrado y enviado a verificación" });
 };
 
-// Solo el administrador puede reabrir un pedido cerrado (railguard).
+// El jefe de bodega y el administrador pueden reabrir un pedido cerrado.
 const reabrirPedido = async (req, res) => {
   const { id } = req.params;
   const usuario_id = req.usuario?.id;
