@@ -58,13 +58,11 @@ export default function Operario() {
     setRefsEscaneadas({});
   };
 
-  // El escaneo verifica que la caja es del pedido y la marca como lista
-  // automáticamente — sin botón de confirmación.
   const onEscanear = async (refEscaneada) => {
     const norm = refEscaneada.trim().toUpperCase();
     const objetivo = (activo?.pedido_items || []).find(
       (i) =>
-        i.estado !== "listo" &&
+        i.estado !== "completo" &&
         (i.productos?.codigo_interno || "").trim().toUpperCase() === norm,
     );
     if (!objetivo) {
@@ -75,11 +73,10 @@ export default function Operario() {
       );
       return;
     }
-    // Marcar como lista inmediatamente — 1 escaneo = 1 ítem alistado
     setCargando(true);
     try {
       await api.patch(`/api/pedidos/items/${objetivo.id}`, {
-        estado: "listo",
+        estado: "completo",
         referencia_escaneada: refEscaneada,
       });
       bip("ok");
