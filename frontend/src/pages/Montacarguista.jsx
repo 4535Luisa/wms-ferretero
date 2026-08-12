@@ -74,6 +74,10 @@ export default function Montacarguista() {
   const [nombreEstiba, setNombreEstiba] = useState("");
   const [fotoEstiba, setFotoEstiba] = useState("");
 
+  // Confirmación de cantidad: cuando un grupo (misma ref + ubicación) tiene
+  // varias cajas pendientes, el montacarguista confirma cuántas bajó realmente.
+  // { grupo, referencia, metodo, cantidad }
+
   const cargarListas = async () => {
     try {
       const { data } = await api.get("/api/picking/mis-listas");
@@ -171,10 +175,8 @@ export default function Montacarguista() {
     if (listaActualizada) setListaActiva(listaActualizada);
   };
 
-  // Baja exactamente 1 caja por escaneo (railguard: 1 escaneo = 1 caja).
   const bajarUnaCaja = async (grupo, referenciaEscaneada, metodo) => {
     if (!estibaActiva) {
-      bip("error");
       mostrarMensaje(
         "Registra o selecciona una estiba antes de bajar",
         "error",
@@ -182,7 +184,7 @@ export default function Montacarguista() {
       return;
     }
     if (grupo.pendientes.length === 0) return;
-    const it = grupo.pendientes[0]; // El primer ítem pendiente del grupo
+    const it = grupo.pendientes[0];
     setCargando(true);
     try {
       await api.patch(`/api/picking/items/${it.id}/bajar`, {
@@ -234,7 +236,6 @@ export default function Montacarguista() {
       return;
     }
     const metodo = origen === "camara" ? "camara" : "teclado";
-    // 1 escaneo = 1 caja — sin modal de confirmación
     await bajarUnaCaja(objetivo, refEscaneada, metodo);
   };
 
@@ -613,107 +614,6 @@ export default function Montacarguista() {
             label="Escanea la caja antes de bajarla"
             hint="Verifica que la referencia coincide con la lista antes de descontar inventario. Sin etiqueta: digita la referencia y confirma la cantidad."
           />
-
-          {confirmCantidad && (
-            <div
-              style={{
-                background: "#FFFFFF",
-                border: "2px solid #00FF87",
-                borderRadius: "12px",
-                padding: "1.25rem 1.5rem",
-                marginBottom: "1rem",
-                boxShadow: "0 0 0 4px rgba(0,255,135,0.08)",
-              }}
-            >
-              <div
-                style={{ fontSize: "14px", fontWeight: 700, color: "#0A0A0A" }}
-              >
-                ¿Cuántas cajas de {confirmCantidad.referencia} bajaste?
-              </div>
-              <div
-                style={{ fontSize: "12px", color: "#888", marginTop: "4px" }}
-              >
-                Hay {confirmCantidad.grupo.pendientes.length} cajas pendientes
-                en {confirmCantidad.grupo.ubicacion_codigo || "esta ubicación"}.
-                {confirmCantidad.metodo === "camara"
-                  ? " (escaneado con cámara)"
-                  : " (pistola o digitado)"}
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  gap: "8px",
-                  alignItems: "center",
-                  marginTop: "12px",
-                  flexWrap: "wrap",
-                }}
-              >
-                <input
-                  type="number"
-                  min="1"
-                  max={confirmCantidad.grupo.pendientes.length}
-                  value={confirmCantidad.cantidad}
-                  onChange={(e) =>
-                    setConfirmCantidad((c) => ({
-                      ...c,
-                      cantidad: e.target.value,
-                    }))
-                  }
-                  style={{
-                    width: "90px",
-                    padding: "10px 12px",
-                    border: "1px solid #E8E8E8",
-                    borderRadius: "8px",
-                    fontSize: "18px",
-                    fontFamily: "DM Mono, monospace",
-                    fontWeight: 700,
-                    textAlign: "center",
-                  }}
-                />
-                <span style={{ fontSize: "13px", color: "#888" }}>
-                  de {confirmCantidad.grupo.pendientes.length}
-                </span>
-                <button
-                  onClick={confirmarBajada}
-                  disabled={cargando}
-                  style={{
-                    flex: 1,
-                    minWidth: "120px",
-                    background: "#00FF87",
-                    color: "#0A0A0A",
-                    border: "none",
-                    borderRadius: "8px",
-                    padding: "12px 18px",
-                    fontSize: "14px",
-                    fontWeight: 700,
-                    cursor: cargando ? "not-allowed" : "pointer",
-                    fontFamily: "Outfit, sans-serif",
-                    minHeight: "44px",
-                  }}
-                >
-                  ✓ Confirmar bajada
-                </button>
-                <button
-                  onClick={() => setConfirmCantidad(null)}
-                  disabled={cargando}
-                  style={{
-                    background: "transparent",
-                    color: "#0A0A0A",
-                    border: "1.5px solid #E8E8E8",
-                    borderRadius: "8px",
-                    padding: "12px 18px",
-                    fontSize: "14px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    fontFamily: "Outfit, sans-serif",
-                    minHeight: "44px",
-                  }}
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          )}
 
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {consolidarItems(listaActiva.lista_picking_items).map((grupo) => {
