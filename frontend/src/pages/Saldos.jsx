@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import Layout from "../components/Layout";
-import ScanInput from "../components/ScanInput";
+import ScanInput, { bip } from "../components/ScanInput";
 import api from "../services/api";
 
 const REFRESCO_MS = 15000;
@@ -96,7 +96,9 @@ export default function Saldos() {
       await api.patch(`/api/saldos/caja/${itemId}/confirmar`, {
         referencia_escaneada: referenciaEscaneada,
       });
-      aviso("✓ Caja verificada y confirmada — inventario de SALDOS actualizado");
+      aviso(
+        "✓ Caja verificada y confirmada — inventario de SALDOS actualizado",
+      );
       await cargar();
     } catch (err) {
       aviso(err.response?.data?.error || "Error al confirmar", "error");
@@ -198,7 +200,14 @@ export default function Saldos() {
                   <div style={{ fontSize: "14px", fontWeight: 600 }}>
                     {e.descripcion}
                   </div>
-                  <div style={{ ...C.mono, fontSize: "12px", color: "#888", marginTop: "3px" }}>
+                  <div
+                    style={{
+                      ...C.mono,
+                      fontSize: "12px",
+                      color: "#888",
+                      marginTop: "3px",
+                    }}
+                  >
                     Ref: {e.referencia} · {e.cantidad_unidades} unidades
                   </div>
                 </div>
@@ -282,7 +291,14 @@ export default function Saldos() {
                       {sem.label}
                     </span>
                   </div>
-                  <div style={{ ...C.mono, fontSize: "12px", color: "#888", marginTop: "3px" }}>
+                  <div
+                    style={{
+                      ...C.mono,
+                      fontSize: "12px",
+                      color: "#888",
+                      marginTop: "3px",
+                    }}
+                  >
                     Ref: {s.producto?.codigo_interno} · Operario:{" "}
                     {s.operario?.nombre || "—"}
                   </div>
@@ -298,7 +314,13 @@ export default function Saldos() {
                   >
                     {s.cantidad_total}
                   </div>
-                  <div style={{ fontSize: "11px", color: "#888", marginBottom: "6px" }}>
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: "#888",
+                      marginBottom: "6px",
+                    }}
+                  >
                     unidades
                   </div>
                   <button

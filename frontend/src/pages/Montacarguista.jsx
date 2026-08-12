@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Layout from "../components/Layout";
-import ScanInput from "../components/ScanInput";
+import ScanInput, { bip } from "../components/ScanInput";
 import api from "../services/api";
 
 // Parsea un código de ubicación según el sistema físico de la bodega:
@@ -73,11 +73,6 @@ export default function Montacarguista() {
   const [showEstibaForm, setShowEstibaForm] = useState(false);
   const [nombreEstiba, setNombreEstiba] = useState("");
   const [fotoEstiba, setFotoEstiba] = useState("");
-
-  // Confirmación de cantidad: cuando un grupo (misma ref + ubicación) tiene
-  // varias cajas pendientes, el montacarguista confirma cuántas bajó realmente.
-  // { grupo, referencia, metodo, cantidad }
-  const [confirmCantidad, setConfirmCantidad] = useState(null);
 
   const cargarListas = async () => {
     try {
@@ -176,30 +171,34 @@ export default function Montacarguista() {
     if (listaActualizada) setListaActiva(listaActualizada);
   };
 
-  const bajarGrupo = async (grupo, referenciaEscaneada, limite, metodo) => {
+  // Baja exactamente 1 caja por escaneo (railguard: 1 escaneo = 1 caja).
+  const bajarUnaCaja = async (grupo, referenciaEscaneada, metodo) => {
     if (!estibaActiva) {
+      bip("error");
       mostrarMensaje(
         "Registra o selecciona una estiba antes de bajar",
         "error",
       );
       return;
     }
-    const aBajar = grupo.pendientes.slice(0, limite ?? grupo.pendientes.length);
-    if (aBajar.length === 0) return;
+    if (grupo.pendientes.length === 0) return;
+    const it = grupo.pendientes[0]; // El primer ítem pendiente del grupo
     setCargando(true);
     try {
-      for (const it of aBajar) {
-        await api.patch(`/api/picking/items/${it.id}/bajar`, {
-          estiba_id: estibaActiva,
-          referencia_escaneada: referenciaEscaneada,
-          metodo: metodo || "teclado",
-        });
-      }
-      const n = aBajar.length;
+      await api.patch(`/api/picking/items/${it.id}/bajar`, {
+        estiba_id: estibaActiva,
+        referencia_escaneada: referenciaEscaneada,
+        metodo: metodo || "teclado",
+      });
+      bip("ok");
+      const pendientesRestantes = grupo.pendientes.length - 1;
       mostrarMensaje(
-        `✓ ${n} caja${n !== 1 ? "s" : ""} de ${grupo.referencia} verificada${n !== 1 ? "s" : ""} y bajada${n !== 1 ? "s" : ""}`,
+        pendientesRestantes > 0
+          ? `✓ Caja de ${grupo.referencia} bajada — faltan ${pendientesRestantes}`
+          : `✓ Todas las cajas de ${grupo.referencia} bajadas`,
       );
     } catch (err) {
+      bip("error");
       mostrarMensaje(
         err.response?.data?.error || "Error al registrar",
         "error",
@@ -212,6 +211,7 @@ export default function Montacarguista() {
 
   const onEscanear = async (refEscaneada, origen) => {
     if (!estibaActiva) {
+      bip("error");
       mostrarMensaje(
         "Registra o selecciona una estiba antes de bajar",
         "error",
@@ -226,39 +226,16 @@ export default function Montacarguista() {
         g.pendientes.length > 0,
     );
     if (!objetivo) {
+      bip("error");
       mostrarMensaje(
-        `Caja incorrecta: ${norm} no pertenece a esta lista o ya fue bajada`,
+        `⚠ CAJA NO ENCONTRADA: ${norm} no está en esta lista o ya fue bajada`,
         "error",
       );
       return;
     }
     const metodo = origen === "camara" ? "camara" : "teclado";
-    if (objetivo.pendientes.length > 1) {
-      setConfirmCantidad({
-        grupo: objetivo,
-        referencia: refEscaneada,
-        metodo,
-        cantidad: objetivo.pendientes.length,
-      });
-      return;
-    }
-    await bajarGrupo(
-      objetivo,
-      refEscaneada,
-      objetivo.pendientes.length,
-      metodo,
-    );
-  };
-
-  const confirmarBajada = async () => {
-    if (!confirmCantidad) return;
-    const { grupo, referencia, metodo, cantidad } = confirmCantidad;
-    const n = Math.max(
-      1,
-      Math.min(Number(cantidad) || 0, grupo.pendientes.length),
-    );
-    setConfirmCantidad(null);
-    await bajarGrupo(grupo, referencia, n, metodo);
+    // 1 escaneo = 1 caja — sin modal de confirmación
+    await bajarUnaCaja(objetivo, refEscaneada, metodo);
   };
 
   return (
@@ -632,7 +609,7 @@ export default function Montacarguista() {
 
           <ScanInput
             onScan={onEscanear}
-            disabled={cargando || !!confirmCantidad}
+            disabled={cargando}
             label="Escanea la caja antes de bajarla"
             hint="Verifica que la referencia coincide con la lista antes de descontar inventario. Sin etiqueta: digita la referencia y confirma la cantidad."
           />

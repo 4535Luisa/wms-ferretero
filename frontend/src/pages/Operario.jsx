@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Layout from "../components/Layout";
-import ScanInput from "../components/ScanInput";
+import ScanInput, { bip } from "../components/ScanInput";
 import api from "../services/api";
 
 const C = {
@@ -58,9 +58,9 @@ export default function Operario() {
     setRefsEscaneadas({});
   };
 
-  // El escaneo verifica que la caja recogida de la estiba es del pedido y
-  // habilita su alistado. Cruza contra la referencia de cada ítem pendiente.
-  const onEscanear = (refEscaneada) => {
+  // El escaneo verifica que la caja es del pedido y la marca como lista
+  // automáticamente — sin botón de confirmación.
+  const onEscanear = async (refEscaneada) => {
     const norm = refEscaneada.trim().toUpperCase();
     const objetivo = (activo?.pedido_items || []).find(
       (i) =>
@@ -68,21 +68,40 @@ export default function Operario() {
         (i.productos?.codigo_interno || "").trim().toUpperCase() === norm,
     );
     if (!objetivo) {
+      bip("error");
       aviso(
-        `Referencia incorrecta: ${norm} no pertenece a este pedido o ya está lista`,
+        `⚠ CAJA INCORRECTA: ${norm} no pertenece a este pedido o ya está alistada`,
         "error",
       );
       return;
     }
-    setRefsEscaneadas((prev) => ({ ...prev, [objetivo.id]: refEscaneada }));
-    aviso(`✓ ${objetivo.productos?.descripcion_corta || norm} verificada — ya puedes alistarla`);
+    // Marcar como lista inmediatamente — 1 escaneo = 1 ítem alistado
+    setCargando(true);
+    try {
+      await api.patch(`/api/pedidos/items/${objetivo.id}`, {
+        estado: "listo",
+        referencia_escaneada: refEscaneada,
+      });
+      bip("ok");
+      aviso(`✓ ${objetivo.productos?.descripcion_corta || norm} alistada`);
+      await cargar();
+    } catch (err) {
+      bip("error");
+      aviso(err.response?.data?.error || "Error al marcar", "error");
+    } finally {
+      setCargando(false);
+    }
   };
 
   const progreso = (p) => {
     const total = p.pedido_items?.length || 0;
     const listos =
       p.pedido_items?.filter((i) => i.estado === "listo").length || 0;
-    return { total, listos, pct: total ? Math.round((listos / total) * 100) : 0 };
+    return {
+      total,
+      listos,
+      pct: total ? Math.round((listos / total) * 100) : 0,
+    };
   };
 
   const marcarListo = async (item) => {
@@ -236,7 +255,13 @@ export default function Operario() {
                           flexWrap: "wrap",
                         }}
                       >
-                        <span style={{ ...C.mono, fontSize: "16px", fontWeight: 700 }}>
+                        <span
+                          style={{
+                            ...C.mono,
+                            fontSize: "16px",
+                            fontWeight: 700,
+                          }}
+                        >
                           {p.numero}
                         </span>
                         {p.prioridad === "urgente" && (
@@ -268,7 +293,13 @@ export default function Operario() {
                           </span>
                         )}
                       </div>
-                      <div style={{ fontSize: "13px", color: "#888", marginTop: "4px" }}>
+                      <div
+                        style={{
+                          fontSize: "13px",
+                          color: "#888",
+                          marginTop: "4px",
+                        }}
+                      >
                         {pr.total} referencias
                       </div>
                     </div>
@@ -354,13 +385,21 @@ export default function Operario() {
                       >
                         {item.productos?.descripcion_corta || item.descripcion}
                       </div>
-                      <div style={{ ...C.mono, fontSize: "12px", color: "#888", marginTop: "3px" }}>
+                      <div
+                        style={{
+                          ...C.mono,
+                          fontSize: "12px",
+                          color: "#888",
+                          marginTop: "3px",
+                        }}
+                      >
                         Ref: {item.productos?.codigo_interno} · Pedido:{" "}
                         {item.cantidad_pedida} u
                         {item.cantidad_picking != null &&
                           item.cantidad_picking !== item.cantidad_pedida && (
                             <span style={{ color: "#854D0E" }}>
-                              {" "}· Alistado: {item.cantidad_picking}
+                              {" "}
+                              · Alistado: {item.cantidad_picking}
                             </span>
                           )}
                       </div>
@@ -383,8 +422,8 @@ export default function Operario() {
                               fontWeight: 600,
                             }}
                           >
-                            📦 Cajas: {item.cajas_bajadas || 0}/{item.cajas_total || 0}{" "}
-                            bajadas
+                            📦 Cajas: {item.cajas_bajadas || 0}/
+                            {item.cajas_total || 0} bajadas
                           </span>
                         )}
                         {item.estiba_nombre && (
@@ -434,7 +473,13 @@ export default function Operario() {
                     {!cerrado && (
                       <div style={{ flexShrink: 0, textAlign: "right" }}>
                         {listo ? (
-                          <span style={{ color: "#00CC6A", fontWeight: 700, fontSize: "20px" }}>
+                          <span
+                            style={{
+                              color: "#00CC6A",
+                              fontWeight: 700,
+                              fontSize: "20px",
+                            }}
+                          >
                             ✓
                           </span>
                         ) : !escaneado ? (
@@ -452,7 +497,13 @@ export default function Operario() {
                             Escanea para alistar
                           </span>
                         ) : (
-                          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "6px",
+                            }}
+                          >
                             <button
                               onClick={() => marcarListo(item)}
                               disabled={cargando}
@@ -505,7 +556,13 @@ export default function Operario() {
                         gap: "8px",
                       }}
                     >
-                      <label style={{ fontSize: "12px", color: "#666", fontWeight: 600 }}>
+                      <label
+                        style={{
+                          fontSize: "12px",
+                          color: "#666",
+                          fontWeight: 600,
+                        }}
+                      >
                         Cantidad realmente alistada
                       </label>
                       <input
@@ -521,7 +578,13 @@ export default function Operario() {
                       />
                       {Number(cantidadEdit) !== item.cantidad_pedida && (
                         <>
-                          <label style={{ fontSize: "12px", color: "#666", fontWeight: 600 }}>
+                          <label
+                            style={{
+                              fontSize: "12px",
+                              color: "#666",
+                              fontWeight: 600,
+                            }}
+                          >
                             Motivo de la diferencia (obligatorio)
                           </label>
                           <textarea
@@ -584,8 +647,16 @@ export default function Operario() {
                   ? "✓ Cerrar pedido y enviar a facturación"
                   : `Faltan ${prog.total - prog.listos} referencia(s) por marcar`}
               </button>
-              <p style={{ fontSize: "11px", color: "#AAA", textAlign: "center", marginTop: "8px" }}>
-                Una vez cerrado no podrás editarlo. Solo el administrador puede reabrirlo.
+              <p
+                style={{
+                  fontSize: "11px",
+                  color: "#AAA",
+                  textAlign: "center",
+                  marginTop: "8px",
+                }}
+              >
+                Una vez cerrado no podrás editarlo. Solo el administrador puede
+                reabrirlo.
               </p>
             </div>
           )}
@@ -600,7 +671,14 @@ export default function Operario() {
                 borderColor: "rgba(0,255,135,0.25)",
               }}
             >
-              <p style={{ fontSize: "14px", fontWeight: 600, color: "#007A40", margin: 0 }}>
+              <p
+                style={{
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  color: "#007A40",
+                  margin: 0,
+                }}
+              >
                 ✓ Pedido cerrado — en cola de facturación
               </p>
             </div>

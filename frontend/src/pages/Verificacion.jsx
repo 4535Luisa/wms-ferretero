@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Layout from "../components/Layout";
-import ScanInput from "../components/ScanInput";
+import ScanInput, { bip } from "../components/ScanInput";
 import api from "../services/api";
 
 const C = {
@@ -65,10 +65,11 @@ export default function Verificacion() {
           it.verificado &&
           (it.productos?.codigo_interno || "").trim().toUpperCase() === norm,
       );
+      bip("error");
       aviso(
         yaVerificado
-          ? `La referencia ${norm} ya fue verificada`
-          : `La referencia ${norm} no pertenece a este pedido`,
+          ? `⚠ La referencia ${norm} ya fue verificada`
+          : `⚠ CAJA INCORRECTA: ${norm} no pertenece a este pedido`,
         "error",
       );
       return;
@@ -86,8 +87,10 @@ export default function Verificacion() {
           it.id === objetivo.id ? { ...it, verificado: true } : it,
         ),
       }));
+      bip("ok");
       aviso(`✓ Verificada (${data.verificados}/${data.total})`);
     } catch (err) {
+      bip("error");
       aviso(err.response?.data?.error || "Error al verificar", "error");
     } finally {
       setCargando(false);
@@ -200,11 +203,17 @@ export default function Verificacion() {
                 }}
               >
                 <div>
-                  <span style={{ ...C.mono, fontSize: "14px", fontWeight: 700 }}>
+                  <span
+                    style={{ ...C.mono, fontSize: "14px", fontWeight: 700 }}
+                  >
                     {p.numero}
                   </span>
                   <div
-                    style={{ fontSize: "12px", color: "#888", marginTop: "4px" }}
+                    style={{
+                      fontSize: "12px",
+                      color: "#888",
+                      marginTop: "4px",
+                    }}
                   >
                     {p.pedido_items?.length || 0} referencias
                     {p.hora_cierre && (
@@ -221,7 +230,11 @@ export default function Verificacion() {
                   </div>
                 </div>
                 <span
-                  style={{ fontSize: "13px", color: "#00CC6A", fontWeight: 600 }}
+                  style={{
+                    fontSize: "13px",
+                    color: "#00CC6A",
+                    fontWeight: 600,
+                  }}
                 >
                   Verificar →
                 </span>
