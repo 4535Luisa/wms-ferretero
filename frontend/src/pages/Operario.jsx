@@ -93,7 +93,7 @@ export default function Operario() {
   const progreso = (p) => {
     const total = p.pedido_items?.length || 0;
     const listos =
-      p.pedido_items?.filter((i) => i.estado === "listo").length || 0;
+      p.pedido_items?.filter((i) => i.estado === "completo").length || 0;
     return {
       total,
       listos,
@@ -105,7 +105,7 @@ export default function Operario() {
     setCargando(true);
     try {
       await api.patch(`/api/pedidos/items/${item.id}`, {
-        estado: "listo",
+        estado: "completo",
         referencia_escaneada: refsEscaneadas[item.id],
       });
       aviso("✓ Referencia verificada y marcada como lista");
@@ -132,7 +132,7 @@ export default function Operario() {
       await api.patch(`/api/pedidos/items/${item.id}`, {
         cantidad_picking: cantidad,
         motivo_diferencia: motivoEdit.trim(),
-        estado: "listo",
+        estado: "completo",
         referencia_escaneada: refsEscaneadas[item.id],
       });
       aviso("✓ Cantidad actualizada");
@@ -351,7 +351,7 @@ export default function Operario() {
           )}
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {(activo.pedido_items || []).map((item) => {
-              const listo = item.estado === "listo";
+              const listo = item.estado === "completo";
               const enEdicion = editando === item.id;
               const escaneado = !!refsEscaneadas[item.id];
               const cajaUnidades =
