@@ -507,7 +507,7 @@ const reasignarPedido = async (req, res) => {
   }
 
   const itemsListos = (pedido.pedido_items || []).filter(
-    (i) => i.estado === "listo",
+    (i) => i.estado === "completo",
   ).length;
   const totalItems = (pedido.pedido_items || []).length;
 
@@ -820,7 +820,7 @@ const actualizarItemOperario = async (req, res) => {
         cantidadFinal !== item.cantidad_pedida
           ? motivo_diferencia.trim()
           : null,
-      estado: estado || "listo",
+      estado: estado || "completo",
     })
     .eq("id", itemId)
     .select()
@@ -885,11 +885,11 @@ const cerrarPedido = async (req, res) => {
   }
 
   const pendientes = (pedido.pedido_items || []).filter(
-    (i) => i.estado !== "listo",
+    (i) => i.estado !== "completo",
   );
   if (pendientes.length > 0) {
     return res.status(400).json({
-      error: `Faltan ${pendientes.length} referencia(s) por marcar como listas`,
+      error: `Faltan ${pendientes.length} referencia(s) por alistar`,
     });
   }
 
