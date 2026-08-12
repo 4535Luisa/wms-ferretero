@@ -92,7 +92,9 @@ const generarListasPicking = async (req, res) => {
 
           const { data: invs } = await supabase
             .from("inventario")
-            .select("id, cantidad_disponible, cantidad_comprometida, ubicacion_id")
+            .select(
+              "id, cantidad_disponible, cantidad_comprometida, ubicacion_id",
+            )
             .eq("producto_id", item.producto_id)
             .eq("bodega_id", bodegaId)
             .gt("cantidad_disponible", 0)
@@ -157,6 +159,16 @@ const generarListasPicking = async (req, res) => {
         }
       }
     }
+  }
+
+  // DEBUG temporal
+  console.log("DEBUG bodegasData:", JSON.stringify(bodegasData));
+  console.log("DEBUG bodegaIds:", JSON.stringify(bodegaIds));
+  console.log("DEBUG pedidosAProcesar:", pedidosAProcesar.length);
+  for (const [bodegaId, lista] of Object.entries(listasPorBodega)) {
+    console.log(
+      `DEBUG lista bodega ${lista.codigo}: ${lista.items.length} items`,
+    );
   }
 
   const listasCreadas = [];
@@ -363,9 +375,7 @@ const bajarCaja = async (req, res) => {
     .eq("id", item.lista_id)
     .single();
   if (!esAdmin && lista?.montacarguista_id !== usuario_id) {
-    return res
-      .status(403)
-      .json({ error: "Esta lista no está asignada a ti" });
+    return res.status(403).json({ error: "Esta lista no está asignada a ti" });
   }
 
   // Núcleo atómico: transición pendiente -> bajada + vínculo de estiba +
@@ -460,9 +470,13 @@ const crearEstiba = async (req, res) => {
   const { nombre, foto_url } = req.body;
 
   if (!nombre?.trim())
-    return res.status(400).json({ error: "El nombre de la estiba es obligatorio" });
+    return res
+      .status(400)
+      .json({ error: "El nombre de la estiba es obligatorio" });
   if (!foto_url?.trim())
-    return res.status(400).json({ error: "La foto de la estiba es obligatoria" });
+    return res
+      .status(400)
+      .json({ error: "La foto de la estiba es obligatoria" });
 
   const { data, error } = await supabase
     .from("estibas")
