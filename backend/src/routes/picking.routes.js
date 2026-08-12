@@ -17,7 +17,11 @@ router.get("/", listarListasPicking);
 router.get("/mis-listas", requireRoles("montacarguista"), misListas);
 router.get("/estibas", requireRoles("montacarguista"), misEstibas);
 router.post("/estibas", requireRoles("montacarguista"), crearEstiba);
-router.patch("/:id/asignar", requireRoles("administrador"), asignarMontacarguista);
+router.patch(
+  "/:id/asignar",
+  requireRoles("administrador"),
+  asignarMontacarguista,
+);
 router.patch(
   "/:id/cancelar",
   requireRoles("administrador", "gerente_logistico"),

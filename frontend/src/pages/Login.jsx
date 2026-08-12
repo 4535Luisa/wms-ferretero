@@ -30,9 +30,6 @@ export default function Login() {
         case "saldos":
           navigate("/saldos");
           break;
-        case "jefe_bodega":
-          navigate("/jefe-bodega");
-          break;
         case "gerente_logistico":
           navigate("/gerente");
           break;

@@ -3,28 +3,47 @@ import Layout from "../components/Layout";
 
 const modulos = [
   {
+    path: "/admin/pedidos",
+    icon: "📋",
+    titulo: "Pedidos",
+    descripcion:
+      "Cargar CSV, generar listas y asignar a operarios y montacarguistas",
+    activo: true,
+  },
+  {
+    path: "/admin/recepcion",
+    icon: "📥",
+    titulo: "Recepciones",
+    descripcion: "Registrar mercancía que llega a bodega con escaneo",
+    activo: true,
+  },
+  {
+    path: "/admin/verificacion",
+    icon: "✅",
+    titulo: "Verificación",
+    descripcion: "Verificar pedidos antes de despachar",
+    activo: true,
+  },
+  {
+    path: "/admin/despacho",
+    icon: "🚚",
+    titulo: "Despacho",
+    descripcion: "Registrar salida de pedidos con datos del transportista",
+    activo: true,
+  },
+  {
+    path: "/admin/devoluciones",
+    icon: "↩",
+    titulo: "Devoluciones",
+    descripcion: "Registrar devoluciones de cliente y proveedor",
+    activo: true,
+  },
+  {
     path: "/admin/usuarios",
     icon: "👷",
     titulo: "Usuarios",
     descripcion: "Crear, editar y desactivar usuarios del sistema",
     activo: true,
-    fase: null,
-  },
-  {
-    path: "/admin/pedidos",
-    icon: "📋",
-    titulo: "Pedidos",
-    descripcion: "Cargar CSV y asignar pedidos a operarios",
-    activo: true,
-    fase: null,
-  },
-  {
-    path: "/admin/reportes",
-    icon: "📊",
-    titulo: "Reportes",
-    descripcion: "Tiempos por operario y control de pedidos",
-    activo: false,
-    fase: "Fase 6",
   },
   {
     path: "/admin/dashboard",
@@ -32,7 +51,20 @@ const modulos = [
     titulo: "Dashboard en vivo",
     descripcion: "Pedidos activos y operarios en tiempo real",
     activo: true,
-    fase: null,
+  },
+  {
+    path: "/admin/historial",
+    icon: "🔍",
+    titulo: "Historial",
+    descripcion: "Trazabilidad de movimientos por referencia",
+    activo: true,
+  },
+  {
+    path: "/inventario",
+    icon: "📦",
+    titulo: "Inventario",
+    descripcion: "Stock actual por referencia, bodega y ubicación",
+    activo: true,
   },
 ];
 
@@ -47,59 +79,33 @@ export default function Admin() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
           gap: "1rem",
         }}
       >
         {modulos.map((mod) => (
           <div
             key={mod.titulo}
-            onClick={() => mod.activo && mod.path && navigate(mod.path)}
+            onClick={() => mod.activo && navigate(mod.path)}
             style={{
               background: "#FFFFFF",
-              border: mod.activo ? "1px solid #E8E8E8" : "1px solid #F0F0F0",
+              border: "1px solid #E8E8E8",
               borderRadius: "12px",
               padding: "1.5rem",
-              cursor: mod.activo ? "pointer" : "default",
-              opacity: mod.activo ? 1 : 0.5,
+              cursor: "pointer",
               transition: "all 0.15s",
               position: "relative",
-              overflow: "hidden",
-              minHeight: "44px",
             }}
             onMouseEnter={(e) => {
-              if (mod.activo) {
-                e.currentTarget.style.borderColor = "#00FF87";
-                e.currentTarget.style.boxShadow =
-                  "0 0 0 3px rgba(0,255,135,0.08)";
-              }
+              e.currentTarget.style.borderColor = "#00FF87";
+              e.currentTarget.style.boxShadow =
+                "0 0 0 3px rgba(0,255,135,0.08)";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = mod.activo
-                ? "#E8E8E8"
-                : "#F0F0F0";
+              e.currentTarget.style.borderColor = "#E8E8E8";
               e.currentTarget.style.boxShadow = "none";
             }}
           >
-            {mod.fase && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "12px",
-                  right: "12px",
-                  background: "#F0F0F0",
-                  color: "#888",
-                  fontSize: "10px",
-                  fontWeight: 600,
-                  padding: "2px 8px",
-                  borderRadius: "20px",
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                }}
-              >
-                {mod.fase}
-              </div>
-            )}
             <div style={{ fontSize: "32px", marginBottom: "1rem" }}>
               {mod.icon}
             </div>
@@ -117,21 +123,19 @@ export default function Admin() {
             <div style={{ fontSize: "13px", color: "#888", lineHeight: 1.5 }}>
               {mod.descripcion}
             </div>
-            {mod.activo && (
-              <div
-                style={{
-                  marginTop: "1.25rem",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  color: "#00CC6A",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                }}
-              >
-                Abrir <span>→</span>
-              </div>
-            )}
+            <div
+              style={{
+                marginTop: "1.25rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                color: "#00CC6A",
+                fontSize: "13px",
+                fontWeight: 600,
+              }}
+            >
+              Abrir <span>→</span>
+            </div>
           </div>
         ))}
       </div>

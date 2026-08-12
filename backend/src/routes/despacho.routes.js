@@ -8,16 +8,16 @@ const {
   registrarDespacho,
 } = require("../controllers/despacho.controller");
 
-router.get("/", requireRoles("jefe_bodega"), listarPorDespachar);
+router.get("/", requireRoles("administrador"), listarPorDespachar);
 router.get(
   "/:id",
-  requireRoles("jefe_bodega"),
+  requireRoles("administrador"),
   requireUuidParam("id"),
   detalleDespacho,
 );
 router.patch(
   "/:id",
-  requireRoles("jefe_bodega"),
+  requireRoles("administrador"),
   requireUuidParam("id"),
   registrarDespacho,
 );

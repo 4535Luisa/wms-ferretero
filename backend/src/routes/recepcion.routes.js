@@ -12,24 +12,28 @@ const {
   confirmarRecepcionDirecto,
 } = require("../controllers/recepcion.controller");
 
-router.post("/", requireRoles("jefe_bodega"), crearRecepcion);
-router.get("/", requireRoles("jefe_bodega"), obtenerRecepciones);
-router.get("/:id", requireRoles("jefe_bodega"), obtenerRecepcion);
-router.post("/:id/items", requireRoles("jefe_bodega"), agregarItemRecepcion);
-router.patch("/:id/confirmar", requireRoles("jefe_bodega"), confirmarRecepcion);
+router.post("/", requireRoles("administrador"), crearRecepcion);
+router.get("/", requireRoles("administrador"), obtenerRecepciones);
+router.get("/:id", requireRoles("administrador"), obtenerRecepcion);
+router.post("/:id/items", requireRoles("administrador"), agregarItemRecepcion);
+router.patch(
+  "/:id/confirmar",
+  requireRoles("administrador"),
+  confirmarRecepcion,
+);
 router.patch(
   "/:id/confirmar-directo",
-  requireRoles("jefe_bodega"),
+  requireRoles("administrador"),
   confirmarRecepcionDirecto,
 );
 router.patch(
   "/items/:item_id/cantidad",
-  requireRoles("jefe_bodega"),
+  requireRoles("administrador"),
   registrarCantidad,
 );
 router.patch(
   "/items/:item_id/inspeccion",
-  requireRoles("jefe_bodega"),
+  requireRoles("administrador"),
   inspeccionarItem,
 );
 

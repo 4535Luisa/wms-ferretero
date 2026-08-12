@@ -9,23 +9,23 @@ const {
   confirmarVerificacion,
 } = require("../controllers/verificacion.controller");
 
-router.get("/", requireRoles("jefe_bodega"), listarPorVerificar);
+router.get("/", requireRoles("administrador"), listarPorVerificar);
 router.get(
   "/:id",
-  requireRoles("jefe_bodega"),
+  requireRoles("administrador"),
   requireUuidParam("id"),
   detalleVerificacion,
 );
 router.patch(
   "/:id/items/:itemId/verificar",
-  requireRoles("jefe_bodega"),
+  requireRoles("administrador"),
   requireUuidParam("id"),
   requireUuidParam("itemId"),
   verificarItem,
 );
 router.patch(
   "/:id/confirmar",
-  requireRoles("jefe_bodega"),
+  requireRoles("administrador"),
   requireUuidParam("id"),
   confirmarVerificacion,
 );

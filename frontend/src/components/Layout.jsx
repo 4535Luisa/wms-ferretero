@@ -8,9 +8,12 @@ const menuPorRol = {
     { path: "/admin", label: "Dashboard", icon: "◼" },
     { path: "/admin/usuarios", label: "Usuarios", icon: "👷" },
     { path: "/admin/pedidos", label: "Pedidos", icon: "📋" },
+    { path: "/admin/recepcion", label: "Recepciones", icon: "📥" },
+    { path: "/admin/verificacion", label: "Verificación", icon: "✅" },
+    { path: "/admin/despacho", label: "Despacho", icon: "🚚" },
+    { path: "/admin/devoluciones", label: "Devoluciones", icon: "↩" },
     { path: "/admin/historial", label: "Historial", icon: "🔍" },
     { path: "/inventario", label: "Inventario", icon: "📦" },
-    { path: "/admin/reportes", label: "Reportes", icon: "📊" },
   ],
   montacarguista: [
     { path: "/montacarguista", label: "Mis pedidos", icon: "◼" },
@@ -20,15 +23,6 @@ const menuPorRol = {
   operario: [{ path: "/operario", label: "Mis pedidos", icon: "◼" }],
   saldos: [
     { path: "/saldos", label: "Cola de saldos", icon: "◼" },
-    { path: "/inventario", label: "Inventario", icon: "📦" },
-  ],
-  jefe_bodega: [
-    { path: "/jefe-bodega", label: "Panel", icon: "◼" },
-    { path: "/jefe-bodega/pedidos", label: "Pedidos", icon: "📋" },
-    { path: "/jefe-bodega/recepcion", label: "Recepciones", icon: "📥" },
-    { path: "/jefe-bodega/verificacion", label: "Verificación", icon: "✅" },
-    { path: "/jefe-bodega/despacho", label: "Despacho", icon: "🚚" },
-    { path: "/jefe-bodega/devoluciones", label: "Devoluciones", icon: "↩" },
     { path: "/inventario", label: "Inventario", icon: "📦" },
   ],
   gerente_logistico: [
@@ -54,7 +48,6 @@ const labelRol = {
   montacarguista: "Montacarguista",
   operario: "Operario",
   saldos: "Saldos",
-  jefe_bodega: "Jefe de Bodega",
   gerente_logistico: "Gerente Logístico",
   inventarios: "Inventarios",
   facturacion: "Facturación",
@@ -71,7 +64,6 @@ export default function Layout({ children, titulo, subtitulo }) {
     logout();
     navigate("/login");
   };
-
   const handleNav = (path) => {
     navigate(path);
     setMenuAbierto(false);
@@ -120,6 +112,7 @@ export default function Layout({ children, titulo, subtitulo }) {
       `}</style>
 
       <div className="wms-layout">
+        {/* ── Top bar móvil ── */}
         <div className="wms-topbar">
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <button
@@ -178,6 +171,7 @@ export default function Layout({ children, titulo, subtitulo }) {
           </div>
         </div>
 
+        {/* ── Sidebar escritorio ── */}
         <div className="wms-sidebar">
           <div className="grid-bg" />
           <div
@@ -304,6 +298,7 @@ export default function Layout({ children, titulo, subtitulo }) {
           </div>
         </div>
 
+        {/* ── Header escritorio ── */}
         <div className="wms-header">
           <div>
             <h1
@@ -360,6 +355,7 @@ export default function Layout({ children, titulo, subtitulo }) {
           </div>
         </div>
 
+        {/* ── Contenido ── */}
         <div className="wms-content">
           <div className="wms-mobile-title">
             <h1
@@ -382,6 +378,7 @@ export default function Layout({ children, titulo, subtitulo }) {
           {children}
         </div>
 
+        {/* ── Bottom nav móvil ── */}
         <div className="wms-bottomnav">
           {menu.slice(0, 4).map((item) => (
             <button
@@ -399,6 +396,7 @@ export default function Layout({ children, titulo, subtitulo }) {
           </button>
         </div>
 
+        {/* ── Menú móvil lateral ── */}
         <div
           className={`wms-mobile-overlay${menuAbierto ? " open" : ""}`}
           onClick={() => setMenuAbierto(false)}

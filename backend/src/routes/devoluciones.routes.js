@@ -6,7 +6,7 @@ const {
   listarDevoluciones,
 } = require("../controllers/devoluciones.controller");
 
-router.post("/", requireRoles("jefe_bodega"), crearDevolucion);
-router.get("/", requireRoles("jefe_bodega"), listarDevoluciones);
+router.post("/", requireRoles("administrador"), crearDevolucion);
+router.get("/", requireRoles("administrador"), listarDevoluciones);
 
 module.exports = router;

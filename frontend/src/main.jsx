@@ -12,7 +12,6 @@ import HistorialProducto from "./pages/HistorialProducto";
 import Montacarguista from "./pages/Montacarguista";
 import Operario from "./pages/Operario";
 import Saldos from "./pages/Saldos";
-import JefeBodega from "./pages/JefeBodega";
 import JefeBodegaRecepcion from "./pages/JefeBodegaRecepcion";
 import Verificacion from "./pages/Verificacion";
 import Despacho from "./pages/Despacho";
@@ -23,6 +22,8 @@ import Inventarios from "./pages/Inventarios";
 import Facturacion from "./pages/Facturacion";
 import InventarioGeneral from "./pages/InventarioGeneral";
 
+const ADMIN = ["administrador"];
+
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <AuthProvider>
@@ -30,10 +31,11 @@ createRoot(document.getElementById("root")).render(
         <Routes>
           <Route path="/login" element={<Login />} />
 
+          {/* ── Administrador ── */}
           <Route
             path="/admin"
             element={
-              <PrivateRoute roles={["administrador"]}>
+              <PrivateRoute roles={ADMIN}>
                 <Admin />
               </PrivateRoute>
             }
@@ -41,7 +43,7 @@ createRoot(document.getElementById("root")).render(
           <Route
             path="/admin/usuarios"
             element={
-              <PrivateRoute roles={["administrador"]}>
+              <PrivateRoute roles={ADMIN}>
                 <AdminUsuarios />
               </PrivateRoute>
             }
@@ -49,7 +51,7 @@ createRoot(document.getElementById("root")).render(
           <Route
             path="/admin/pedidos"
             element={
-              <PrivateRoute roles={["administrador"]}>
+              <PrivateRoute roles={ADMIN}>
                 <AdminPedidos />
               </PrivateRoute>
             }
@@ -57,7 +59,7 @@ createRoot(document.getElementById("root")).render(
           <Route
             path="/admin/dashboard"
             element={
-              <PrivateRoute roles={["administrador"]}>
+              <PrivateRoute roles={ADMIN}>
                 <Dashboard />
               </PrivateRoute>
             }
@@ -65,12 +67,45 @@ createRoot(document.getElementById("root")).render(
           <Route
             path="/admin/historial"
             element={
-              <PrivateRoute roles={["administrador"]}>
+              <PrivateRoute roles={ADMIN}>
                 <HistorialProducto />
               </PrivateRoute>
             }
           />
+          <Route
+            path="/admin/recepcion"
+            element={
+              <PrivateRoute roles={ADMIN}>
+                <JefeBodegaRecepcion />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/admin/verificacion"
+            element={
+              <PrivateRoute roles={ADMIN}>
+                <Verificacion />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/admin/despacho"
+            element={
+              <PrivateRoute roles={ADMIN}>
+                <Despacho />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/admin/devoluciones"
+            element={
+              <PrivateRoute roles={ADMIN}>
+                <Devoluciones />
+              </PrivateRoute>
+            }
+          />
 
+          {/* ── Montacarguista ── */}
           <Route
             path="/montacarguista"
             element={
@@ -88,6 +123,7 @@ createRoot(document.getElementById("root")).render(
             }
           />
 
+          {/* ── Operario ── */}
           <Route
             path="/operario"
             element={
@@ -97,6 +133,7 @@ createRoot(document.getElementById("root")).render(
             }
           />
 
+          {/* ── Saldos ── */}
           <Route
             path="/saldos"
             element={
@@ -106,55 +143,7 @@ createRoot(document.getElementById("root")).render(
             }
           />
 
-          <Route
-            path="/jefe-bodega"
-            element={
-              <PrivateRoute roles={["jefe_bodega"]}>
-                <JefeBodega />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/jefe-bodega/pedidos"
-            element={
-              <PrivateRoute roles={["jefe_bodega", "administrador"]}>
-                <AdminPedidos />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/jefe-bodega/recepcion"
-            element={
-              <PrivateRoute roles={["jefe_bodega"]}>
-                <JefeBodegaRecepcion />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/jefe-bodega/verificacion"
-            element={
-              <PrivateRoute roles={["jefe_bodega"]}>
-                <Verificacion />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/jefe-bodega/despacho"
-            element={
-              <PrivateRoute roles={["jefe_bodega"]}>
-                <Despacho />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/jefe-bodega/devoluciones"
-            element={
-              <PrivateRoute roles={["jefe_bodega"]}>
-                <Devoluciones />
-              </PrivateRoute>
-            }
-          />
-
+          {/* ── Gerente logístico ── */}
           <Route
             path="/gerente"
             element={
@@ -188,6 +177,7 @@ createRoot(document.getElementById("root")).render(
             }
           />
 
+          {/* ── Kits ── */}
           <Route
             path="/kits"
             element={
@@ -197,6 +187,7 @@ createRoot(document.getElementById("root")).render(
             }
           />
 
+          {/* ── Inventarios ── */}
           <Route
             path="/inventarios"
             element={
@@ -222,6 +213,7 @@ createRoot(document.getElementById("root")).render(
             }
           />
 
+          {/* ── Facturación ── */}
           <Route
             path="/facturacion"
             element={
@@ -239,13 +231,13 @@ createRoot(document.getElementById("root")).render(
             }
           />
 
+          {/* ── Inventario general (todos excepto operario) ── */}
           <Route
             path="/inventario"
             element={
               <PrivateRoute
                 roles={[
                   "administrador",
-                  "jefe_bodega",
                   "gerente_logistico",
                   "inventarios",
                   "facturacion",
