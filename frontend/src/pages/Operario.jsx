@@ -22,9 +22,6 @@ export default function Operario() {
   const [editando, setEditando] = useState(null);
   const [cantidadEdit, setCantidadEdit] = useState("");
   const [motivoEdit, setMotivoEdit] = useState("");
-  // Referencia escaneada por ítem (itemId -> ref). El escaneo habilita las
-  // acciones de alistado; el backend re-verifica antes de marcar listo.
-  const [refsEscaneadas, setRefsEscaneadas] = useState({});
 
   const cargar = async () => {
     try {
@@ -40,9 +37,7 @@ export default function Operario() {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargar();
-    // Solo al montar: cargar se redefine cada render; no debe ir en deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -55,9 +50,10 @@ export default function Operario() {
     setActivo(p);
     setVista("detalle");
     setEditando(null);
-    setRefsEscaneadas({});
   };
 
+  // Escaneo automático — al detectar la referencia la marca como completo
+  // inmediatamente sin botón de confirmación. 1 escaneo = 1 ítem alistado.
   const onEscanear = async (refEscaneada) => {
     const norm = refEscaneada.trim().toUpperCase();
     const objetivo = (activo?.pedido_items || []).find(
@@ -101,22 +97,6 @@ export default function Operario() {
     };
   };
 
-  const marcarListo = async (item) => {
-    setCargando(true);
-    try {
-      await api.patch(`/api/pedidos/items/${item.id}`, {
-        estado: "completo",
-        referencia_escaneada: refsEscaneadas[item.id],
-      });
-      aviso("✓ Referencia verificada y marcada como lista");
-      await cargar();
-    } catch (err) {
-      aviso(err.response?.data?.error || "Error al marcar", "error");
-    } finally {
-      setCargando(false);
-    }
-  };
-
   const guardarEdicion = async (item) => {
     const cantidad = Number(cantidadEdit);
     if (cantidadEdit === "" || isNaN(cantidad) || cantidad < 0) {
@@ -133,7 +113,6 @@ export default function Operario() {
         cantidad_picking: cantidad,
         motivo_diferencia: motivoEdit.trim(),
         estado: "completo",
-        referencia_escaneada: refsEscaneadas[item.id],
       });
       aviso("✓ Cantidad actualizada");
       setEditando(null);
@@ -152,7 +131,7 @@ export default function Operario() {
     setCargando(true);
     try {
       await api.patch(`/api/pedidos/${activo.id}/cerrar`);
-      aviso("✓ Pedido cerrado y enviado a facturación");
+      aviso("✓ Pedido cerrado y enviado a verificación");
       setVista("lista");
       setActivo(null);
       await cargar();
@@ -311,7 +290,7 @@ export default function Operario() {
                         {pr.pct}%
                       </div>
                       <div style={{ fontSize: "12px", color: "#888" }}>
-                        {pr.listos}/{pr.total} listas
+                        {pr.listos}/{pr.total} alistadas
                       </div>
                     </div>
                   </div>
@@ -341,19 +320,68 @@ export default function Operario() {
 
       {vista === "detalle" && activo && (
         <div style={{ maxWidth: "780px" }}>
+          {/* Progreso del pedido activo */}
+          <div
+            style={{
+              ...C.card,
+              marginBottom: "1rem",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <div>
+              <div style={{ fontSize: "13px", color: "#888" }}>
+                Progreso del pedido
+              </div>
+              <div
+                style={{
+                  fontSize: "20px",
+                  fontWeight: 700,
+                  fontFamily: "DM Mono, monospace",
+                  color: "#0A0A0A",
+                  marginTop: "2px",
+                }}
+              >
+                {prog.listos} / {prog.total} alistadas
+              </div>
+            </div>
+            <div
+              style={{
+                width: "60px",
+                height: "60px",
+                borderRadius: "50%",
+                background: "#F0F0F0",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: "Bebas Neue, sans-serif",
+                  fontSize: "18px",
+                  color: prog.pct === 100 ? "#00CC6A" : "#0A0A0A",
+                }}
+              >
+                {prog.pct}%
+              </div>
+            </div>
+          </div>
+
           {!cerrado && (
             <ScanInput
               onScan={onEscanear}
               disabled={cargando}
               label="Escanea la caja que recoges de la estiba"
-              hint="Verifica que la referencia es de este pedido antes de alistarla"
+              hint="El sensor enviará Enter automáticamente — la caja se alista al instante"
             />
           )}
+
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {(activo.pedido_items || []).map((item) => {
               const listo = item.estado === "completo";
               const enEdicion = editando === item.id;
-              const escaneado = !!refsEscaneadas[item.id];
               const cajaUnidades =
                 (item.cantidad_pedida || 0) - (item.cantidad_saldos || 0);
               return (
@@ -363,6 +391,7 @@ export default function Operario() {
                     ...C.card,
                     borderColor: listo ? "rgba(0,255,135,0.35)" : "#E8E8E8",
                     background: listo ? "rgba(0,255,135,0.04)" : "#FFFFFF",
+                    opacity: listo ? 0.75 : 1,
                   }}
                 >
                   <div
@@ -448,7 +477,7 @@ export default function Operario() {
                               fontWeight: 600,
                             }}
                           >
-                            Saldos: {item.cantidad_saldos} u (bodega SALDOS)
+                            Saldos: {item.cantidad_saldos} u
                           </span>
                         )}
                         {item.motivo_diferencia && (
@@ -467,19 +496,25 @@ export default function Operario() {
                         )}
                       </div>
                     </div>
-                    {!cerrado && (
-                      <div style={{ flexShrink: 0, textAlign: "right" }}>
-                        {listo ? (
-                          <span
-                            style={{
-                              color: "#00CC6A",
-                              fontWeight: 700,
-                              fontSize: "20px",
-                            }}
-                          >
-                            ✓
-                          </span>
-                        ) : !escaneado ? (
+                    <div style={{ flexShrink: 0, textAlign: "right" }}>
+                      {listo ? (
+                        <span
+                          style={{
+                            color: "#00CC6A",
+                            fontWeight: 700,
+                            fontSize: "24px",
+                          }}
+                        >
+                          ✓
+                        </span>
+                      ) : (
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "6px",
+                          }}
+                        >
                           <span
                             style={{
                               display: "inline-block",
@@ -493,30 +528,7 @@ export default function Operario() {
                           >
                             Escanea para alistar
                           </span>
-                        ) : (
-                          <div
-                            style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: "6px",
-                            }}
-                          >
-                            <button
-                              onClick={() => marcarListo(item)}
-                              disabled={cargando}
-                              style={{
-                                background: "#00FF87",
-                                color: "#0A0A0A",
-                                border: "none",
-                                borderRadius: "8px",
-                                padding: "8px 14px",
-                                fontSize: "12px",
-                                fontWeight: 700,
-                                cursor: "pointer",
-                              }}
-                            >
-                              Marcar lista
-                            </button>
+                          {!cerrado && (
                             <button
                               onClick={() => {
                                 setEditando(enEdicion ? null : item.id);
@@ -536,10 +548,10 @@ export default function Operario() {
                             >
                               Editar
                             </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {enEdicion && !cerrado && (
@@ -614,7 +626,7 @@ export default function Operario() {
                           alignSelf: "flex-start",
                         }}
                       >
-                        Guardar y marcar lista
+                        Guardar y alistar
                       </button>
                     </div>
                   )}
@@ -638,11 +650,12 @@ export default function Operario() {
                   fontSize: "15px",
                   fontWeight: 700,
                   cursor: todoListo && !cargando ? "pointer" : "not-allowed",
+                  minHeight: "44px",
                 }}
               >
                 {todoListo
-                  ? "✓ Cerrar pedido y enviar a facturación"
-                  : `Faltan ${prog.total - prog.listos} referencia(s) por marcar`}
+                  ? "✓ Cerrar pedido y enviar a verificación"
+                  : `Faltan ${prog.total - prog.listos} referencia(s) por alistar`}
               </button>
               <p
                 style={{
@@ -676,7 +689,7 @@ export default function Operario() {
                   margin: 0,
                 }}
               >
-                ✓ Pedido cerrado — en cola de facturación
+                ✓ Pedido cerrado — en verificación
               </p>
             </div>
           )}
