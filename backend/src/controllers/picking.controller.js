@@ -161,16 +161,6 @@ const generarListasPicking = async (req, res) => {
     }
   }
 
-  // DEBUG temporal
-  console.log("DEBUG bodegasData:", JSON.stringify(bodegasData));
-  console.log("DEBUG bodegaIds:", JSON.stringify(bodegaIds));
-  console.log("DEBUG pedidosAProcesar:", pedidosAProcesar.length);
-  for (const [bodegaId, lista] of Object.entries(listasPorBodega)) {
-    console.log(
-      `DEBUG lista bodega ${lista.codigo}: ${lista.items.length} items`,
-    );
-  }
-
   const listasCreadas = [];
   for (const [bodegaId, lista] of Object.entries(listasPorBodega)) {
     if (lista.items.length === 0) continue;
