@@ -1,13 +1,10 @@
-// Verificación de escaneo de código de barras reutilizable por los perfiles
-// (montacarguista, operario, saldos). Cruza la referencia escaneada contra la
-// que el perfil DEBE estar procesando. Soporta dos formatos:
+// Verificación de escaneo de código de barras reutilizable.
+// Soporta dos formatos:
 //   1. codigo_interno del catálogo (ej: "120363") — digitación manual o pistola
-//   2. codigo_barras EAN-13/GTIN-13 real de la caja (ej: "7708994141510")
+//   2. codigo_barras EAN-13/GTIN-13 real de la caja (ej: "7709031644636")
 // Si el escaneo entrega un EAN-13, el sistema lo resuelve al codigo_interno
-// correspondiente antes de comparar. El intento queda trazado en bitácora.
+// correspondiente antes de comparar.
 
-// Normaliza una referencia para comparar de forma robusta: sin espacios y en
-// mayúsculas.
 function normalizarRef(v) {
   return String(v ?? "")
     .trim()
@@ -23,15 +20,14 @@ function coincide(esperada, escaneada) {
 // Resuelve lo que el usuario escaneó a un codigo_interno.
 // Si escaneó el codigo_interno directamente → lo devuelve tal cual.
 // Si escaneó un EAN-13/GTIN → busca en productos.codigo_barras y devuelve
-// el codigo_interno correspondiente, o null si no lo encuentra.
-// Best-effort: si la BD falla devuelve el valor original para no bloquear.
+// el codigo_interno correspondiente, o el valor original si no lo encuentra.
 async function resolverCodigoEscaneado(escaneada) {
   const raw = normalizarRef(escaneada);
   if (!raw) return raw;
 
-  // Si tiene más de 8 caracteres y es solo números, probablemente es un EAN-13
+  // Si tiene 8-14 dígitos numéricos, probablemente es un EAN-13
   const esEAN = /^\d{8,14}$/.test(raw);
-  if (!esEAN) return raw; // codigo_interno — devolver tal cual
+  if (!esEAN) return raw;
 
   try {
     const supabase = require("./supabase");
@@ -43,15 +39,13 @@ async function resolverCodigoEscaneado(escaneada) {
       .single();
     if (data?.codigo_interno) return normalizarRef(data.codigo_interno);
   } catch {
-    /* best-effort: si falla, seguimos con el valor original */
+    // best-effort: si falla, seguimos con el valor original
   }
 
-  return raw; // No se encontró → devolver original para que el backend lo rechace
+  return raw;
 }
 
-// Registra el intento de escaneo en bitácora (trazabilidad: usuario, referencia
-// esperada, escaneada y resultado; el timestamp lo pone la BD). Best-effort: el
-// registro de trazabilidad nunca debe tumbar la operación principal.
+// Registra el intento de escaneo en bitácora (trazabilidad).
 async function registrarEscaneo({
   usuario_id,
   tabla,
@@ -72,19 +66,18 @@ async function registrarEscaneo({
       valores_despues: {
         referencia_esperada: esperada ?? null,
         referencia_escaneada: escaneada ?? null,
-        codigo_barras_raw: escaneada_raw ?? null, // EAN-13 original si aplica
-        resultado, // "ok" | "mismatch" | "faltante"
-        metodo: metodo ?? null, // "camara" | "teclado" | null
+        codigo_barras_raw: escaneada_raw ?? null,
+        resultado,
+        metodo: metodo ?? null,
       },
     });
   } catch {
-    /* trazabilidad best-effort */
+    // trazabilidad best-effort
   }
 }
 
 // Verifica el escaneo y lo registra en un solo paso.
 // Resuelve automáticamente EAN-13 → codigo_interno antes de comparar.
-// Devuelve { ok, resultado } con resultado en "ok" | "mismatch" | "faltante".
 async function verificarYRegistrar(opts) {
   const { escaneada, esperada } = opts;
 
@@ -98,7 +91,6 @@ async function verificarYRegistrar(opts) {
   ) {
     resultado = "faltante";
   } else {
-    // Resolver EAN-13 → codigo_interno si aplica
     escaneadaResuelta = await resolverCodigoEscaneado(escaneada);
 
     if (coincide(esperada, escaneadaResuelta)) {
