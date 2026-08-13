@@ -13,6 +13,27 @@ const C = {
   mono: { fontFamily: "DM Mono, monospace" },
 };
 
+// Resuelve lo escaneado a un codigo_interno.
+// Si es un EAN-13 (8-14 dígitos) consulta el backend para obtener el codigo_interno.
+// Si ya es un codigo_interno lo devuelve tal cual.
+async function resolverEscaneado(valor) {
+  const v = String(valor || "")
+    .trim()
+    .toUpperCase();
+  if (!v) return v;
+  const esEAN = /^\d{8,14}$/.test(v);
+  if (!esEAN) return v;
+  try {
+    const { data } = await api.get(
+      `/api/productos/buscar-barras?codigo_barras=${v}`,
+    );
+    if (data?.codigo_interno) return data.codigo_interno.trim().toUpperCase();
+  } catch {
+    // best-effort
+  }
+  return v;
+}
+
 export default function Operario() {
   const [pedidos, setPedidos] = useState([]);
   const [activo, setActivo] = useState(null);
@@ -52,23 +73,27 @@ export default function Operario() {
     setEditando(null);
   };
 
-  // Escaneo automático — al detectar la referencia la marca como completo
-  // inmediatamente sin botón de confirmación. 1 escaneo = 1 ítem alistado.
+  // Escaneo automático — resuelve EAN-13 a codigo_interno antes de comparar.
+  // 1 escaneo = 1 ítem alistado automáticamente.
   const onEscanear = async (refEscaneada) => {
-    const norm = refEscaneada.trim().toUpperCase();
+    const codigoResuelto = await resolverEscaneado(refEscaneada);
+    const norm = codigoResuelto.trim().toUpperCase();
+
     const objetivo = (activo?.pedido_items || []).find(
       (i) =>
         i.estado !== "completo" &&
         (i.productos?.codigo_interno || "").trim().toUpperCase() === norm,
     );
+
     if (!objetivo) {
       bip("error");
       aviso(
-        `⚠ CAJA INCORRECTA: ${norm} no pertenece a este pedido o ya está alistada`,
+        `⚠ CAJA INCORRECTA: ${refEscaneada} no pertenece a este pedido o ya está alistada`,
         "error",
       );
       return;
     }
+
     setCargando(true);
     try {
       await api.patch(`/api/pedidos/items/${objetivo.id}`, {
@@ -320,7 +345,6 @@ export default function Operario() {
 
       {vista === "detalle" && activo && (
         <div style={{ maxWidth: "780px" }}>
-          {/* Progreso del pedido activo */}
           <div
             style={{
               ...C.card,

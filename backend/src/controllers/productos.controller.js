@@ -114,8 +114,29 @@ const inventarioGeneral = async (req, res) => {
   return res.json(resultado);
 };
 
+const buscarPorBarras = async (req, res) => {
+  const { codigo_barras } = req.query;
+  if (!codigo_barras)
+    return res.status(400).json({ error: "codigo_barras requerido" });
+
+  const { data, error } = await supabase
+    .from("productos")
+    .select(
+      "id, codigo_interno, descripcion_corta, unidad_empaque, codigo_barras",
+    )
+    .eq("codigo_barras", codigo_barras.trim())
+    .eq("activo", true)
+    .single();
+
+  if (error || !data)
+    return res.status(404).json({ error: "Producto no encontrado" });
+
+  return res.json(data);
+};
+
 module.exports = {
   buscarProducto,
+  buscarPorBarras,
   listarProductos,
   historialProducto,
   inventarioGeneral,

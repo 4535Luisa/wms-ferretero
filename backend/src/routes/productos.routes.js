@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const {
   buscarProducto,
+  buscarPorBarras,
   listarProductos,
   historialProducto,
   inventarioGeneral,
@@ -19,6 +20,7 @@ const rolesInventario = [
 ];
 
 router.get("/buscar", buscarProducto);
+router.get("/buscar-barras", buscarPorBarras);
 router.get(
   "/inventario-general",
   requireRoles(...rolesInventario),
