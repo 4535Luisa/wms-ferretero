@@ -2,17 +2,17 @@ const express = require("express");
 const router = express.Router();
 const { requireRoles } = require("../middlewares/auth.middleware");
 const {
-  colaSaldos,
+  listaSaldosPorOperario,
   confirmarCajaSaldos,
   entregarSaldo,
 } = require("../controllers/saldos.controller");
 
-router.get("/", requireRoles("saldos"), colaSaldos);
+router.get("/", requireRoles("saldos"), listaSaldosPorOperario);
 router.patch(
   "/caja/:itemId/confirmar",
   requireRoles("saldos"),
   confirmarCajaSaldos,
 );
-router.patch("/:id/entregar", requireRoles("saldos"), entregarSaldo);
+router.patch("/entregar", requireRoles("saldos"), entregarSaldo);
 
 module.exports = router;
