@@ -111,6 +111,9 @@ const inventarioGeneral = async (req, res) => {
     cantidad_comprometida: r.cantidad_comprometida || 0,
   }));
 
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
   return res.json(resultado);
 };
 
