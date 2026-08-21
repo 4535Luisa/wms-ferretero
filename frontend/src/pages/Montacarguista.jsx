@@ -1,11 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import Layout from "../components/Layout";
 import ScanInput, { bip } from "../components/ScanInput";
 import api from "../services/api";
 
-// Parsea un código de ubicación según el sistema físico de la bodega:
-// Letra = piso (a=1, b=2, c=3...), Número = estantería, -N = posición
-// Ejemplos: a1-1, a1-2, a2-1, b1-1
+// Parsea ubicación física: letra=piso, número=estantería, -N=posición
 const parsearUbicacion = (codigo) => {
   if (!codigo) return { piso: "z", estanteria: 999, posicion: 999 };
   const m = codigo.toLowerCase().match(/^([a-z]+)(\d+)(?:-(\d+))?/);
@@ -17,10 +16,11 @@ const parsearUbicacion = (codigo) => {
   };
 };
 
-// Consolida los ítems de una lista por referencia + ubicación: misma referencia
-// en la misma ubicación pedida por varios pedidos se muestra como UNA línea con
-// el total de cajas (el montacarguista baja todo el grupo de una sola pasada).
-// Orden: pendientes primero (por ubicación física), bajadas al final.
+// Detecta si el código escaneado es una ubicación (ej: "UB-a1-1") o EAN de producto
+const esCodigoUbicacion = (codigo) => /^UB-/i.test(codigo.trim());
+const extraerUbicacion = (codigo) =>
+  codigo.trim().replace(/^UB-/i, "").toUpperCase();
+
 const consolidarItems = (items) => {
   const grupos = {};
   for (const it of items || []) {
@@ -50,9 +50,7 @@ const consolidarItems = (items) => {
       bajada: g.items.every((i) => i.estado !== "pendiente"),
     }))
     .sort((a, b) => {
-      // Pendientes siempre primero, bajadas al final
       if (a.bajada !== b.bajada) return a.bajada ? 1 : -1;
-      // Dentro de cada grupo: orden físico piso → estantería → posición
       const ua = parsearUbicacion(a.ubicacion_codigo);
       const ub = parsearUbicacion(b.ubicacion_codigo);
       if (ua.piso !== ub.piso) return ua.piso.localeCompare(ub.piso);
@@ -62,6 +60,7 @@ const consolidarItems = (items) => {
 };
 
 export default function Montacarguista() {
+  const location = useLocation();
   const [listas, setListas] = useState([]);
   const [listaActiva, setListaActiva] = useState(null);
   const [vista, setVista] = useState("lista");
@@ -74,9 +73,25 @@ export default function Montacarguista() {
   const [nombreEstiba, setNombreEstiba] = useState("");
   const [fotoEstiba, setFotoEstiba] = useState("");
 
-  // Confirmación de cantidad: cuando un grupo (misma ref + ubicación) tiene
-  // varias cajas pendientes, el montacarguista confirma cuántas bajó realmente.
-  // { grupo, referencia, metodo, cantidad }
+  // Ubicación activa: cuando el montacarguista escanea una ubicación queda
+  // "bloqueada" hasta que termine todas las cajas de esa ubicación.
+  const [ubicacionActiva, setUbicacionActiva] = useState(null);
+
+  useEffect(() => {
+    cargarListas();
+    cargarEstibas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (location.pathname === "/montacarguista/estibas") setVista("estibas");
+    else if (location.pathname === "/montacarguista") setVista("lista");
+  }, [location.pathname]);
+
+  const mostrarMensaje = (texto, tipo = "ok") => {
+    setMensaje({ texto, tipo });
+    setTimeout(() => setMensaje({ texto: "", tipo: "" }), 3000);
+  };
 
   const cargarListas = async () => {
     try {
@@ -97,20 +112,6 @@ export default function Montacarguista() {
     }
   };
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    cargarListas();
-    cargarEstibas();
-    // Solo al montar: las funciones se redefinen cada render; no van en deps.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const mostrarMensaje = (texto, tipo = "ok") => {
-    setMensaje({ texto, tipo });
-    setTimeout(() => setMensaje({ texto: "", tipo: "" }), 3000);
-  };
-
-  // Redimensiona la foto a ~640px para no guardar imágenes enormes.
   const onFoto = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -123,8 +124,9 @@ export default function Montacarguista() {
         const canvas = document.createElement("canvas");
         canvas.width = img.width * escala;
         canvas.height = img.height * escala;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas
+          .getContext("2d")
+          .drawImage(img, 0, 0, canvas.width, canvas.height);
         setFotoEstiba(canvas.toDataURL("image/jpeg", 0.6));
       };
       img.src = ev.target.result;
@@ -134,11 +136,11 @@ export default function Montacarguista() {
 
   const registrarEstiba = async () => {
     if (!nombreEstiba.trim()) {
-      mostrarMensaje("El nombre de la estiba es obligatorio", "error");
+      mostrarMensaje("Nombre de estiba obligatorio", "error");
       return;
     }
     if (!fotoEstiba) {
-      mostrarMensaje("La foto de la estiba es obligatoria", "error");
+      mostrarMensaje("Foto de estiba obligatoria", "error");
       return;
     }
     setCargando(true);
@@ -163,20 +165,16 @@ export default function Montacarguista() {
     }
   };
 
-  const abrirLista = (lista) => {
-    setListaActiva(lista);
-    setVista("barrido");
-  };
-
   const recargarListaActiva = async () => {
     const { data } = await api.get("/api/picking/mis-listas");
     setListas(data);
-    const listaActualizada = data.find((l) => l.id === listaActiva?.id);
-    if (listaActualizada) setListaActiva(listaActualizada);
+    const act = data.find((l) => l.id === listaActiva?.id);
+    if (act) setListaActiva(act);
   };
 
   const bajarUnaCaja = async (grupo, referenciaEscaneada, metodo) => {
     if (!estibaActiva) {
+      bip("error");
       mostrarMensaje(
         "Registra o selecciona una estiba antes de bajar",
         "error",
@@ -193,10 +191,12 @@ export default function Montacarguista() {
         metodo: metodo || "teclado",
       });
       bip("ok");
-      const pendientesRestantes = grupo.pendientes.length - 1;
+      const restantes = grupo.pendientes.length - 1;
+      // Si quedan más cajas en esta ubicación, mantener ubicación activa
+      if (restantes === 0) setUbicacionActiva(null);
       mostrarMensaje(
-        pendientesRestantes > 0
-          ? `✓ Caja de ${grupo.referencia} bajada — faltan ${pendientesRestantes}`
+        restantes > 0
+          ? `✓ Caja bajada — faltan ${restantes} caja${restantes !== 1 ? "s" : ""} en ${grupo.ubicacion_codigo}`
           : `✓ Todas las cajas de ${grupo.referencia} bajadas`,
       );
     } catch (err) {
@@ -211,7 +211,10 @@ export default function Montacarguista() {
     }
   };
 
-  const onEscanear = async (refEscaneada, origen) => {
+  // Flujo de escaneo:
+  // 1. Si escanea una UBICACIÓN → la activa y muestra qué hay en ella
+  // 2. Si escanea una CAJA → verifica que corresponde a la ubicación activa
+  const onEscanear = async (escaneado, origen) => {
     if (!estibaActiva) {
       bip("error");
       mostrarMensaje(
@@ -220,24 +223,130 @@ export default function Montacarguista() {
       );
       return;
     }
-    const norm = refEscaneada.trim().toUpperCase();
-    const grupos = consolidarItems(listaActiva?.lista_picking_items);
-    const objetivo = grupos.find(
-      (g) =>
-        (g.referencia || "").trim().toUpperCase() === norm &&
-        g.pendientes.length > 0,
-    );
-    if (!objetivo) {
-      bip("error");
+
+    const norm = escaneado.trim().toUpperCase();
+
+    // ¿Es un código de ubicación? (formato: UB-a1-1)
+    if (esCodigoUbicacion(norm)) {
+      const codigoUb = extraerUbicacion(norm);
+      const grupos = consolidarItems(listaActiva?.lista_picking_items);
+      const enEstaUbicacion = grupos.filter(
+        (g) =>
+          (g.ubicacion_codigo || "").toUpperCase() === codigoUb &&
+          g.pendientes.length > 0,
+      );
+      if (enEstaUbicacion.length === 0) {
+        bip("error");
+        mostrarMensaje(
+          `⚠ La ubicación ${codigoUb} no tiene cajas pendientes en esta lista`,
+          "error",
+        );
+        return;
+      }
+      bip("ok");
+      setUbicacionActiva(codigoUb);
+      const totalCajas = enEstaUbicacion.reduce(
+        (a, g) => a + g.pendientes.length,
+        0,
+      );
       mostrarMensaje(
-        `⚠ CAJA NO ENCONTRADA: ${norm} no está en esta lista o ya fue bajada`,
-        "error",
+        `📍 Ubicación ${codigoUb} activa — ${totalCajas} caja${totalCajas !== 1 ? "s" : ""} pendiente${totalCajas !== 1 ? "s" : ""}`,
       );
       return;
     }
+
+    // Es un código de caja — resolver EAN-13 si aplica
+    let codigoResuelto = norm;
+    if (/^\d{8,14}$/.test(norm)) {
+      try {
+        const { data } = await api.get(
+          `/api/productos/buscar-barras?codigo_barras=${norm}`,
+        );
+        if (data?.codigo_interno)
+          codigoResuelto = data.codigo_interno.trim().toUpperCase();
+      } catch {
+        /* best-effort */
+      }
+    }
+
+    const grupos = consolidarItems(listaActiva?.lista_picking_items);
+
+    // Si hay ubicación activa, verificar que la caja pertenece a esa ubicación
+    let objetivo;
+    if (ubicacionActiva) {
+      objetivo = grupos.find(
+        (g) =>
+          (g.referencia || "").trim().toUpperCase() === codigoResuelto &&
+          (g.ubicacion_codigo || "").toUpperCase() === ubicacionActiva &&
+          g.pendientes.length > 0,
+      );
+      if (!objetivo) {
+        // Puede ser que la caja esté en la lista pero en otra ubicación
+        const enOtraUbicacion = grupos.find(
+          (g) =>
+            (g.referencia || "").trim().toUpperCase() === codigoResuelto &&
+            g.pendientes.length > 0,
+        );
+        if (enOtraUbicacion) {
+          bip("error");
+          mostrarMensaje(
+            `⚠ Esta caja (${codigoResuelto}) pertenece a la ubicación ${enOtraUbicacion.ubicacion_codigo}, no a ${ubicacionActiva}`,
+            "error",
+          );
+        } else {
+          bip("error");
+          mostrarMensaje(
+            `⚠ CAJA NO ENCONTRADA: ${codigoResuelto} no está en esta lista o ya fue bajada`,
+            "error",
+          );
+        }
+        return;
+      }
+    } else {
+      // Sin ubicación activa — buscar en toda la lista
+      objetivo = grupos.find(
+        (g) =>
+          (g.referencia || "").trim().toUpperCase() === codigoResuelto &&
+          g.pendientes.length > 0,
+      );
+      if (!objetivo) {
+        bip("error");
+        mostrarMensaje(
+          `⚠ CAJA NO ENCONTRADA: ${codigoResuelto} no está en esta lista o ya fue bajada`,
+          "error",
+        );
+        return;
+      }
+      // Sugerencia: escanear la ubicación primero
+      mostrarMensaje(
+        `💡 Tip: escanea primero la etiqueta de la ubicación ${objetivo.ubicacion_codigo} para mayor precisión`,
+      );
+    }
+
     const metodo = origen === "camara" ? "camara" : "teclado";
-    await bajarUnaCaja(objetivo, refEscaneada, metodo);
+    await bajarUnaCaja(objetivo, escaneado, metodo);
   };
+
+  const btn = (txt, onClick, opts = {}) => (
+    <button
+      onClick={onClick}
+      style={{
+        background: opts.bg || "transparent",
+        color: opts.color || "#0A0A0A",
+        border: opts.border || "1.5px solid #E8E8E8",
+        borderRadius: "8px",
+        padding: "9px 16px",
+        fontSize: "13px",
+        fontWeight: 600,
+        cursor: "pointer",
+        fontFamily: "Outfit, sans-serif",
+        minHeight: "44px",
+        ...opts.style,
+      }}
+    >
+      {txt}
+    </button>
+  );
 
   return (
     <Layout
@@ -245,29 +354,59 @@ export default function Montacarguista() {
       subtitulo={
         vista === "lista"
           ? `${listas.length} lista${listas.length !== 1 ? "s" : ""} asignada${listas.length !== 1 ? "s" : ""}`
-          : `${listaActiva?.bodegas?.nombre} — ${listaActiva?.lista_picking_items?.length} ítems`
+          : vista === "estibas"
+            ? `${estibas.length} estiba${estibas.length !== 1 ? "s" : ""}`
+            : `${listaActiva?.bodegas?.nombre} — ${listaActiva?.lista_picking_items?.length} ítems`
       }
     >
-      {vista !== "lista" && (
-        <button
-          onClick={() => setVista("lista")}
+      {/* Tabs */}
+      {vista !== "barrido" && (
+        <div
           style={{
-            background: "transparent",
-            color: "#0A0A0A",
-            border: "1.5px solid #E8E8E8",
-            borderRadius: "8px",
-            padding: "9px 18px",
-            fontSize: "14px",
-            fontWeight: 600,
-            cursor: "pointer",
-            fontFamily: "Outfit, sans-serif",
+            display: "flex",
+            gap: "4px",
             marginBottom: "1.25rem",
-            display: "block",
+            background: "#F0F0F0",
+            padding: "4px",
+            borderRadius: "10px",
+            width: "fit-content",
           }}
         >
-          ← Volver
-        </button>
+          {[
+            ["lista", "📦 Mis listas"],
+            ["estibas", `🪵 Estibas (${estibas.length})`],
+          ].map(([v, label]) => (
+            <button
+              key={v}
+              onClick={() => setVista(v)}
+              style={{
+                padding: "8px 16px",
+                borderRadius: "7px",
+                border: "none",
+                background: vista === v ? "#FFFFFF" : "transparent",
+                color: "#0A0A0A",
+                fontFamily: "Outfit, sans-serif",
+                fontSize: "13px",
+                fontWeight: vista === v ? 700 : 400,
+                cursor: "pointer",
+                boxShadow: vista === v ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       )}
+
+      {vista === "barrido" &&
+        btn(
+          "← Volver",
+          () => {
+            setVista("lista");
+            setUbicacionActiva(null);
+          },
+          { style: { marginBottom: "1.25rem", display: "block" } },
+        )}
 
       {mensaje.texto && (
         <div
@@ -287,6 +426,7 @@ export default function Montacarguista() {
         </div>
       )}
 
+      {/* VISTA LISTA */}
       {vista === "lista" && (
         <div>
           {listas.length === 0 ? (
@@ -303,9 +443,6 @@ export default function Montacarguista() {
               <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
                 No tienes listas asignadas
               </p>
-              <p style={{ fontSize: "13px", color: "#BBB", marginTop: "4px" }}>
-                El administrador te asignará una lista cuando haya pedidos
-              </p>
             </div>
           ) : (
             <div
@@ -317,19 +454,21 @@ export default function Montacarguista() {
                   lista.lista_picking_items?.filter(
                     (i) => i.estado !== "pendiente",
                   ).length || 0;
-                const porcentaje =
-                  total > 0 ? Math.round((bajadas / total) * 100) : 0;
+                const pct = total > 0 ? Math.round((bajadas / total) * 100) : 0;
                 return (
                   <div
                     key={lista.id}
-                    onClick={() => abrirLista(lista)}
+                    onClick={() => {
+                      setListaActiva(lista);
+                      setVista("barrido");
+                      setUbicacionActiva(null);
+                    }}
                     style={{
                       background: "#FFFFFF",
                       border: "1px solid #E8E8E8",
                       borderRadius: "12px",
                       padding: "1.5rem",
                       cursor: "pointer",
-                      transition: "all 0.15s",
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.borderColor = "#00FF87";
@@ -380,10 +519,10 @@ export default function Montacarguista() {
                           style={{
                             fontFamily: "Bebas Neue, sans-serif",
                             fontSize: "28px",
-                            color: porcentaje === 100 ? "#00CC6A" : "#0A0A0A",
+                            color: pct === 100 ? "#00CC6A" : "#0A0A0A",
                           }}
                         >
-                          {porcentaje}%
+                          {pct}%
                         </div>
                         <div style={{ fontSize: "12px", color: "#888" }}>
                           {bajadas}/{total} bajadas
@@ -402,7 +541,7 @@ export default function Montacarguista() {
                         style={{
                           background: "#00FF87",
                           height: "100%",
-                          width: `${porcentaje}%`,
+                          width: `${pct}%`,
                           borderRadius: "4px",
                           transition: "width 0.3s",
                         }}
@@ -416,8 +555,207 @@ export default function Montacarguista() {
         </div>
       )}
 
+      {/* VISTA ESTIBAS */}
+      {vista === "estibas" && (
+        <div>
+          <button
+            onClick={() => setShowEstibaForm((v) => !v)}
+            style={{
+              background: "#0A0A0A",
+              color: "#00FF87",
+              border: "none",
+              borderRadius: "8px",
+              padding: "10px 20px",
+              fontSize: "14px",
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: "Outfit, sans-serif",
+              marginBottom: "1rem",
+            }}
+          >
+            {showEstibaForm ? "Cancelar" : "+ Registrar estiba"}
+          </button>
+
+          {showEstibaForm && (
+            <div
+              style={{
+                background: "#FFFFFF",
+                border: "1px solid #E8E8E8",
+                borderRadius: "12px",
+                padding: "1.25rem",
+                marginBottom: "1rem",
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+              }}
+            >
+              <input
+                value={nombreEstiba}
+                onChange={(e) => setNombreEstiba(e.target.value)}
+                placeholder="Nombre o número de la estiba"
+                style={{
+                  padding: "10px 12px",
+                  border: "1.5px solid #E8E8E8",
+                  borderRadius: "8px",
+                  fontSize: "14px",
+                }}
+              />
+              <label
+                style={{ fontSize: "12px", color: "#666", fontWeight: 600 }}
+              >
+                Foto de la estiba (obligatoria)
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={onFoto}
+                style={{ fontSize: "13px" }}
+              />
+              {fotoEstiba && (
+                <img
+                  src={fotoEstiba}
+                  alt="estiba"
+                  style={{
+                    width: "120px",
+                    height: "120px",
+                    objectFit: "cover",
+                    borderRadius: "8px",
+                    border: "1px solid #E8E8E8",
+                  }}
+                />
+              )}
+              <button
+                onClick={registrarEstiba}
+                disabled={cargando}
+                style={{
+                  background: "#00FF87",
+                  color: "#0A0A0A",
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "10px 14px",
+                  fontSize: "14px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  alignSelf: "flex-start",
+                }}
+              >
+                Guardar estiba
+              </button>
+            </div>
+          )}
+
+          {estibas.length === 0 ? (
+            <div
+              style={{
+                background: "#FFFFFF",
+                border: "1px solid #E8E8E8",
+                borderRadius: "12px",
+                padding: "3rem",
+                textAlign: "center",
+              }}
+            >
+              <div style={{ fontSize: "48px", marginBottom: "1rem" }}>🪵</div>
+              <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
+                No tienes estibas activas
+              </p>
+            </div>
+          ) : (
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+            >
+              {estibas.map((e) => (
+                <div
+                  key={e.id}
+                  onClick={() => setEstibaActiva(e.id)}
+                  style={{
+                    background: "#FFFFFF",
+                    border:
+                      estibaActiva === e.id
+                        ? "1.5px solid #00FF87"
+                        : "1px solid #E8E8E8",
+                    borderRadius: "12px",
+                    padding: "1.25rem",
+                    cursor: "pointer",
+                    boxShadow:
+                      estibaActiva === e.id
+                        ? "0 0 0 3px rgba(0,255,135,0.08)"
+                        : "none",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "1rem",
+                      alignItems: "center",
+                    }}
+                  >
+                    {e.foto_url && (
+                      <img
+                        src={e.foto_url}
+                        alt={e.nombre}
+                        style={{
+                          width: "72px",
+                          height: "72px",
+                          objectFit: "cover",
+                          borderRadius: "8px",
+                          flexShrink: 0,
+                        }}
+                      />
+                    )}
+                    <div style={{ flex: 1 }}>
+                      <div
+                        style={{
+                          fontWeight: 700,
+                          fontSize: "15px",
+                          color: "#0A0A0A",
+                        }}
+                      >
+                        {e.nombre}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "12px",
+                          color: "#888",
+                          marginTop: "4px",
+                        }}
+                      >
+                        {new Date(e.created_at).toLocaleString("es-CO", {
+                          day: "2-digit",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
+                      {estibaActiva === e.id && (
+                        <div
+                          style={{
+                            marginTop: "6px",
+                            background: "rgba(0,255,135,0.1)",
+                            color: "#007A40",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            padding: "2px 8px",
+                            borderRadius: "20px",
+                            display: "inline-block",
+                          }}
+                        >
+                          ✓ Estiba activa
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* VISTA BARRIDO */}
       {vista === "barrido" && listaActiva && (
         <div>
+          {/* Progreso */}
           <div
             style={{
               background: "#FFFFFF",
@@ -481,7 +819,61 @@ export default function Montacarguista() {
             </div>
           </div>
 
-          {/* Barra de estiba: foto obligatoria para registrar (railguard) */}
+          {/* Ubicación activa */}
+          {ubicacionActiva && (
+            <div
+              style={{
+                background: "rgba(0,255,135,0.08)",
+                border: "1.5px solid #00FF87",
+                borderRadius: "12px",
+                padding: "10px 16px",
+                marginBottom: "1rem",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: "#007A40",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                  }}
+                >
+                  Ubicación activa
+                </div>
+                <div
+                  style={{
+                    fontFamily: "DM Mono, monospace",
+                    fontSize: "20px",
+                    fontWeight: 700,
+                    color: "#0A0A0A",
+                  }}
+                >
+                  {ubicacionActiva}
+                </div>
+              </div>
+              <button
+                onClick={() => setUbicacionActiva(null)}
+                style={{
+                  background: "transparent",
+                  border: "1px solid #E8E8E8",
+                  borderRadius: "8px",
+                  padding: "6px 12px",
+                  fontSize: "12px",
+                  cursor: "pointer",
+                  color: "#666",
+                }}
+              >
+                Cambiar ubicación
+              </button>
+            </div>
+          )}
+
+          {/* Estiba */}
           <div
             style={{
               background: "#FFFFFF",
@@ -502,7 +894,7 @@ export default function Montacarguista() {
               <span
                 style={{ fontSize: "13px", fontWeight: 600, color: "#0A0A0A" }}
               >
-                📦 Estiba activa:
+                📦 Estiba:
               </span>
               <select
                 value={estibaActiva}
@@ -527,7 +919,6 @@ export default function Montacarguista() {
                 onClick={() => setShowEstibaForm((v) => !v)}
                 style={{
                   background: "transparent",
-                  color: "#0A0A0A",
                   border: "1.5px solid #E8E8E8",
                   borderRadius: "8px",
                   padding: "8px 14px",
@@ -536,10 +927,9 @@ export default function Montacarguista() {
                   cursor: "pointer",
                 }}
               >
-                {showEstibaForm ? "Cancelar" : "+ Registrar estiba"}
+                {showEstibaForm ? "Cancelar" : "+ Nueva estiba"}
               </button>
             </div>
-
             {showEstibaForm && (
               <div
                 style={{
@@ -565,7 +955,7 @@ export default function Montacarguista() {
                 <label
                   style={{ fontSize: "12px", color: "#666", fontWeight: 600 }}
                 >
-                  Foto de la estiba (obligatoria)
+                  Foto (obligatoria)
                 </label>
                 <input
                   type="file"
@@ -583,7 +973,6 @@ export default function Montacarguista() {
                       height: "120px",
                       objectFit: "cover",
                       borderRadius: "8px",
-                      border: "1px solid #E8E8E8",
                     }}
                   />
                 )}
@@ -611,10 +1000,19 @@ export default function Montacarguista() {
           <ScanInput
             onScan={onEscanear}
             disabled={cargando}
-            label="Escanea la caja antes de bajarla"
-            hint="Verifica que la referencia coincide con la lista antes de descontar inventario. Sin etiqueta: digita la referencia y confirma la cantidad."
+            label={
+              ubicacionActiva
+                ? `Escanea caja en ${ubicacionActiva}`
+                : "Escanea la etiqueta de la ubicación o la caja"
+            }
+            hint={
+              ubicacionActiva
+                ? "Escanea cada caja de esta ubicación — 1 escaneo = 1 caja"
+                : "Primero escanea la ubicación (etiqueta UB-a1-1), luego las cajas"
+            }
           />
 
+          {/* Lista de ítems */}
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {consolidarItems(listaActiva.lista_picking_items).map((grupo) => {
               const bajada = grupo.bajada;
@@ -624,14 +1022,24 @@ export default function Montacarguista() {
                   (a, i) => a + (i.cantidad_cajas || 0),
                   0,
                 );
+              const esUbicActiva =
+                ubicacionActiva &&
+                (grupo.ubicacion_codigo || "").toUpperCase() ===
+                  ubicacionActiva;
               return (
                 <div
                   key={grupo.key}
                   style={{
-                    background: bajada ? "rgba(0,255,135,0.04)" : "#FFFFFF",
-                    border: bajada
-                      ? "1px solid rgba(0,255,135,0.2)"
-                      : "1px solid #E8E8E8",
+                    background: bajada
+                      ? "rgba(0,255,135,0.04)"
+                      : esUbicActiva
+                        ? "rgba(0,255,135,0.08)"
+                        : "#FFFFFF",
+                    border: esUbicActiva
+                      ? "1.5px solid #00FF87"
+                      : bajada
+                        ? "1px solid rgba(0,255,135,0.2)"
+                        : "1px solid #E8E8E8",
                     borderRadius: "12px",
                     padding: "1rem 1.25rem",
                     opacity: bajada ? 0.7 : 1,
@@ -664,7 +1072,6 @@ export default function Montacarguista() {
                             fontSize: "13px",
                             fontFamily: "DM Mono, monospace",
                             fontWeight: 700,
-                            letterSpacing: "0.06em",
                           }}
                         >
                           {grupo.ubicacion_codigo || "Sin ubic."}
