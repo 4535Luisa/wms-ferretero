@@ -67,26 +67,9 @@ const generarListasPicking = async (req, res) => {
   const pedidosMap = {};
   for (const p of pedidosData || []) pedidosMap[p.id] = p;
 
-  // Consultar stock actual de SALDOS para verificar si hay que pedir reposición
-  const { data: bodegaSaldosRow } = await supabase
-    .from("bodegas")
-    .select("id")
-    .eq("codigo", "SALDOS")
-    .single();
-  const bodegaSaldosId = bodegaSaldosRow?.id;
-  const stockSaldosMap = {};
-  if (bodegaSaldosId) {
-    const { data: invSaldos } = await supabase
-      .from("inventario")
-      .select("producto_id, cantidad_disponible, cantidad_comprometida")
-      .eq("bodega_id", bodegaSaldosId);
-    for (const inv of invSaldos || []) {
-      stockSaldosMap[inv.producto_id] = Math.max(
-        0,
-        (inv.cantidad_disponible || 0) - (inv.cantidad_comprometida || 0),
-      );
-    }
-  }
+  // Las unidades sueltas (saldos) y su reposición se calculan al asignar
+  // el pedido a un operario (ver asignarPedido en pedidos.controller.js).
+  // El generador de picking solo maneja cajas completas.
 
   for (const pedidoId of pedidosAProcesar) {
     const pedido = pedidosMap[pedidoId];
@@ -178,80 +161,6 @@ const generarListasPicking = async (req, res) => {
             cajasRestantes -= cajasATomar;
           }
         }
-      }
-
-      // SALDOS: calcular unidades sueltas requeridas para este ítem
-      const unidadesSueltas = splitCajaSaldo(
-        item.cantidad_pedida,
-        item.productos?.unidad_empaque || 0,
-      ).unidadesSueltas;
-      if (unidadesSueltas > 0) {
-        // Verificar cuánto tiene SALDOS disponible para este producto
-        const stockSaldos = stockSaldosMap[item.producto_id] || 0;
-        const faltante = Math.max(0, unidadesSueltas - stockSaldos);
-
-        if (faltante > 0) {
-          // SALDOS no tiene suficiente — pedir una caja al montacarguista con destino SALDOS
-          // Calcular cuántas cajas se necesitan para cubrir el faltante
-          const ue = item.productos?.unidad_empaque || 0;
-          if (ue > 1) {
-            const cajasNecesarias = Math.ceil(faltante / ue);
-            // Buscar inventario disponible en bodegas de picking para esa caja
-            for (const codigo of ORDEN_BODEGAS) {
-              const bodegaId = bodegaIds[codigo];
-              if (!bodegaId) continue;
-              const { data: invsSaldos } = await supabase
-                .from("inventario")
-                .select(
-                  "id, cantidad_disponible, cantidad_comprometida, ubicacion_id",
-                )
-                .eq("producto_id", item.producto_id)
-                .eq("bodega_id", bodegaId)
-                .gt("cantidad_disponible", 0);
-
-              for (const inv of invsSaldos || []) {
-                const dispReal =
-                  (inv.cantidad_disponible || 0) -
-                  (inv.cantidad_comprometida || 0);
-                const cajasDisp = Math.floor(dispReal / ue);
-                if (cajasDisp <= 0) continue;
-                const cajasATomar = Math.min(cajasNecesarias, cajasDisp);
-                const unidadesATomar = cajasATomar * ue;
-                const { data: rsv } = await supabase.rpc(
-                  "reservar_inventario_picking",
-                  {
-                    p_inventario_id: inv.id,
-                    p_unidades: unidadesATomar,
-                  },
-                );
-                if (rsv?.status === "ok") {
-                  const ubicCodigo = inv.ubicacion_id
-                    ? ubicMap[inv.ubicacion_id] || null
-                    : null;
-                  listasPorBodega[bodegaId].items.push({
-                    pedido_id: pedidoId,
-                    pedido_numero: pedido.numero,
-                    producto_id: item.producto_id,
-                    ubicacion_id: inv.ubicacion_id,
-                    ubicacion_codigo: ubicCodigo,
-                    referencia: item.productos?.codigo_interno,
-                    descripcion: item.productos?.descripcion_corta,
-                    cantidad_cajas: cajasATomar,
-                    cantidad_unidades: unidadesATomar,
-                    destino_saldos: true,
-                  });
-                  break;
-                }
-              }
-              break;
-            }
-          }
-        }
-        // Actualizar stock temporal para evitar doble asignación en el mismo lote
-        stockSaldosMap[item.producto_id] = Math.max(
-          0,
-          stockSaldos - unidadesSueltas,
-        );
       }
     }
   }

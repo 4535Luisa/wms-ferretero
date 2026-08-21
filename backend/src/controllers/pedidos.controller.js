@@ -396,10 +396,52 @@ const asignarPedido = async (req, res) => {
       hora_asignacion: new Date().toISOString(),
     })
     .eq("id", id)
-    .select()
+    .select(
+      "*, pedido_items(id, producto_id, cantidad_pedida, productos(unidad_empaque))",
+    )
     .single();
 
   if (error) return sendServerError(res, error, req);
+
+  // Si se asigna operario, calcular saldos automáticamente y agregar
+  // cajas de reposición a la lista del montacarguista si SALDOS no alcanza.
+  if (operario_id) {
+    try {
+      const repoRep = {};
+      for (const item of data.pedido_items || []) {
+        const ue = item.productos?.unidad_empaque || 0;
+        const unidadesSueltas =
+          ue > 1 ? item.cantidad_pedida % ue : item.cantidad_pedida;
+        if (unidadesSueltas <= 0) continue;
+
+        // Registrar saldo consolidado para este operario
+        await upsertSaldoConsolidado(
+          operario_id,
+          item.producto_id,
+          unidadesSueltas,
+        );
+        repoRep[`${operario_id}::${item.producto_id}`] = id;
+      }
+
+      // Generar reposición de cajas si SALDOS no tiene suficiente stock
+      if (Object.keys(repoRep).length > 0) {
+        await generarReposicionSaldos(operario_id, repoRep);
+      }
+
+      // Notificar al operario que tiene un pedido asignado
+      await supabase.from("notificaciones").insert({
+        usuario_id: operario_id,
+        tipo: "pedido_asignado",
+        titulo: "Pedido asignado",
+        mensaje: `Se te asignó el pedido ${data.numero}`,
+        datos: { pedido_id: id, pedido_numero: data.numero },
+      });
+    } catch (err) {
+      // best-effort: no fallar la asignación por un error en saldos
+      console.error("Error generando saldos automáticos:", err);
+    }
+  }
+
   return res.json({ data, mensaje: "Pedido asignado correctamente" });
 };
 
