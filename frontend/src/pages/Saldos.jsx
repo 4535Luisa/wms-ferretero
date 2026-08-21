@@ -45,6 +45,7 @@ export default function Saldos() {
   const [mensaje, setMensaje] = useState({ texto: "", tipo: "" });
   const [cargando, setCargando] = useState(false);
   const [entregando, setEntregando] = useState(null); // { producto_id, operario_id, descripcion, referencia, requerido, disponible }
+  const [cantidadEntrega, setCantidadEntrega] = useState("");
   const idsEntrantes = useRef(null);
 
   const aviso = (texto, tipo = "ok") => {
