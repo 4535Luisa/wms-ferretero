@@ -78,37 +78,112 @@ export default function AdminPedidos() {
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
-        const data = ev.target.result;
-        const workbook = XLSX.read(data, { type: "binary" });
+        const data = new Uint8Array(ev.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+        // Detectar automáticamente la fila de encabezado y posición de columnas.
+        // Soporta:
+        //   - CSV propio:   Numero Pedido | Referencia | Descripcion | Cantidad Pedida
+        //   - XLS SIESA:    (vacía) | Nro documento | Referencia | Desc. item | Cant. comprom.
+        const palabrasNumero = [
+          "nro",
+          "numero",
+          "número",
+          "pedido",
+          "documento",
+        ];
+        const palabrasRef = ["referencia", "ref"];
+        const palabrasDesc = ["desc", "item", "articulo", "artículo", "nombre"];
+        const palabrasCant = ["cant", "cantidad", "comprom", "pedida"];
+
+        let colNumero = 0,
+          colRef = 1,
+          colDesc = 2,
+          colCant = 3;
+        let headerRow = 0;
+
+        for (let i = 0; i < Math.min(5, rows.length); i++) {
+          const row = (rows[i] || []).map((c) =>
+            String(c || "")
+              .toLowerCase()
+              .trim(),
+          );
+          let hits = 0;
+          let cN = -1,
+            cR = -1,
+            cD = -1,
+            cC = -1;
+          for (let j = 0; j < row.length; j++) {
+            if (cN < 0 && palabrasNumero.some((p) => row[j].includes(p))) {
+              cN = j;
+              hits++;
+            }
+            if (cR < 0 && palabrasRef.some((p) => row[j].includes(p))) {
+              cR = j;
+              hits++;
+            }
+            if (cD < 0 && palabrasDesc.some((p) => row[j].includes(p))) {
+              cD = j;
+              hits++;
+            }
+            if (cC < 0 && palabrasCant.some((p) => row[j].includes(p))) {
+              cC = j;
+              hits++;
+            }
+          }
+          if (hits >= 2) {
+            headerRow = i;
+            if (cN >= 0) colNumero = cN;
+            if (cR >= 0) colRef = cR;
+            if (cD >= 0) colDesc = cD;
+            if (cC >= 0) colCant = cC;
+            break;
+          }
+        }
+
         const pedidosMap = {};
-        for (let i = 1; i < rows.length; i++) {
-          const row = rows[i];
-          if (!row[0] || !row[1]) continue;
-          const numero = String(row[0]).trim();
-          const referencia = String(row[1]).trim();
-          const descripcion = String(row[2] || "").trim();
-          const cantidad = Number(row[3]) || 0;
+        for (let i = headerRow + 1; i < rows.length; i++) {
+          const row = rows[i] || [];
+          const rawNumero = row[colNumero];
+          const rawRef = row[colRef];
+          if (!rawNumero || !rawRef) continue;
+
+          const numero = String(rawNumero).trim();
+          // Limpiar referencia: "101012.0" → "101012"
+          let referencia = String(rawRef).trim();
+          if (/^\d+\.0+$/.test(referencia))
+            referencia = String(Math.round(Number(referencia)));
+
+          const descripcion = String(row[colDesc] || "").trim();
+          const cantidad = Math.round(Number(row[colCant]) || 0);
+
+          if (!numero || !referencia || cantidad <= 0) continue;
           if (!pedidosMap[numero]) pedidosMap[numero] = { numero, items: [] };
           pedidosMap[numero].items.push({ referencia, descripcion, cantidad });
         }
+
         const pedidos = Object.values(pedidosMap);
         if (pedidos.length === 0) {
-          mostrarMensaje("El archivo no tiene filas válidas", "error");
+          mostrarMensaje(
+            "El archivo no tiene filas válidas. Verifica columnas: número de pedido, referencia y cantidad.",
+            "error",
+          );
           return;
         }
         setPreviaCsv(pedidos);
         setVista("preview");
-      } catch {
+      } catch (err) {
+        console.error("Error leyendo archivo:", err);
         mostrarMensaje(
-          "No se pudo leer el archivo. Verifica que sea un CSV/Excel válido.",
+          "No se pudo leer el archivo. Verifica que sea un CSV o Excel (.xls/.xlsx) válido.",
           "error",
         );
       }
     };
     reader.onerror = () => mostrarMensaje("Error al leer el archivo", "error");
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const importarPedidos = async () => {
