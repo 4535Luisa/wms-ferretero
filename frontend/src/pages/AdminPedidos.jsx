@@ -82,27 +82,92 @@ export default function AdminPedidos() {
         const workbook = XLSX.read(data, { type: "array" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+        // Detectar automáticamente las columnas buscando la fila de encabezado
+        // Soporta: CSV propio (col 0), XLS SIESA (col 1 vacía, datos desde col 1)
+        let colNumero = -1,
+          colRef = -1,
+          colDesc = -1,
+          colCant = -1;
+        let headerRow = 0;
+
+        for (let i = 0; i < Math.min(5, rows.length); i++) {
+          const row = rows[i].map((c) =>
+            String(c || "")
+              .toLowerCase()
+              .trim(),
+          );
+          for (let j = 0; j < row.length; j++) {
+            if (
+              row[j].includes("nro") ||
+              row[j].includes("numero") ||
+              row[j].includes("número") ||
+              row[j].includes("pedido") ||
+              row[j].includes("documento")
+            )
+              colNumero = j;
+            if (row[j].includes("referencia") || row[j] === "ref") colRef = j;
+            if (
+              row[j].includes("desc") ||
+              row[j].includes("artículo") ||
+              row[j].includes("articulo") ||
+              row[j].includes("item")
+            )
+              colDesc = j;
+            if (
+              row[j].includes("cant") ||
+              row[j].includes("cantidad") ||
+              row[j].includes("comprom") ||
+              row[j].includes("pedida")
+            )
+              colCant = j;
+          }
+          if (colNumero >= 0 && colRef >= 0) {
+            headerRow = i;
+            break;
+          }
+        }
+
+        // Fallback: columnas por posición (formato CSV propio)
+        if (colNumero < 0) colNumero = 0;
+        if (colRef < 0) colRef = 1;
+        if (colDesc < 0) colDesc = 2;
+        if (colCant < 0) colCant = 3;
+
         const pedidosMap = {};
-        for (let i = 1; i < rows.length; i++) {
+        for (let i = headerRow + 1; i < rows.length; i++) {
           const row = rows[i];
-          if (!row[0] || !row[1]) continue;
-          const numero = String(row[0]).trim();
-          const referencia = String(row[1]).trim();
-          const descripcion = String(row[2] || "").trim();
-          const cantidad = Number(row[3]) || 0;
+          const rawNumero = row[colNumero];
+          const rawRef = row[colRef];
+          if (!rawNumero || !rawRef) continue;
+
+          const numero = String(rawNumero).trim();
+          // Limpiar referencia: si viene como número decimal (101012.0) → "101012"
+          let referencia = String(rawRef).trim();
+          if (/^\d+\.0$/.test(referencia))
+            referencia = referencia.replace(".0", "");
+
+          const descripcion = String(row[colDesc] || "").trim();
+          const cantidad = Math.round(Number(row[colCant]) || 0);
+
+          if (!numero || !referencia || cantidad <= 0) continue;
           if (!pedidosMap[numero]) pedidosMap[numero] = { numero, items: [] };
           pedidosMap[numero].items.push({ referencia, descripcion, cantidad });
         }
+
         const pedidos = Object.values(pedidosMap);
         if (pedidos.length === 0) {
-          mostrarMensaje("El archivo no tiene filas válidas", "error");
+          mostrarMensaje(
+            "El archivo no tiene filas válidas. Verifica que tenga columnas de número de pedido, referencia y cantidad.",
+            "error",
+          );
           return;
         }
         setPreviaCsv(pedidos);
         setVista("preview");
       } catch {
         mostrarMensaje(
-          "No se pudo leer el archivo. Verifica que sea un CSV/Excel válido.",
+          "No se pudo leer el archivo. Verifica que sea un CSV o Excel válido.",
           "error",
         );
       }
@@ -254,7 +319,10 @@ export default function AdminPedidos() {
       mostrarMensaje(data.mensaje || "Pedido reasignado");
       cargarDatos();
     } catch (err) {
-      mostrarMensaje(err.response?.data?.error || "Error al reasignar", "error");
+      mostrarMensaje(
+        err.response?.data?.error || "Error al reasignar",
+        "error",
+      );
     }
   };
 
