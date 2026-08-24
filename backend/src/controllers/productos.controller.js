@@ -84,29 +84,75 @@ const historialProducto = async (req, res) => {
 // Inventario general: todos los productos con stock, con bodega y ubicación.
 // Accesible para todos los roles excepto operario.
 const inventarioGeneral = async (req, res) => {
-  const { data, error } = await supabase
-    .from("inventario")
-    .select(
-      `
-      producto_id,
-      cantidad_disponible,
-      cantidad_comprometida,
-      ubicaciones(codigo),
-      bodegas(codigo, nombre),
-      productos(codigo_interno, descripcion_corta)
-    `,
-    )
-    .order("producto_id");
+  // Usar query SQL directa para garantizar el join con ubicaciones
+  const { data, error } = await supabase.rpc("inventario_general_view");
 
-  if (error) return sendServerError(res, error, req);
+  if (error) {
+    // Fallback: query manual si la RPC no existe
+    const { data: rows, error: err2 } = await supabase
+      .from("inventario")
+      .select(
+        "producto_id, cantidad_disponible, cantidad_comprometida, ubicacion_id, bodega_id",
+      )
+      .order("producto_id");
+
+    if (err2) return sendServerError(res, err2, req);
+
+    // Obtener productos, bodegas y ubicaciones por separado
+    const productoIds = [...new Set((rows || []).map((r) => r.producto_id))];
+    const bodegaIds = [...new Set((rows || []).map((r) => r.bodega_id))];
+    const ubicacionIds = [
+      ...new Set((rows || []).map((r) => r.ubicacion_id).filter(Boolean)),
+    ];
+
+    const [{ data: prods }, { data: bods }, { data: ubics }] =
+      await Promise.all([
+        supabase
+          .from("productos")
+          .select("id, codigo_interno, descripcion_corta")
+          .in("id", productoIds),
+        supabase
+          .from("bodegas")
+          .select("id, codigo, nombre")
+          .in("id", bodegaIds),
+        ubicacionIds.length > 0
+          ? supabase
+              .from("ubicaciones")
+              .select("id, codigo")
+              .in("id", ubicacionIds)
+          : Promise.resolve({ data: [] }),
+      ]);
+
+    const prodMap = Object.fromEntries((prods || []).map((p) => [p.id, p]));
+    const bodMap = Object.fromEntries((bods || []).map((b) => [b.id, b]));
+    const ubicMap = Object.fromEntries((ubics || []).map((u) => [u.id, u]));
+
+    const resultado = (rows || []).map((r) => ({
+      producto_id: r.producto_id,
+      referencia: prodMap[r.producto_id]?.codigo_interno || "—",
+      descripcion: prodMap[r.producto_id]?.descripcion_corta || "—",
+      bodega: bodMap[r.bodega_id]?.codigo || "—",
+      bodega_nombre: bodMap[r.bodega_id]?.nombre || "—",
+      ubicacion: r.ubicacion_id
+        ? ubicMap[r.ubicacion_id]?.codigo || null
+        : null,
+      cantidad_disponible: r.cantidad_disponible || 0,
+      cantidad_comprometida: r.cantidad_comprometida || 0,
+    }));
+
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    return res.json(resultado);
+  }
 
   const resultado = (data || []).map((r) => ({
     producto_id: r.producto_id,
-    referencia: r.productos?.codigo_interno || "—",
-    descripcion: r.productos?.descripcion_corta || "—",
-    bodega: r.bodegas?.codigo || "—",
-    bodega_nombre: r.bodegas?.nombre || "—",
-    ubicacion: r.ubicaciones?.codigo || null,
+    referencia: r.codigo_interno || "—",
+    descripcion: r.descripcion_corta || "—",
+    bodega: r.bodega_codigo || "—",
+    bodega_nombre: r.bodega_nombre || "—",
+    ubicacion: r.ubicacion_codigo || null,
     cantidad_disponible: r.cantidad_disponible || 0,
     cantidad_comprometida: r.cantidad_comprometida || 0,
   }));
