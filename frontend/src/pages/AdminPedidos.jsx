@@ -26,6 +26,12 @@ const prioridadColor = {
   urgente: { bg: "#FEE2E2", color: "#991B1B", label: "Urgente" },
 };
 
+// Convierte cualquier valor de celda a string seguro
+const celdaStr = (v) => {
+  if (v === null || v === undefined) return "";
+  return String(v).trim();
+};
+
 export default function AdminPedidos() {
   const [vista, setVista] = useState("lista");
   const [pedidos, setPedidos] = useState([]);
@@ -61,9 +67,6 @@ export default function AdminPedidos() {
   };
 
   useEffect(() => {
-    // Carga inicial al montar. El setState ocurre tras await (asíncrono), no
-    // de forma síncrona, así que no genera renders en cascada.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargarDatos();
   }, []);
 
@@ -81,12 +84,10 @@ export default function AdminPedidos() {
         const data = new Uint8Array(ev.target.result);
         const workbook = XLSX.read(data, { type: "array" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
 
-        // Detectar automáticamente la fila de encabezado y posición de columnas.
-        // Soporta:
-        //   - CSV propio:   Numero Pedido | Referencia | Descripcion | Cantidad Pedida
-        //   - XLS SIESA:    (vacía) | Nro documento | Referencia | Desc. item | Cant. comprom.
+        // defval:"" hace que las celdas vacías devuelvan "" en vez de undefined
+        // Detectar automáticamente columnas buscando el encabezado
         const palabrasNumero = [
           "nro",
           "numero",
@@ -105,30 +106,27 @@ export default function AdminPedidos() {
         let headerRow = 0;
 
         for (let i = 0; i < Math.min(5, rows.length); i++) {
-          const row = (rows[i] || []).map((c) =>
-            String(c || "")
-              .toLowerCase()
-              .trim(),
-          );
+          const row = rows[i] || [];
           let hits = 0;
           let cN = -1,
             cR = -1,
             cD = -1,
             cC = -1;
           for (let j = 0; j < row.length; j++) {
-            if (cN < 0 && palabrasNumero.some((p) => row[j].includes(p))) {
+            const cell = celdaStr(row[j]).toLowerCase();
+            if (cN < 0 && palabrasNumero.some((p) => cell.includes(p))) {
               cN = j;
               hits++;
             }
-            if (cR < 0 && palabrasRef.some((p) => row[j].includes(p))) {
+            if (cR < 0 && palabrasRef.some((p) => cell.includes(p))) {
               cR = j;
               hits++;
             }
-            if (cD < 0 && palabrasDesc.some((p) => row[j].includes(p))) {
+            if (cD < 0 && palabrasDesc.some((p) => cell.includes(p))) {
               cD = j;
               hits++;
             }
-            if (cC < 0 && palabrasCant.some((p) => row[j].includes(p))) {
+            if (cC < 0 && palabrasCant.some((p) => cell.includes(p))) {
               cC = j;
               hits++;
             }
@@ -146,20 +144,17 @@ export default function AdminPedidos() {
         const pedidosMap = {};
         for (let i = headerRow + 1; i < rows.length; i++) {
           const row = rows[i] || [];
-          const rawNumero = row[colNumero];
-          const rawRef = row[colRef];
-          if (!rawNumero || !rawRef) continue;
+          const numero = celdaStr(row[colNumero]);
+          let referencia = celdaStr(row[colRef]);
+          const descripcion = celdaStr(row[colDesc]);
+          const cantidad = Math.round(Number(celdaStr(row[colCant])) || 0);
 
-          const numero = String(rawNumero).trim();
-          // Limpiar referencia: "101012.0" → "101012"
-          let referencia = String(rawRef).trim();
+          if (!numero || !referencia || cantidad <= 0) continue;
+
+          // Limpiar referencia decimal: "101012.0" → "101012"
           if (/^\d+\.0+$/.test(referencia))
             referencia = String(Math.round(Number(referencia)));
 
-          const descripcion = String(row[colDesc] || "").trim();
-          const cantidad = Math.round(Number(row[colCant]) || 0);
-
-          if (!numero || !referencia || cantidad <= 0) continue;
           if (!pedidosMap[numero]) pedidosMap[numero] = { numero, items: [] };
           pedidosMap[numero].items.push({ referencia, descripcion, cantidad });
         }
@@ -197,8 +192,6 @@ export default function AdminPedidos() {
       for (const pedido of previaCsv) {
         const itemsConIds = [];
         for (const item of pedido.items) {
-          // Cachea también los "no encontrado" (null) para no repetir la
-          // búsqueda de la misma referencia en cada ocurrencia.
           if (!(item.referencia in productosCache)) {
             try {
               const { data } = await api.get(
@@ -227,12 +220,10 @@ export default function AdminPedidos() {
         });
       }
 
-      // No se descartan referencias en silencio: se avisa al usuario.
       const avisoRef =
         noEncontradas.size > 0
           ? ` · ⚠ ${noEncontradas.size} referencia(s) no encontradas y omitidas`
           : "";
-
       const { data: importResult } = await api.post("/api/pedidos/csv", {
         pedidos: pedidosConIds,
       });
@@ -245,7 +236,6 @@ export default function AdminPedidos() {
         "/api/pedidos?estado=pendiente",
       );
       const ids = pedidosNuevos.map((p) => p.id);
-
       if (ids.length > 0) {
         const { data: listasResult } = await api.post("/api/picking/generar", {
           pedido_ids: ids,
@@ -296,11 +286,10 @@ export default function AdminPedidos() {
     }
   };
 
-  const toggleSeleccion = (id) => {
+  const toggleSeleccion = (id) =>
     setSeleccionados((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
     );
-  };
 
   const toggleTodos = () => {
     const pendientes = pedidosFiltrados
@@ -319,7 +308,6 @@ export default function AdminPedidos() {
     }
   };
 
-  // Reasigna un pedido a otro operario conservando el avance ya alistado.
   const reasignar = async (pedidoId, nuevoOperarioId) => {
     if (!nuevoOperarioId) return;
     try {
@@ -399,7 +387,6 @@ export default function AdminPedidos() {
     background: "#FFFFFF",
     color: "#0A0A0A",
   };
-
   const labelStyle = {
     fontSize: "11px",
     fontWeight: 600,
@@ -835,7 +822,6 @@ export default function AdminPedidos() {
                 : "⚡ Generar listas desde pedidos pendientes"}
             </button>
           </div>
-
           {listas.length === 0 ? (
             <div
               style={{
@@ -849,9 +835,6 @@ export default function AdminPedidos() {
               <div style={{ fontSize: "40px", marginBottom: "1rem" }}>📦</div>
               <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
                 No hay listas de picking generadas
-              </p>
-              <p style={{ fontSize: "13px", color: "#BBB", marginTop: "4px" }}>
-                Haz clic en el botón para generar las listas
               </p>
             </div>
           ) : (
@@ -951,7 +934,6 @@ export default function AdminPedidos() {
                       </select>
                     )}
                   </div>
-
                   <div
                     style={{
                       borderTop: "1px solid #F0F0F0",
@@ -1273,7 +1255,6 @@ export default function AdminPedidos() {
               })}
             </div>
           </div>
-
           <div style={{ position: "sticky", top: "1rem" }}>
             <div
               style={{
