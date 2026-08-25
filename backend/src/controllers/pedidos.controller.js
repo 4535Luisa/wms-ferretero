@@ -396,52 +396,10 @@ const asignarPedido = async (req, res) => {
       hora_asignacion: new Date().toISOString(),
     })
     .eq("id", id)
-    .select(
-      "*, pedido_items(id, producto_id, cantidad_pedida, productos(unidad_empaque))",
-    )
+    .select()
     .single();
 
   if (error) return sendServerError(res, error, req);
-
-  // Si se asigna operario, calcular saldos automáticamente y agregar
-  // cajas de reposición a la lista del montacarguista si SALDOS no alcanza.
-  if (operario_id) {
-    try {
-      const repoRep = {};
-      for (const item of data.pedido_items || []) {
-        const ue = item.productos?.unidad_empaque || 0;
-        const unidadesSueltas =
-          ue > 1 ? item.cantidad_pedida % ue : item.cantidad_pedida;
-        if (unidadesSueltas <= 0) continue;
-
-        // Registrar saldo consolidado para este operario
-        await upsertSaldoConsolidado(
-          operario_id,
-          item.producto_id,
-          unidadesSueltas,
-        );
-        repoRep[`${operario_id}::${item.producto_id}`] = id;
-      }
-
-      // Generar reposición de cajas si SALDOS no tiene suficiente stock
-      if (Object.keys(repoRep).length > 0) {
-        await generarReposicionSaldos(operario_id, repoRep);
-      }
-
-      // Notificar al operario que tiene un pedido asignado
-      await supabase.from("notificaciones").insert({
-        usuario_id: operario_id,
-        tipo: "pedido_asignado",
-        titulo: "Pedido asignado",
-        mensaje: `Se te asignó el pedido ${data.numero}`,
-        datos: { pedido_id: id, pedido_numero: data.numero },
-      });
-    } catch (err) {
-      // best-effort: no fallar la asignación por un error en saldos
-      console.error("Error generando saldos automáticos:", err);
-    }
-  }
-
   return res.json({ data, mensaje: "Pedido asignado correctamente" });
 };
 
@@ -787,15 +745,20 @@ const misPedidosOperario = async (req, res) => {
 // Si la cantidad difiere de la pedida, el motivo es obligatorio (railguard).
 const actualizarItemOperario = async (req, res) => {
   const { itemId } = req.params;
-  const { cantidad_picking, motivo_diferencia, estado, referencia_escaneada } =
-    req.body;
+  const {
+    cantidad_picking,
+    motivo_diferencia,
+    estado,
+    referencia_escaneada,
+    escaneo_caja,
+  } = req.body;
   const usuario_id = req.usuario?.id;
   const esAdmin = req.usuario?.rol === "administrador";
 
   const { data: item, error: errItem } = await supabase
     .from("pedido_items")
     .select(
-      "*, pedidos(operario_id, estado, numero, bodega_id), productos(codigo_interno)",
+      "*, pedidos(operario_id, estado, numero, bodega_id), productos(codigo_interno, unidad_empaque)",
     )
     .eq("id", itemId)
     .single();
@@ -811,9 +774,69 @@ const actualizarItemOperario = async (req, res) => {
     });
   }
 
-  // Verificación de escaneo (railguard): el operario debe escanear la caja que
-  // recoge de la estiba y coincidir con la referencia del pedido antes de
-  // alistarla. El admin (corrección manual) queda exento.
+  // ── MODO ESCANEO CAJA POR CAJA ─────────────────────────────────────────
+  // El operario escanea una caja física — acumula unidades_escaneadas.
+  // Se marca completo cuando cajas + saldos ya entregados cubren el pedido.
+  if (escaneo_caja && !esAdmin) {
+    // Verificar que el código escaneado corresponde a esta referencia
+    const refEsperada = item.referencia || item.productos?.codigo_interno;
+    const escaneadaResuelta =
+      await require("../utils/escaneo").resolverCodigoEscaneado(
+        referencia_escaneada,
+      );
+    const { normalizarRef } = require("../utils/escaneo");
+    if (normalizarRef(escaneadaResuelta) !== normalizarRef(refEsperada)) {
+      return res.status(422).json({
+        error: `⚠ Caja incorrecta: escaneaste ${normalizarRef(escaneadaResuelta)}, pero este ítem es ${refEsperada}`,
+        resultado: "mismatch",
+      });
+    }
+
+    const ue = item.productos?.unidad_empaque || 1;
+    const cantPedida = item.cantidad_pedida || 0;
+    const cantSaldos = item.cantidad_saldos || 0;
+    const unidadesCajasCompletas = cantPedida - cantSaldos;
+    const cajasCompletas = Math.ceil(unidadesCajasCompletas / ue);
+    const nuevasUnidades = (item.unidades_escaneadas || 0) + ue;
+
+    if (nuevasUnidades > unidadesCajasCompletas) {
+      return res.status(400).json({
+        error: `Ya escaneaste todas las cajas de esta referencia (${cajasCompletas} caja${cajasCompletas !== 1 ? "s" : ""} de ${ue} unidades c/u)`,
+      });
+    }
+
+    const cajasListas = nuevasUnidades >= unidadesCajasCompletas;
+    // El ítem está completo cuando las cajas están listas Y no hay saldos pendientes
+    const nuevoEstado =
+      cajasListas && cantSaldos === 0 ? "completo" : item.estado;
+
+    const { data, error } = await supabase
+      .from("pedido_items")
+      .update({
+        unidades_escaneadas: nuevasUnidades,
+        cantidad_picking: nuevasUnidades,
+        estado: nuevoEstado,
+      })
+      .eq("id", itemId)
+      .select()
+      .single();
+
+    if (error) return sendServerError(res, error, req);
+
+    const cajasEscaneadas = Math.floor(nuevasUnidades / ue);
+    return res.json({
+      data,
+      mensaje: cajasListas
+        ? cantSaldos > 0
+          ? `✓ ${cajasEscaneadas}/${cajasCompletas} cajas — espera ${cantSaldos} unidades de Saldos`
+          : `✓ Ítem completo`
+        : `✓ ${cajasEscaneadas}/${cajasCompletas} caja${cajasCompletas !== 1 ? "s" : ""} escaneada${cajasEscaneadas !== 1 ? "s" : ""}`,
+      cajas_listas: cajasListas,
+      saldos_pendientes: cantSaldos > 0,
+    });
+  }
+
+  // ── MODO MANUAL (edición o marcado directo por admin) ──────────────────
   if (!esAdmin) {
     const refEsperada = item.referencia || item.productos?.codigo_interno;
     const { ok, resultado } = await verificarYRegistrar({
@@ -887,9 +910,6 @@ const actualizarItemOperario = async (req, res) => {
     },
   });
 
-  // Mini-conteo automático: si el operario alistó una cantidad distinta a la
-  // pedida, encola un mini-conteo (origen picking) para que inventarios
-  // verifique el stock real de esa referencia. Es informativo: no bloquea.
   if (cantidadFinal !== item.cantidad_pedida) {
     await supabase.from("mini_conteos").insert({
       producto_id: item.producto_id,

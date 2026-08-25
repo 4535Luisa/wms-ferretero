@@ -13,23 +13,20 @@ const C = {
   mono: { fontFamily: "DM Mono, monospace" },
 };
 
-// Resuelve lo escaneado a un codigo_interno.
-// Si es un EAN-13 (8-14 dígitos) consulta el backend para obtener el codigo_interno.
-// Si ya es un codigo_interno lo devuelve tal cual.
+// Resuelve EAN-13 → codigo_interno si aplica
 async function resolverEscaneado(valor) {
   const v = String(valor || "")
     .trim()
     .toUpperCase();
   if (!v) return v;
-  const esEAN = /^\d{8,14}$/.test(v);
-  if (!esEAN) return v;
+  if (!/^\d{8,14}$/.test(v)) return v;
   try {
     const { data } = await api.get(
       `/api/productos/buscar-barras?codigo_barras=${v}`,
     );
     if (data?.codigo_interno) return data.codigo_interno.trim().toUpperCase();
   } catch {
-    // best-effort
+    /* best-effort */
   }
   return v;
 }
@@ -59,7 +56,6 @@ export default function Operario() {
 
   useEffect(() => {
     cargar();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const aviso = (texto, tipo = "ok") => {
@@ -73,35 +69,74 @@ export default function Operario() {
     setEditando(null);
   };
 
-  // Escaneo automático — resuelve EAN-13 a codigo_interno antes de comparar.
-  // 1 escaneo = 1 ítem alistado automáticamente.
+  // Calcula el estado de un ítem considerando cajas + saldos
+  const itemInfo = (item) => {
+    const ue = item.productos?.unidad_empaque || 1;
+    const cantPedida = item.cantidad_pedida || 0;
+    const cantSaldos = item.cantidad_saldos || 0;
+    const unidadesCajas = cantPedida - cantSaldos;
+    const cajasCompletas =
+      unidadesCajas > 0 ? Math.ceil(unidadesCajas / ue) : 0;
+    const unidadesEscaneadas = item.unidades_escaneadas || 0;
+    const cajasEscaneadas = ue > 0 ? Math.floor(unidadesEscaneadas / ue) : 0;
+    const cajasListas = cajasEscaneadas >= cajasCompletas;
+    const completo = item.estado === "completo";
+    return {
+      ue,
+      cantPedida,
+      cantSaldos,
+      unidadesCajas,
+      cajasCompletas,
+      cajasEscaneadas,
+      cajasListas,
+      completo,
+    };
+  };
+
+  // Escaneo automático caja por caja
   const onEscanear = async (refEscaneada) => {
     const codigoResuelto = await resolverEscaneado(refEscaneada);
     const norm = codigoResuelto.trim().toUpperCase();
 
-    const objetivo = (activo?.pedido_items || []).find(
-      (i) =>
-        i.estado !== "completo" &&
-        (i.productos?.codigo_interno || "").trim().toUpperCase() === norm,
-    );
+    // Buscar el ítem que corresponde a la referencia escaneada y que aún tiene cajas pendientes
+    const objetivo = (activo?.pedido_items || []).find((i) => {
+      if (i.estado === "completo") return false;
+      const { cajasListas } = itemInfo(i);
+      if (cajasListas) return false; // todas las cajas ya escaneadas
+      return (i.productos?.codigo_interno || "").trim().toUpperCase() === norm;
+    });
 
     if (!objetivo) {
       bip("error");
-      aviso(
-        `⚠ CAJA INCORRECTA: ${refEscaneada} no pertenece a este pedido o ya está alistada`,
-        "error",
+      // Ver si ya está completo
+      const yaCompleto = (activo?.pedido_items || []).find(
+        (i) =>
+          (i.productos?.codigo_interno || "").trim().toUpperCase() === norm &&
+          (i.estado === "completo" || itemInfo(i).cajasListas),
       );
+      if (yaCompleto) {
+        aviso(`⚠ ${norm} ya tiene todas las cajas escaneadas`, "error");
+      } else {
+        aviso(
+          `⚠ CAJA INCORRECTA: ${refEscaneada} no pertenece a este pedido`,
+          "error",
+        );
+      }
       return;
     }
 
     setCargando(true);
     try {
-      await api.patch(`/api/pedidos/items/${objetivo.id}`, {
-        estado: "completo",
-        referencia_escaneada: refEscaneada,
-      });
+      const { data: respuesta } = await api.patch(
+        `/api/pedidos/items/${objetivo.id}`,
+        {
+          estado: "completo",
+          referencia_escaneada: refEscaneada,
+          escaneo_caja: true,
+        },
+      );
       bip("ok");
-      aviso(`✓ ${objetivo.productos?.descripcion_corta || norm} alistada`);
+      aviso(respuesta.mensaje || "✓ Caja escaneada");
       await cargar();
     } catch (err) {
       bip("error");
@@ -112,9 +147,14 @@ export default function Operario() {
   };
 
   const progreso = (p) => {
-    const total = p.pedido_items?.length || 0;
-    const listos =
-      p.pedido_items?.filter((i) => i.estado === "completo").length || 0;
+    const items = p.pedido_items || [];
+    const total = items.length;
+    // Un ítem está listo si está completo O si tiene cajas listas y saldos pendientes entregados
+    const listos = items.filter((i) => {
+      if (i.estado === "completo") return true;
+      const info = itemInfo(i);
+      return info.cajasListas && info.cantSaldos === 0;
+    }).length;
     return {
       total,
       listos,
@@ -345,6 +385,7 @@ export default function Operario() {
 
       {vista === "detalle" && activo && (
         <div style={{ maxWidth: "780px" }}>
+          {/* Progreso */}
           <div
             style={{
               ...C.card,
@@ -398,24 +439,35 @@ export default function Operario() {
               onScan={onEscanear}
               disabled={cargando}
               label="Escanea la caja que recoges de la estiba"
-              hint="El sensor enviará Enter automáticamente — la caja se alista al instante"
+              hint="Cada escaneo descuenta 1 caja — escanea tantas veces como cajas recojas"
             />
           )}
 
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {(activo.pedido_items || []).map((item) => {
-              const listo = item.estado === "completo";
+              const info = itemInfo(item);
               const enEdicion = editando === item.id;
-              const cajaUnidades =
-                (item.cantidad_pedida || 0) - (item.cantidad_saldos || 0);
+              const progCajas =
+                info.cajasCompletas > 0
+                  ? Math.round(
+                      (info.cajasEscaneadas / info.cajasCompletas) * 100,
+                    )
+                  : 0;
+
               return (
                 <div
                   key={item.id}
                   style={{
                     ...C.card,
-                    borderColor: listo ? "rgba(0,255,135,0.35)" : "#E8E8E8",
-                    background: listo ? "rgba(0,255,135,0.04)" : "#FFFFFF",
-                    opacity: listo ? 0.75 : 1,
+                    borderColor: info.completo
+                      ? "rgba(0,255,135,0.35)"
+                      : info.cajasListas
+                        ? "rgba(0,200,255,0.35)"
+                        : "#E8E8E8",
+                    background: info.completo
+                      ? "rgba(0,255,135,0.04)"
+                      : "#FFFFFF",
+                    opacity: info.completo ? 0.75 : 1,
                   }}
                 >
                   <div
@@ -430,7 +482,7 @@ export default function Operario() {
                         style={{
                           fontSize: "14px",
                           fontWeight: 600,
-                          color: listo ? "#007A40" : "#0A0A0A",
+                          color: info.completo ? "#007A40" : "#0A0A0A",
                         }}
                       >
                         {item.productos?.descripcion_corta || item.descripcion}
@@ -444,15 +496,50 @@ export default function Operario() {
                         }}
                       >
                         Ref: {item.productos?.codigo_interno} · Pedido:{" "}
-                        {item.cantidad_pedida} u
-                        {item.cantidad_picking != null &&
-                          item.cantidad_picking !== item.cantidad_pedida && (
-                            <span style={{ color: "#854D0E" }}>
-                              {" "}
-                              · Alistado: {item.cantidad_picking}
-                            </span>
-                          )}
+                        {info.cantPedida} u
                       </div>
+
+                      {/* Progreso de cajas */}
+                      {info.cajasCompletas > 0 && (
+                        <div style={{ marginTop: "8px" }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              fontSize: "11px",
+                              color: "#888",
+                              marginBottom: "4px",
+                            }}
+                          >
+                            <span>
+                              📦 Cajas: {info.cajasEscaneadas}/
+                              {info.cajasCompletas} ({info.ue} u/caja)
+                            </span>
+                            <span>{progCajas}%</span>
+                          </div>
+                          <div
+                            style={{
+                              background: "#F0F0F0",
+                              borderRadius: "4px",
+                              height: "5px",
+                              overflow: "hidden",
+                            }}
+                          >
+                            <div
+                              style={{
+                                background: info.cajasListas
+                                  ? "#00FF87"
+                                  : "#3B82F6",
+                                height: "100%",
+                                width: `${progCajas}%`,
+                                transition: "width 0.3s",
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Saldos */}
                       <div
                         style={{
                           display: "flex",
@@ -461,36 +548,7 @@ export default function Operario() {
                           marginTop: "8px",
                         }}
                       >
-                        {cajaUnidades > 0 && (
-                          <span
-                            style={{
-                              background: "#F3F4F6",
-                              color: "#374151",
-                              padding: "3px 9px",
-                              borderRadius: "6px",
-                              fontSize: "11px",
-                              fontWeight: 600,
-                            }}
-                          >
-                            📦 Cajas: {item.cajas_bajadas || 0}/
-                            {item.cajas_total || 0} bajadas
-                          </span>
-                        )}
-                        {item.estiba_nombre && (
-                          <span
-                            style={{
-                              background: "#EEF2FF",
-                              color: "#3730A3",
-                              padding: "3px 9px",
-                              borderRadius: "6px",
-                              fontSize: "11px",
-                              fontWeight: 600,
-                            }}
-                          >
-                            🟦 Estiba: {item.estiba_nombre}
-                          </span>
-                        )}
-                        {item.cantidad_saldos > 0 && (
+                        {info.cantSaldos > 0 && (
                           <span
                             style={{
                               background: "#FEF9C3",
@@ -501,7 +559,21 @@ export default function Operario() {
                               fontWeight: 600,
                             }}
                           >
-                            Saldos: {item.cantidad_saldos} u
+                            🪣 Saldos: {info.cantSaldos} u pendientes
+                          </span>
+                        )}
+                        {item.cajasListas && info.cantSaldos > 0 && (
+                          <span
+                            style={{
+                              background: "#EEF2FF",
+                              color: "#3730A3",
+                              padding: "3px 9px",
+                              borderRadius: "6px",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                            }}
+                          >
+                            Esperando saldos
                           </span>
                         )}
                         {item.motivo_diferencia && (
@@ -520,8 +592,9 @@ export default function Operario() {
                         )}
                       </div>
                     </div>
+
                     <div style={{ flexShrink: 0, textAlign: "right" }}>
-                      {listo ? (
+                      {info.completo ? (
                         <span
                           style={{
                             color: "#00CC6A",
@@ -531,7 +604,23 @@ export default function Operario() {
                         >
                           ✓
                         </span>
-                      ) : (
+                      ) : info.cajasListas && info.cantSaldos > 0 ? (
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            color: "#3730A3",
+                            background: "#EEF2FF",
+                            borderRadius: "8px",
+                            padding: "8px 12px",
+                            display: "block",
+                          }}
+                        >
+                          Esperando
+                          <br />
+                          saldos
+                        </span>
+                      ) : !info.cajasListas ? (
                         <div
                           style={{
                             display: "flex",
@@ -541,7 +630,6 @@ export default function Operario() {
                         >
                           <span
                             style={{
-                              display: "inline-block",
                               fontSize: "11px",
                               fontWeight: 600,
                               color: "#854D0E",
@@ -550,7 +638,12 @@ export default function Operario() {
                               padding: "8px 12px",
                             }}
                           >
-                            Escanea para alistar
+                            Escanea
+                            <br />
+                            {info.cajasCompletas - info.cajasEscaneadas} caja
+                            {info.cajasCompletas - info.cajasEscaneadas !== 1
+                              ? "s"
+                              : ""}
                           </span>
                           {!cerrado && (
                             <button
@@ -574,7 +667,7 @@ export default function Operario() {
                             </button>
                           )}
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   </div>
 
@@ -624,7 +717,7 @@ export default function Operario() {
                             value={motivoEdit}
                             onChange={(e) => setMotivoEdit(e.target.value)}
                             rows={2}
-                            placeholder="Ej: solo se encontraron 8 unidades en la ubicación"
+                            placeholder="Ej: solo se encontraron 8 unidades en la estiba"
                             style={{
                               padding: "9px 12px",
                               border: "1px solid #E8E8E8",
