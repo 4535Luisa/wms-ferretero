@@ -274,12 +274,47 @@ const entregarSaldo = async (req, res) => {
     },
   });
 
+  // Marcar el ítem del pedido como completo si las cajas ya estaban listas
+  // Buscar el pedido_item correspondiente a este producto y operario
+  const { data: pedidosActivos } = await supabase
+    .from("pedidos")
+    .select(
+      "id, pedido_items(id, producto_id, estado, cantidad_saldos, unidades_escaneadas, cantidad_pedida, productos(unidad_empaque))",
+    )
+    .eq("operario_id", operario_id)
+    .in("estado", ["asignado", "en_picking", "en_saldos"]);
+
+  for (const pedido of pedidosActivos || []) {
+    for (const item of pedido.pedido_items || []) {
+      if (item.producto_id !== producto_id) continue;
+      if (item.estado === "completo") continue;
+
+      const ue = item.productos?.unidad_empaque || 1;
+      const cantSaldos = item.cantidad_saldos || 0;
+      const unidadesEscaneadas = item.unidades_escaneadas || 0;
+      const unidadesCajas = (item.cantidad_pedida || 0) - cantSaldos;
+      const cajasListas =
+        unidadesCajas <= 0 || unidadesEscaneadas >= unidadesCajas;
+
+      // Si las cajas ya están listas, marcar el ítem como completo
+      if (cajasListas) {
+        await supabase
+          .from("pedido_items")
+          .update({
+            estado: "completo",
+            cantidad_picking: unidadesEscaneadas + cantidad,
+          })
+          .eq("id", item.id);
+      }
+    }
+  }
+
   // Notificar al operario
   await supabase.from("notificaciones").insert({
     usuario_id: operario_id,
     tipo: "saldo_entregado",
-    titulo: "Saldo listo",
-    mensaje: `${cantidad} unidades listas para recoger en saldos`,
+    titulo: "Saldo listo para recoger",
+    mensaje: `${cantidad} unidades de saldos listas — ya puedes cerrar el pedido si todo está alistado`,
     datos: { producto_id, cantidad },
   });
 
