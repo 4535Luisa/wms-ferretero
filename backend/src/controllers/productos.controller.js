@@ -4,87 +4,83 @@ const { sendServerError } = require("../utils/errors");
 const buscarProducto = async (req, res) => {
   const { referencia } = req.query;
   if (!referencia)
-    return res.status(400).json({ error: "Referencia requerida" });
+    return res.status(400).json({ error: "referencia requerida" });
 
   const { data, error } = await supabase
     .from("productos")
     .select(
-      "id, codigo_interno, descripcion_corta, unidad_empaque, unidad_base",
+      "id, codigo_interno, descripcion_corta, unidad_empaque, codigo_barras, familia",
     )
-    .eq("codigo_interno", referencia.trim())
+    .or(
+      `codigo_interno.ilike.${referencia.trim()},codigo_barras.eq.${referencia.trim()}`,
+    )
     .eq("activo", true)
     .single();
 
   if (error || !data)
     return res.status(404).json({ error: "Producto no encontrado" });
+  return res.json(data);
+};
 
+const buscarPorBarras = async (req, res) => {
+  const { codigo_barras } = req.query;
+  if (!codigo_barras)
+    return res.status(400).json({ error: "codigo_barras requerido" });
+
+  const { data, error } = await supabase
+    .from("productos")
+    .select(
+      "id, codigo_interno, descripcion_corta, unidad_empaque, codigo_barras",
+    )
+    .eq("codigo_barras", codigo_barras.trim())
+    .eq("activo", true)
+    .single();
+
+  if (error || !data)
+    return res.status(404).json({ error: "Producto no encontrado" });
   return res.json(data);
 };
 
 const listarProductos = async (req, res) => {
-  const { buscar } = req.query;
-  const lim = Math.min(Number(req.query.limit) || 100, 500);
-  const off = Math.max(Number(req.query.offset) || 0, 0);
-
-  let query = supabase
+  const { data, error } = await supabase
     .from("productos")
     .select(
-      "id, codigo_interno, descripcion_corta, unidad_empaque, unidad_base",
+      "id, codigo_interno, descripcion_corta, unidad_empaque, codigo_barras, familia",
     )
     .eq("activo", true)
-    .order("codigo_interno")
-    .range(off, off + lim - 1);
-
-  if (buscar) {
-    const t = String(buscar)
-      .replace(/[,()%]/g, "")
-      .trim();
-    if (t)
-      query = query.or(
-        `codigo_interno.ilike.%${t}%,descripcion_corta.ilike.%${t}%`,
-      );
-  }
-
-  const { data, error } = await query;
+    .order("codigo_interno");
   if (error) return sendServerError(res, error, req);
-  return res.json(data);
+  return res.json(data || []);
 };
 
 const historialProducto = async (req, res) => {
   const { id } = req.params;
 
-  const { data: producto } = await supabase
-    .from("productos")
-    .select(
-      "id, codigo_interno, descripcion_corta, unidad_empaque, unidad_base",
-    )
-    .eq("id", id)
-    .single();
+  const [invRes, bitacoraRes] = await Promise.all([
+    supabase
+      .from("inventario")
+      .select(
+        "id, cantidad_disponible, cantidad_comprometida, ubicacion_id, bodega_id, ubicaciones(codigo), bodegas(codigo, nombre)",
+      )
+      .eq("producto_id", id),
+    supabase
+      .from("bitacora")
+      .select(
+        "id, accion, valores_antes, valores_despues, created_at, usuarios(nombre)",
+      )
+      .eq("tabla", "inventario")
+      .order("created_at", { ascending: false })
+      .limit(50),
+  ]);
 
-  if (!producto)
-    return res.status(404).json({ error: "Producto no encontrado" });
-
-  const { data: movimientos, error } = await supabase
-    .from("bitacora")
-    .select("*, usuarios(nombre)")
-    .eq("registro_id", id)
-    .order("created_at", { ascending: false })
-    .limit(100);
-
-  if (error) return sendServerError(res, error, req);
-
-  const { data: inventario } = await supabase
-    .from("inventario")
-    .select("*, ubicaciones(codigo), bodegas(nombre, codigo)")
-    .eq("producto_id", id);
-
-  return res.json({ producto, movimientos, inventario });
+  return res.json({
+    inventario: invRes.data || [],
+    movimientos: bitacoraRes.data || [],
+  });
 };
 
-// Inventario general: todos los productos con stock, con bodega y ubicación.
-// Accesible para todos los roles excepto operario.
 const inventarioGeneral = async (req, res) => {
-  // Query directa sin RPC — resuelve ubicaciones en consultas separadas
+  // Query directa — resuelve ubicaciones en consultas separadas
   const { data: rows, error } = await supabase
     .from("inventario")
     .select(
@@ -134,26 +130,6 @@ const inventarioGeneral = async (req, res) => {
   res.setHeader("Pragma", "no-cache");
   res.setHeader("Expires", "0");
   return res.json(resultado);
-};
-
-const buscarPorBarras = async (req, res) => {
-  const { codigo_barras } = req.query;
-  if (!codigo_barras)
-    return res.status(400).json({ error: "codigo_barras requerido" });
-
-  const { data, error } = await supabase
-    .from("productos")
-    .select(
-      "id, codigo_interno, descripcion_corta, unidad_empaque, codigo_barras",
-    )
-    .eq("codigo_barras", codigo_barras.trim())
-    .eq("activo", true)
-    .single();
-
-  if (error || !data)
-    return res.status(404).json({ error: "Producto no encontrado" });
-
-  return res.json(data);
 };
 
 module.exports = {
