@@ -20,7 +20,9 @@ export default function InventarioGeneral() {
   const cargar = useCallback(async () => {
     setCargando(true);
     try {
-      const { data } = await api.get("/api/productos/inventario-general");
+      const { data } = await api.get(
+        `/api/productos/inventario-general?_t=${Date.now()}`,
+      );
       setInventario(data);
     } catch (err) {
       console.error(err);
