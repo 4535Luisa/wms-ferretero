@@ -32,10 +32,22 @@ const app = express();
 // IP real del cliente en vez de la del proxy.
 app.set("trust proxy", 1);
 
+// Deshabilitar ETag globalmente para evitar respuestas 304 que ocultan
+// cambios en el inventario (ubicaciones, comprometido, etc.)
+app.set("etag", false);
+
 app.use(helmet());
 app.use(cors(construirCorsOptions()));
 app.use(express.json({ limit: "1mb" }));
 app.use(requestLogger);
+
+// Anti-caché para todos los endpoints de la API
+app.use("/api", (req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  next();
+});
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok", proyecto: "WMS Ferretero" });
@@ -48,7 +60,7 @@ app.get("/test-supabase", async (req, res) => {
   res.json({ conexion: "ok", mensaje: "Supabase conectado correctamente" });
 });
 
-// Rate limiting: límite estricto en login (anti fuerza bruta) y general en /api.
+// Rate limiting
 app.use("/api", apiLimiter);
 app.use("/api/auth/login", authLimiter);
 
@@ -71,7 +83,6 @@ app.use("/api/devoluciones", authMiddleware, devolucionesRoutes);
 app.use("/api/reportes", authMiddleware, reportesRoutes);
 app.use("/api/kits", authMiddleware, kitsRoutes);
 
-// Rutas no encontradas + manejador de errores global (siempre al final).
 app.use(notFoundHandler);
 app.use(errorHandler);
 
