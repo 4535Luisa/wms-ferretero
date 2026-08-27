@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Layout from "../components/Layout";
 import ScanInput, { bip } from "../components/ScanInput";
 import api from "../services/api";

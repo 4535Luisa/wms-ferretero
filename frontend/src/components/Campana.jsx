@@ -18,16 +18,18 @@ function hace(fecha) {
 // Resuelve la ruta de destino según el tipo de notificación
 function resolverRuta(n) {
   const tipo = n.tipo || "";
+  const pedidoId = n.datos?.pedido_id || "";
+  const param = pedidoId ? `?pedido=${pedidoId}` : "";
   switch (tipo) {
     case "pedido_asignado":
-      return "/operario";
+      return `/operario${param}`;
     case "pedido_por_verificar":
     case "pedido_cerrado":
-      return "/admin/verificacion";
+      return `/admin/verificacion${param}`;
     case "pedido_facturado":
-      return "/admin/verificacion";
+      return `/admin/verificacion${param}`;
     case "saldo_entregado":
-      return "/operario";
+      return `/operario${param}`;
     default:
       return null;
   }

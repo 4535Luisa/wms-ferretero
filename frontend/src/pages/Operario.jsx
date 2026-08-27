@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
 import ScanInput, { bip } from "../components/ScanInput";
 import api from "../services/api";
@@ -40,6 +41,8 @@ export default function Operario() {
   const [editando, setEditando] = useState(null);
   const [cantidadEdit, setCantidadEdit] = useState("");
   const [motivoEdit, setMotivoEdit] = useState("");
+
+  const [searchParams] = useSearchParams();
 
   const cargar = async () => {
     try {
