@@ -284,28 +284,21 @@ const entregarSaldo = async (req, res) => {
     .eq("operario_id", operario_id)
     .in("estado", ["asignado", "en_picking", "en_saldos"]);
 
+  // Marcar el ítem como completo — Saldos ya entregó, el operario tiene todo
   for (const pedido of pedidosActivos || []) {
     for (const item of pedido.pedido_items || []) {
       if (item.producto_id !== producto_id) continue;
       if (item.estado === "completo") continue;
 
-      const ue = item.productos?.unidad_empaque || 1;
-      const cantSaldos = item.cantidad_saldos || 0;
       const unidadesEscaneadas = item.unidades_escaneadas || 0;
-      const unidadesCajas = (item.cantidad_pedida || 0) - cantSaldos;
-      const cajasListas =
-        unidadesCajas <= 0 || unidadesEscaneadas >= unidadesCajas;
 
-      // Si las cajas ya están listas, marcar el ítem como completo
-      if (cajasListas) {
-        await supabase
-          .from("pedido_items")
-          .update({
-            estado: "completo",
-            cantidad_picking: unidadesEscaneadas + cantidad,
-          })
-          .eq("id", item.id);
-      }
+      await supabase
+        .from("pedido_items")
+        .update({
+          estado: "completo",
+          cantidad_picking: unidadesEscaneadas + cantidad,
+        })
+        .eq("id", item.id);
     }
   }
 
