@@ -25,17 +25,10 @@ const modulos = [
     activo: true,
   },
   {
-    path: "/admin/despacho",
-    icon: "🚚",
-    titulo: "Despacho",
-    descripcion: "Registrar salida de pedidos con datos del transportista",
-    activo: true,
-  },
-  {
-    path: "/admin/devoluciones",
-    icon: "↩",
-    titulo: "Devoluciones",
-    descripcion: "Registrar devoluciones de cliente y proveedor",
+    path: "/admin/ajustes",
+    icon: "⚖️",
+    titulo: "Ajustes",
+    descripcion: "Registrar averías, pérdidas y correcciones de inventario",
     activo: true,
   },
   {
