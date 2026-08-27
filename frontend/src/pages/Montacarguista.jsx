@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import Layout from "../components/Layout";
 import ScanInput, { bip } from "../components/ScanInput";
+import MontacarguistaUbicar from "../components/MontacarguistaUbicar";
+import MontacarguistaMover from "../components/MontacarguistaMover";
 import api from "../services/api";
 
 // Parsea ubicación física: letra=piso, número=estantería, -N=posición
