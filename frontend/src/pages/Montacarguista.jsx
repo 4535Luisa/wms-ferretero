@@ -377,6 +377,8 @@ export default function Montacarguista() {
           {[
             ["lista", "📦 Mis listas"],
             ["estibas", `🪵 Estibas (${estibas.length})`],
+            ["ubicar", "📥 Ubicar"],
+            ["mover", "🔄 Mover"],
           ].map(([v, label]) => (
             <button
               key={v}
@@ -400,6 +402,8 @@ export default function Montacarguista() {
         </div>
       )}
 
+      {vista === "ubicar" && <MontacarguistaUbicar />}
+      {vista === "mover" && <MontacarguistaMover />}
       {vista === "barrido" &&
         btn(
           "← Volver",
