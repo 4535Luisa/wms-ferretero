@@ -9,8 +9,12 @@ const {
   rechazarAjuste,
 } = require("../controllers/ajustes.controller");
 
-router.post("/", requireRoles("inventarios"), crearAjuste);
-router.get("/", requireRoles("inventarios", "gerente_logistico"), listarAjustes);
+router.post("/", requireRoles("inventarios", "administrador"), crearAjuste);
+router.get(
+  "/",
+  requireRoles("inventarios", "gerente_logistico", "administrador"),
+  listarAjustes,
+);
 router.patch(
   "/:id/aprobar",
   requireRoles("gerente_logistico"),

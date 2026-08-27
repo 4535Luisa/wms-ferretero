@@ -76,8 +76,7 @@ export default function Campana({ variant = "light" }) {
     }
   };
 
-  const colorIcono =
-    variant === "dark" ? "rgba(255,255,255,0.85)" : "#0A0A0A";
+  const colorIcono = variant === "dark" ? "rgba(255,255,255,0.85)" : "#0A0A0A";
 
   return (
     <div ref={ref} style={{ position: "relative" }}>
@@ -197,7 +196,14 @@ export default function Campana({ variant = "light" }) {
             {items.map((n) => (
               <button
                 key={n.id}
-                onClick={() => marcarLeida(n)}
+                onClick={() => {
+                  marcarLeida(n);
+                  const ruta = resolverRuta(n);
+                  if (ruta) {
+                    setAbierto(false);
+                    navigate(ruta);
+                  }
+                }}
                 style={{
                   width: "100%",
                   textAlign: "left",

@@ -69,13 +69,26 @@ const registrarMovimiento = async ({
 // GET /api/ubicaciones/pendientes-ubicar
 // Lista ítems de recepciones confirmadas sin ubicación asignada
 const pendientesUbicar = async (req, res) => {
-  const { data, error } = await supabase
+  // Excluir SALDOS — esa bodega no tiene ubicaciones físicas
+  const { data: bodegaSaldos } = await supabase
+    .from("bodegas")
+    .select("id")
+    .eq("codigo", "SALDOS")
+    .single();
+
+  let query = supabase
     .from("inventario")
     .select(
       "id, producto_id, bodega_id, cantidad_disponible, ubicacion_id, productos(codigo_interno, descripcion_corta, unidad_empaque), bodegas(codigo, nombre)",
     )
     .is("ubicacion_id", null)
     .gt("cantidad_disponible", 0);
+
+  if (bodegaSaldos?.id) {
+    query = query.neq("bodega_id", bodegaSaldos.id);
+  }
+
+  const { data, error } = await query;
 
   if (error) return sendServerError(res, error, req);
   return res.json(data || []);
@@ -204,29 +217,23 @@ const moverCaja = async (req, res) => {
     !caja_escaneada ||
     !ubicacion_destino_escaneada
   ) {
-    return res
-      .status(400)
-      .json({
-        error: "ubicacion_origen, caja y ubicacion_destino son requeridos",
-      });
+    return res.status(400).json({
+      error: "ubicacion_origen, caja y ubicacion_destino son requeridos",
+    });
   }
 
   // 1. Buscar ubicaciones
   const origen = await buscarUbicacion(ubicacion_origen_escaneada);
   if (!origen)
-    return res
-      .status(404)
-      .json({
-        error: `Ubicación origen no encontrada: ${ubicacion_origen_escaneada}`,
-      });
+    return res.status(404).json({
+      error: `Ubicación origen no encontrada: ${ubicacion_origen_escaneada}`,
+    });
 
   const destino = await buscarUbicacion(ubicacion_destino_escaneada);
   if (!destino)
-    return res
-      .status(404)
-      .json({
-        error: `Ubicación destino no encontrada: ${ubicacion_destino_escaneada}`,
-      });
+    return res.status(404).json({
+      error: `Ubicación destino no encontrada: ${ubicacion_destino_escaneada}`,
+    });
 
   if (origen.id === destino.id)
     return res
