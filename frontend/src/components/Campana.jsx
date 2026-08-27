@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
 const REFRESCO_MS = 20000;
 
-// Tiempo relativo compacto ("ahora", "5m", "2h", "3d").
 function hace(fecha) {
   if (!fecha) return "";
   const ms = Date.now() - new Date(fecha).getTime();
@@ -15,15 +15,30 @@ function hace(fecha) {
   return `${Math.floor(h / 24)}d`;
 }
 
-// Campana de notificaciones in-app. Hace polling al backend cada 20s, muestra el
-// conteo de no leídas y un panel desplegable. Marcar una (o todas) como leídas
-// actualiza el estado al instante. `variant` colorea el ícono según el fondo:
-// "dark" para la barra superior móvil, "light" para el header de escritorio.
+// Resuelve la ruta de destino según el tipo de notificación
+function resolverRuta(n) {
+  const tipo = n.tipo || "";
+  switch (tipo) {
+    case "pedido_asignado":
+      return "/operario";
+    case "pedido_por_verificar":
+    case "pedido_cerrado":
+      return "/admin/verificacion";
+    case "pedido_facturado":
+      return "/admin/verificacion";
+    case "saldo_entregado":
+      return "/operario";
+    default:
+      return null;
+  }
+}
+
 export default function Campana({ variant = "light" }) {
   const [items, setItems] = useState([]);
   const [noLeidas, setNoLeidas] = useState(0);
   const [abierto, setAbierto] = useState(false);
   const ref = useRef(null);
+  const navigate = useNavigate();
 
   const cargar = useCallback(async () => {
     try {
@@ -31,19 +46,16 @@ export default function Campana({ variant = "light" }) {
       setItems(data.notificaciones || []);
       setNoLeidas(data.no_leidas || 0);
     } catch {
-      // Silencioso: un fallo de red puntual no debe romper el layout. El
-      // interceptor 401 ya gestiona el cierre de sesión por su cuenta.
+      // Silencioso
     }
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargar();
     const id = setInterval(cargar, REFRESCO_MS);
     return () => clearInterval(id);
   }, [cargar]);
 
-  // Cerrar el panel al hacer clic fuera.
   useEffect(() => {
     if (!abierto) return;
     const onClick = (e) => {
@@ -62,7 +74,7 @@ export default function Campana({ variant = "light" }) {
     try {
       await api.patch(`/api/notificaciones/${n.id}/leida`);
     } catch {
-      cargar(); // revertir al estado real si falló
+      cargar();
     }
   };
 
@@ -73,6 +85,15 @@ export default function Campana({ variant = "light" }) {
       await api.patch("/api/notificaciones/leer-todas");
     } catch {
       cargar();
+    }
+  };
+
+  const handleClick = (n) => {
+    marcarLeida(n);
+    const ruta = resolverRuta(n);
+    if (ruta) {
+      setAbierto(false);
+      navigate(ruta);
     }
   };
 
@@ -193,74 +214,87 @@ export default function Campana({ variant = "light" }) {
                 Sin notificaciones
               </div>
             )}
-            {items.map((n) => (
-              <button
-                key={n.id}
-                onClick={() => {
-                  marcarLeida(n);
-                  const ruta = resolverRuta(n);
-                  if (ruta) {
-                    setAbierto(false);
-                    navigate(ruta);
-                  }
-                }}
-                style={{
-                  width: "100%",
-                  textAlign: "left",
-                  display: "flex",
-                  gap: "10px",
-                  padding: "12px 14px",
-                  border: "none",
-                  borderBottom: "1px solid #F5F5F5",
-                  cursor: n.leida ? "default" : "pointer",
-                  background: n.leida ? "#FFFFFF" : "rgba(0,255,135,0.06)",
-                  fontFamily: "Outfit,sans-serif",
-                }}
-              >
-                <span
+            {items.map((n) => {
+              const tieneRuta = !!resolverRuta(n);
+              return (
+                <button
+                  key={n.id}
+                  onClick={() => handleClick(n)}
                   style={{
-                    width: "8px",
-                    height: "8px",
-                    borderRadius: "50%",
-                    marginTop: "5px",
-                    flexShrink: 0,
-                    background: n.leida ? "transparent" : "#00FF87",
-                  }}
-                />
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span
-                    style={{
-                      display: "block",
-                      fontSize: "13px",
-                      fontWeight: 600,
-                      color: "#0A0A0A",
-                    }}
-                  >
-                    {n.titulo}
-                  </span>
-                  <span
-                    style={{
-                      display: "block",
-                      fontSize: "12px",
-                      color: "#666",
-                      marginTop: "2px",
-                    }}
-                  >
-                    {n.mensaje}
-                  </span>
-                </span>
-                <span
-                  style={{
-                    fontSize: "11px",
-                    color: "#AAA",
-                    flexShrink: 0,
-                    whiteSpace: "nowrap",
+                    width: "100%",
+                    textAlign: "left",
+                    display: "flex",
+                    gap: "10px",
+                    padding: "12px 14px",
+                    border: "none",
+                    borderBottom: "1px solid #F5F5F5",
+                    cursor: tieneRuta
+                      ? "pointer"
+                      : n.leida
+                        ? "default"
+                        : "pointer",
+                    background: n.leida ? "#FFFFFF" : "rgba(0,255,135,0.06)",
+                    fontFamily: "Outfit,sans-serif",
                   }}
                 >
-                  {hace(n.created_at)}
-                </span>
-              </button>
-            ))}
+                  <span
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "50%",
+                      marginTop: "5px",
+                      flexShrink: 0,
+                      background: n.leida ? "transparent" : "#00FF87",
+                    }}
+                  />
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span
+                      style={{
+                        display: "block",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        color: "#0A0A0A",
+                      }}
+                    >
+                      {n.titulo}
+                    </span>
+                    <span
+                      style={{
+                        display: "block",
+                        fontSize: "12px",
+                        color: "#666",
+                        marginTop: "2px",
+                      }}
+                    >
+                      {n.mensaje}
+                    </span>
+                    {tieneRuta && (
+                      <span
+                        style={{
+                          display: "block",
+                          fontSize: "11px",
+                          color: "#00CC6A",
+                          marginTop: "4px",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Ir →
+                      </span>
+                    )}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      color: "#AAA",
+                      flexShrink: 0,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {hace(n.created_at)}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
