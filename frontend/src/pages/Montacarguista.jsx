@@ -4,7 +4,6 @@ import Layout from "../components/Layout";
 import ScanInput, { bip } from "../components/ScanInput";
 import MontacarguistaUbicar from "../components/MontacarguistaUbicar";
 import MontacarguistaMover from "../components/MontacarguistaMover";
-import MontacarguistaCrearUbicacion from "../components/MontacarguistaCrearUbicacion";
 import api from "../services/api";
 
 // Parsea ubicación física: letra=piso, número=estantería, -N=posición
@@ -380,7 +379,6 @@ export default function Montacarguista() {
             ["estibas", `🪵 Estibas (${estibas.length})`],
             ["ubicar", "📥 Ubicar"],
             ["mover", "🔄 Mover"],
-            ["nueva-ubic", "➕ Nueva ubicación"],
           ].map(([v, label]) => (
             <button
               key={v}
@@ -406,7 +404,6 @@ export default function Montacarguista() {
 
       {vista === "ubicar" && <MontacarguistaUbicar />}
       {vista === "mover" && <MontacarguistaMover />}
-      {vista === "nueva-ubic" && <MontacarguistaCrearUbicacion />}
       {vista === "barrido" &&
         btn(
           "← Volver",
