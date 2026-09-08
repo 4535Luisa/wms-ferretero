@@ -25,10 +25,17 @@ const modulos = [
     activo: true,
   },
   {
-    path: "/admin/ajustes",
-    icon: "⚖️",
-    titulo: "Ajustes",
-    descripcion: "Registrar averías, pérdidas y correcciones de inventario",
+    path: "/admin/despacho",
+    icon: "🚚",
+    titulo: "Despacho",
+    descripcion: "Registrar salida de pedidos con datos del transportista",
+    activo: true,
+  },
+  {
+    path: "/admin/devoluciones",
+    icon: "↩",
+    titulo: "Devoluciones",
+    descripcion: "Registrar devoluciones de cliente y proveedor",
     activo: true,
   },
   {
@@ -57,6 +64,13 @@ const modulos = [
     icon: "📦",
     titulo: "Inventario",
     descripcion: "Stock actual por referencia, bodega y ubicación",
+    activo: true,
+  },
+  {
+    path: "/admin/productos",
+    icon: "🏷️",
+    titulo: "Productos",
+    descripcion: "Gestionar códigos de barras EAN14 por referencia",
     activo: true,
   },
 ];

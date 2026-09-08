@@ -27,7 +27,12 @@ const buscarPorBarras = async (req, res) => {
   if (!codigo_barras)
     return res.status(400).json({ error: "codigo_barras requerido" });
 
-  const cb = codigo_barras.trim();
+  let cb = codigo_barras.trim();
+
+  // Limpiar prefijo GS1 Application Identifier (01) que algunos scanners agregan
+  // Ej: "0117709898161151" → "17709898161151"
+  // Ej: "(01)17709898161151" → "17709898161151"
+  cb = cb.replace(/^\(01\)/, "").replace(/^01(\d{14})$/, "$1");
 
   // Buscar por EAN14 (caja master) primero, luego por GTIN13 (unidad individual)
   const { data, error } = await supabase

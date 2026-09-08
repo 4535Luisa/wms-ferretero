@@ -89,10 +89,18 @@ createRoot(document.getElementById("root")).render(
             }
           />
           <Route
-            path="/admin/ajustes"
+            path="/admin/despacho"
             element={
               <PrivateRoute roles={ADMIN}>
-                <Inventarios />
+                <Despacho />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/admin/devoluciones"
+            element={
+              <PrivateRoute roles={ADMIN}>
+                <Devoluciones />
               </PrivateRoute>
             }
           />

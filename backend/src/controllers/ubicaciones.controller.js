@@ -217,23 +217,29 @@ const moverCaja = async (req, res) => {
     !caja_escaneada ||
     !ubicacion_destino_escaneada
   ) {
-    return res.status(400).json({
-      error: "ubicacion_origen, caja y ubicacion_destino son requeridos",
-    });
+    return res
+      .status(400)
+      .json({
+        error: "ubicacion_origen, caja y ubicacion_destino son requeridos",
+      });
   }
 
   // 1. Buscar ubicaciones
   const origen = await buscarUbicacion(ubicacion_origen_escaneada);
   if (!origen)
-    return res.status(404).json({
-      error: `Ubicación origen no encontrada: ${ubicacion_origen_escaneada}`,
-    });
+    return res
+      .status(404)
+      .json({
+        error: `Ubicación origen no encontrada: ${ubicacion_origen_escaneada}`,
+      });
 
   const destino = await buscarUbicacion(ubicacion_destino_escaneada);
   if (!destino)
-    return res.status(404).json({
-      error: `Ubicación destino no encontrada: ${ubicacion_destino_escaneada}`,
-    });
+    return res
+      .status(404)
+      .json({
+        error: `Ubicación destino no encontrada: ${ubicacion_destino_escaneada}`,
+      });
 
   if (origen.id === destino.id)
     return res
@@ -477,6 +483,43 @@ const resolverEscaneado = async (req, res) => {
     .json({ error: "Código no reconocido como ubicación ni como producto" });
 };
 
+// POST /api/ubicaciones/crear
+const crearUbicacion = async (req, res) => {
+  const { codigo, codigo_barras, bodega_id, tipo = "picking" } = req.body || {};
+  if (!codigo || !bodega_id)
+    return res.status(400).json({ error: "codigo y bodega_id son requeridos" });
+
+  const { data: existe } = await supabase
+    .from("ubicaciones")
+    .select("id")
+    .eq("codigo", codigo.toLowerCase())
+    .eq("bodega_id", bodega_id)
+    .single();
+
+  if (existe)
+    return res
+      .status(409)
+      .json({ error: `La ubicacion ${codigo} ya existe en esta bodega` });
+
+  const { data, error } = await supabase
+    .from("ubicaciones")
+    .insert({
+      codigo: codigo.toLowerCase(),
+      codigo_barras: codigo_barras || `UB-${codigo.toLowerCase()}`,
+      bodega_id,
+      tipo,
+      activa: true,
+    })
+    .select()
+    .single();
+
+  if (error) return sendServerError(res, error, req);
+  return res.json({
+    data,
+    mensaje: `Ubicacion ${codigo} creada correctamente`,
+  });
+};
+
 module.exports = {
   pendientesUbicar,
   ubicarCaja,
@@ -484,4 +527,5 @@ module.exports = {
   moverUbicacion,
   listarMovimientos,
   resolverEscaneado,
+  crearUbicacion,
 };

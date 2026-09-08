@@ -8,6 +8,7 @@ const {
   moverUbicacion,
   listarMovimientos,
   resolverEscaneado,
+  crearUbicacion,
 } = require("../controllers/ubicaciones.controller");
 
 const MONTACARGUISTA = "montacarguista";
@@ -31,5 +32,7 @@ router.get(
   listarMovimientos,
 );
 router.get("/resolver", requireRoles(MONTACARGUISTA, ADMIN), resolverEscaneado);
+
+router.post("/crear", requireRoles(MONTACARGUISTA, ADMIN), crearUbicacion);
 
 module.exports = router;
