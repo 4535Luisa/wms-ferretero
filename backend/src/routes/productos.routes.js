@@ -6,6 +6,7 @@ const {
   listarProductos,
   historialProducto,
   inventarioGeneral,
+  actualizarCodigoBarras,
 } = require("../controllers/productos.controller");
 const { requireRoles } = require("../middlewares/auth.middleware");
 
@@ -28,5 +29,11 @@ router.get(
 );
 router.get("/", listarProductos);
 router.get("/:id/historial", historialProducto);
+
+router.patch(
+  "/:id/codigo-barras",
+  requireRoles("administrador", "inventarios"),
+  actualizarCodigoBarras,
+);
 
 module.exports = router;
