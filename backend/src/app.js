@@ -13,13 +13,8 @@ const saldosRoutes = require("./routes/saldos.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
 const notificacionesRoutes = require("./routes/notificaciones.routes");
 const verificacionRoutes = require("./routes/verificacion.routes");
-const despachoRoutes = require("./routes/despacho.routes");
 const ajustesRoutes = require("./routes/ajustes.routes");
-const trasladosRoutes = require("./routes/traslados.routes");
-const conteosRoutes = require("./routes/conteos.routes");
-const devolucionesRoutes = require("./routes/devoluciones.routes");
 const reportesRoutes = require("./routes/reportes.routes");
-const kitsRoutes = require("./routes/kits.routes");
 const ubicacionesRoutes = require("./routes/ubicaciones.routes");
 const { errorHandler, notFoundHandler } = require("./utils/errors");
 const { apiLimiter, authLimiter } = require("./middlewares/rateLimit");
@@ -28,12 +23,7 @@ const requestLogger = require("./middlewares/requestLogger");
 
 const app = express();
 
-// Detrás de un único proxy (Render/Railway): permite que el rate limit use la
-// IP real del cliente en vez de la del proxy.
 app.set("trust proxy", 1);
-
-// Deshabilitar ETag globalmente para evitar respuestas 304 que ocultan
-// cambios en el inventario (ubicaciones, comprometido, etc.)
 app.set("etag", false);
 
 app.use(helmet());
@@ -41,7 +31,6 @@ app.use(cors(construirCorsOptions()));
 app.use(express.json({ limit: "1mb" }));
 app.use(requestLogger);
 
-// Anti-caché para todos los endpoints de la API
 app.use("/api", (req, res, next) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
   res.setHeader("Pragma", "no-cache");
@@ -60,7 +49,6 @@ app.get("/test-supabase", async (req, res) => {
   res.json({ conexion: "ok", mensaje: "Supabase conectado correctamente" });
 });
 
-// Rate limiting
 app.use("/api", apiLimiter);
 app.use("/api/auth/login", authLimiter);
 
@@ -74,14 +62,9 @@ app.use("/api/saldos", authMiddleware, saldosRoutes);
 app.use("/api/dashboard", authMiddleware, dashboardRoutes);
 app.use("/api/notificaciones", authMiddleware, notificacionesRoutes);
 app.use("/api/verificacion", authMiddleware, verificacionRoutes);
-app.use("/api/despacho", authMiddleware, despachoRoutes);
 app.use("/api/ajustes", authMiddleware, ajustesRoutes);
-app.use("/api/traslados", authMiddleware, trasladosRoutes);
 app.use("/api/ubicaciones", authMiddleware, ubicacionesRoutes);
-app.use("/api/conteos", authMiddleware, conteosRoutes);
-app.use("/api/devoluciones", authMiddleware, devolucionesRoutes);
 app.use("/api/reportes", authMiddleware, reportesRoutes);
-app.use("/api/kits", authMiddleware, kitsRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
