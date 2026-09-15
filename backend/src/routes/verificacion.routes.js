@@ -34,12 +34,12 @@ router.patch(
 
 router.post(
   "/:id/items/:itemId/diferencia",
-  requireRoles(ADMIN),
+  requireRoles("administrador"),
   registrarDiferencia,
 );
 router.post(
   "/:id/confirmar-diferencias",
-  requireRoles(ADMIN),
+  requireRoles("administrador"),
   confirmarConDiferencias,
 );
 
