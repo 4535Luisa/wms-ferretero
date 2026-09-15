@@ -10,8 +10,6 @@ const menuPorRol = {
     { path: "/admin/pedidos", label: "Pedidos", icon: "📋" },
     { path: "/admin/recepcion", label: "Recepciones", icon: "📥" },
     { path: "/admin/verificacion", label: "Verificación", icon: "✅" },
-    { path: "/admin/despacho", label: "Despacho", icon: "🚚" },
-    { path: "/admin/devoluciones", label: "Devoluciones", icon: "↩" },
     { path: "/admin/historial", label: "Historial", icon: "🔍" },
     { path: "/inventario", label: "Inventario", icon: "📦" },
   ],
@@ -29,12 +27,10 @@ const menuPorRol = {
     { path: "/gerente", label: "Dashboard", icon: "◼" },
     { path: "/gerente/reportes", label: "Indicadores", icon: "📊" },
     { path: "/inventario", label: "Inventario", icon: "📦" },
-    { path: "/kits", label: "Kits", icon: "🧩" },
   ],
   inventarios: [
     { path: "/inventarios", label: "Panel", icon: "◼" },
     { path: "/inventario", label: "Inventario", icon: "📦" },
-    { path: "/kits", label: "Kits", icon: "🧩" },
   ],
   facturacion: [
     { path: "/facturacion", label: "Por facturar", icon: "🧾" },

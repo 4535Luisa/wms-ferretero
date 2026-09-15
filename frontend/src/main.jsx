@@ -14,9 +14,6 @@ import Operario from "./pages/Operario";
 import Saldos from "./pages/Saldos";
 import JefeBodegaRecepcion from "./pages/JefeBodegaRecepcion";
 import Verificacion from "./pages/Verificacion";
-import Despacho from "./pages/Despacho";
-import Devoluciones from "./pages/Devoluciones";
-import Kits from "./pages/Kits";
 import Gerente from "./pages/Gerente";
 import Inventarios from "./pages/Inventarios";
 import Facturacion from "./pages/Facturacion";
@@ -88,23 +85,6 @@ createRoot(document.getElementById("root")).render(
               </PrivateRoute>
             }
           />
-          <Route
-            path="/admin/despacho"
-            element={
-              <PrivateRoute roles={ADMIN}>
-                <Despacho />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/admin/devoluciones"
-            element={
-              <PrivateRoute roles={ADMIN}>
-                <Devoluciones />
-              </PrivateRoute>
-            }
-          />
-
           {/* ── Montacarguista ── */}
           <Route
             path="/montacarguista"
