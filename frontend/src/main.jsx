@@ -28,7 +28,7 @@ createRoot(document.getElementById("root")).render(
         <Routes>
           <Route path="/login" element={<Login />} />
 
-          {/* ── Administrador ── */}
+          {/* Administrador */}
           <Route
             path="/admin"
             element={
@@ -85,7 +85,16 @@ createRoot(document.getElementById("root")).render(
               </PrivateRoute>
             }
           />
-          {/* ── Montacarguista ── */}
+          <Route
+            path="/admin/ajustes"
+            element={
+              <PrivateRoute roles={ADMIN}>
+                <Inventarios />
+              </PrivateRoute>
+            }
+          />
+
+          {/* Montacarguista */}
           <Route
             path="/montacarguista"
             element={
@@ -103,7 +112,7 @@ createRoot(document.getElementById("root")).render(
             }
           />
 
-          {/* ── Operario ── */}
+          {/* Operario */}
           <Route
             path="/operario"
             element={
@@ -113,7 +122,7 @@ createRoot(document.getElementById("root")).render(
             }
           />
 
-          {/* ── Saldos ── */}
+          {/* Saldos */}
           <Route
             path="/saldos"
             element={
@@ -123,7 +132,7 @@ createRoot(document.getElementById("root")).render(
             }
           />
 
-          {/* ── Gerente logístico ── */}
+          {/* Gerente logistico */}
           <Route
             path="/gerente"
             element={
@@ -157,17 +166,7 @@ createRoot(document.getElementById("root")).render(
             }
           />
 
-          {/* ── Kits ── */}
-          <Route
-            path="/kits"
-            element={
-              <PrivateRoute roles={["inventarios", "gerente_logistico"]}>
-                <Kits />
-              </PrivateRoute>
-            }
-          />
-
-          {/* ── Inventarios ── */}
+          {/* Inventarios */}
           <Route
             path="/inventarios"
             element={
@@ -193,7 +192,7 @@ createRoot(document.getElementById("root")).render(
             }
           />
 
-          {/* ── Facturación ── */}
+          {/* Facturacion */}
           <Route
             path="/facturacion"
             element={
@@ -211,7 +210,7 @@ createRoot(document.getElementById("root")).render(
             }
           />
 
-          {/* ── Inventario general (todos excepto operario) ── */}
+          {/* Inventario general */}
           <Route
             path="/inventario"
             element={
