@@ -5,11 +5,20 @@ const { requireRoles } = authMiddleware;
 const {
   login,
   logout,
+  cambiarPassword,
+  obtenerSesiones,
   crearUsuarios,
 } = require("../controllers/auth.controller");
 
 router.post("/login", login);
-router.post("/logout", logout);
+router.post("/logout", authMiddleware, logout);
+router.post("/cambiar-password", authMiddleware, cambiarPassword);
+router.get(
+  "/sesiones",
+  authMiddleware,
+  requireRoles("administrador"),
+  obtenerSesiones,
+);
 router.post(
   "/crear-usuarios",
   authMiddleware,

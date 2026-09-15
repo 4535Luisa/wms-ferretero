@@ -580,7 +580,14 @@ const listarOperarios = async (req, res) => {
 
 const facturarPedido = async (req, res) => {
   const { id } = req.params;
+  const { numero_factura } = req.body || {};
   const usuario_id = req.usuario?.id || null;
+
+  if (!numero_factura?.trim()) {
+    return res
+      .status(400)
+      .json({ error: "El numero de factura es obligatorio" });
+  }
 
   const { data: pedido, error: errorPedido } = await supabase
     .from("pedidos")
@@ -592,33 +599,69 @@ const facturarPedido = async (req, res) => {
     return res.status(404).json({ error: "Pedido no encontrado" });
   if (pedido.facturado)
     return res.status(400).json({ error: "El pedido ya fue facturado" });
-  if (pedido.estado !== "despachado") {
+
+  // Aceptar pedidos en estado verificado o con_diferencia
+  if (!["verificado", "con_diferencia"].includes(pedido.estado)) {
     return res.status(400).json({
       error:
-        "Solo se pueden facturar pedidos despachados por el jefe de bodega",
+        "Solo se pueden facturar pedidos verificados por el jefe de bodega",
     });
   }
 
-  // El inventario ya se descontó físicamente cuando el montacarguista bajó las
-  // cajas (y cuando saldos entregó las unidades sueltas). La facturación NO
-  // vuelve a descontar para no duplicar el movimiento; solo deja trazabilidad.
+  // Verificar que el numero de factura no exista en otro pedido
+  const { data: duplicado } = await supabase
+    .from("pedidos")
+    .select("id, numero")
+    .eq("numero_factura", numero_factura.trim())
+    .single();
+
+  if (duplicado && duplicado.id !== id) {
+    return res.status(400).json({
+      error: `El numero de factura ${numero_factura} ya esta registrado en el pedido ${duplicado.numero}`,
+    });
+  }
+
   const resumenItems = (pedido.pedido_items || []).map((item) => ({
     producto_id: item.producto_id,
     referencia: item.productos?.codigo_interno,
     cantidad_facturada: item.cantidad_picking ?? item.cantidad_pedida,
     cantidad_pedida: item.cantidad_pedida,
-    // Trazabilidad de despacho parcial: deja constancia si la referencia quedó
-    // pendiente de despacho (no salió físicamente) al momento de facturar.
-    pendiente_despacho: !!item.pendiente_despacho,
   }));
+
+  // Descontar inventario segun cantidad real despachada
+  for (const item of pedido.pedido_items || []) {
+    const cantidadReal = item.cantidad_picking ?? item.cantidad_pedida;
+    if (cantidadReal > 0) {
+      const { data: invRows } = await supabase
+        .from("inventario")
+        .select("id, cantidad_disponible")
+        .eq("producto_id", item.producto_id)
+        .gt("cantidad_disponible", 0)
+        .order("cantidad_disponible", { ascending: false })
+        .limit(1);
+
+      for (const inv of invRows || []) {
+        await supabase
+          .from("inventario")
+          .update({
+            cantidad_disponible: Math.max(
+              0,
+              (inv.cantidad_disponible || 0) - cantidadReal,
+            ),
+          })
+          .eq("id", inv.id);
+      }
+    }
+  }
 
   const { error } = await supabase
     .from("pedidos")
     .update({
       facturado: true,
+      numero_factura: numero_factura.trim(),
       hora_facturacion: new Date().toISOString(),
       facturador_id: usuario_id,
-      estado: "despachado",
+      estado: "facturado",
     })
     .eq("id", id);
 
@@ -629,10 +672,11 @@ const facturarPedido = async (req, res) => {
     accion: "FACTURACION",
     tabla: "pedidos",
     registro_id: id,
-    valores_antes: { estado: "despachado", facturado: false },
+    valores_antes: { estado: pedido.estado, facturado: false },
     valores_despues: {
-      estado: "despachado",
+      estado: "facturado",
       facturado: true,
+      numero_factura: numero_factura.trim(),
       pedido_numero: pedido.numero,
       items: resumenItems,
     },
@@ -640,6 +684,7 @@ const facturarPedido = async (req, res) => {
 
   return res.json({
     mensaje: "Pedido facturado correctamente",
+    numero_factura: numero_factura.trim(),
   });
 };
 
@@ -1050,6 +1095,111 @@ const reabrirPedido = async (req, res) => {
   return res.json({ mensaje: "Pedido reabierto" });
 };
 
+const cancelarPedido = async (req, res) => {
+  const { id } = req.params;
+  const { motivo } = req.body;
+  const usuario_id = req.usuario?.id;
+
+  if (!motivo?.trim()) {
+    return res
+      .status(400)
+      .json({ error: "El motivo de cancelacion es obligatorio" });
+  }
+
+  const { data: pedido, error: errPedido } = await supabase
+    .from("pedidos")
+    .select(
+      "*, pedido_items(id, producto_id, cantidad_pedida), lista_picking_items:lista_picking_items(id, producto_id, cantidad_unidades, inventario_id, estado)",
+    )
+    .eq("id", id)
+    .single();
+
+  if (errPedido || !pedido)
+    return res.status(404).json({ error: "Pedido no encontrado" });
+
+  const estadosNoCancelables = ["facturado", "despachado", "cancelado"];
+  if (estadosNoCancelables.includes(pedido.estado)) {
+    return res.status(400).json({
+      error: `No se puede cancelar un pedido en estado ${pedido.estado}`,
+    });
+  }
+
+  // Liberar inventario comprometido
+  for (const item of pedido.pedido_items || []) {
+    const { data: invRows } = await supabase
+      .from("inventario")
+      .select("id, cantidad_comprometida")
+      .eq("producto_id", item.producto_id)
+      .gt("cantidad_comprometida", 0);
+
+    for (const inv of invRows || []) {
+      await supabase
+        .from("inventario")
+        .update({
+          cantidad_comprometida: Math.max(
+            0,
+            (inv.cantidad_comprometida || 0) - (item.cantidad_pedida || 0),
+          ),
+        })
+        .eq("id", inv.id);
+    }
+  }
+
+  // Si habia listas de picking asignadas, notificar al montacarguista
+  const listasIds = [
+    ...new Set(
+      (pedido.lista_picking_items || []).map((i) => i.lista_id).filter(Boolean),
+    ),
+  ];
+  if (pedido.montacarguista_id && listasIds.length > 0) {
+    await supabase.from("notificaciones").insert({
+      usuario_id: pedido.montacarguista_id,
+      tipo: "pedido_cancelado",
+      titulo: "Pedido cancelado",
+      mensaje: `El pedido ${pedido.numero} fue cancelado. Por favor devuelve las cajas ya bajadas a su ubicacion de origen.`,
+      datos: { pedido_id: id, pedido_numero: pedido.numero },
+    });
+  }
+
+  // Notificar al operario si habia uno asignado
+  if (pedido.operario_id) {
+    await supabase.from("notificaciones").insert({
+      usuario_id: pedido.operario_id,
+      tipo: "pedido_cancelado",
+      titulo: "Pedido cancelado",
+      mensaje: `El pedido ${pedido.numero} ha sido cancelado por el jefe de bodega.`,
+      datos: { pedido_id: id, pedido_numero: pedido.numero },
+    });
+  }
+
+  // Marcar el pedido como cancelado
+  await supabase
+    .from("pedidos")
+    .update({
+      estado: "cancelado",
+      cancelado_por: usuario_id,
+      motivo_cancelacion: motivo.trim(),
+      fecha_cancelacion: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  // Bitacora
+  await supabase.from("bitacora").insert({
+    usuario_id,
+    accion: "CANCELACION_PEDIDO",
+    tabla: "pedidos",
+    registro_id: id,
+    valores_antes: { estado: pedido.estado },
+    valores_despues: { estado: "cancelado", motivo: motivo.trim() },
+  });
+
+  return res.json({
+    mensaje: `Pedido ${pedido.numero} cancelado correctamente`,
+    notificaciones_enviadas:
+      (pedido.montacarguista_id ? 1 : 0) + (pedido.operario_id ? 1 : 0),
+  });
+};
+
 module.exports = {
   cargarCSV,
   listarPedidos,
@@ -1064,4 +1214,5 @@ module.exports = {
   actualizarItemOperario,
   cerrarPedido,
   reabrirPedido,
+  cancelarPedido,
 };

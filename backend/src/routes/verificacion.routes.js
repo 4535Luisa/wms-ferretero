@@ -7,6 +7,8 @@ const {
   detalleVerificacion,
   verificarItem,
   confirmarVerificacion,
+  registrarDiferencia,
+  confirmarConDiferencias,
 } = require("../controllers/verificacion.controller");
 
 router.get("/", requireRoles("administrador"), listarPorVerificar);
@@ -28,6 +30,17 @@ router.patch(
   requireRoles("administrador"),
   requireUuidParam("id"),
   confirmarVerificacion,
+);
+
+router.post(
+  "/:id/items/:itemId/diferencia",
+  requireRoles(ADMIN),
+  registrarDiferencia,
+);
+router.post(
+  "/:id/confirmar-diferencias",
+  requireRoles(ADMIN),
+  confirmarConDiferencias,
 );
 
 module.exports = router;

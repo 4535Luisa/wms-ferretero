@@ -15,6 +15,7 @@ const {
   actualizarItemOperario,
   cerrarPedido,
   reabrirPedido,
+  cancelarPedido,
 } = require("../controllers/pedidos.controller");
 
 const JEFE = "jefe_bodega";
@@ -41,6 +42,7 @@ router.patch("/:id/reasignar", requireRoles(JEFE, ADMIN), reasignarPedido);
 router.post("/tanda", requireRoles(JEFE, ADMIN), asignarTanda);
 router.patch("/:id/prioridad", requireRoles(JEFE, ADMIN), cambiarPrioridad);
 router.patch("/:id/reabrir", requireRoles(JEFE, ADMIN), reabrirPedido);
+router.patch("/:id/cancelar", requireRoles(JEFE, ADMIN), cancelarPedido);
 
 // Facturación
 router.patch("/:id/facturar", requireRoles("facturacion"), facturarPedido);

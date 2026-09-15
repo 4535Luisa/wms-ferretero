@@ -10,14 +10,20 @@ export default function Facturacion() {
   const [vista, setVista] = useState("lista");
   const [mensaje, setMensaje] = useState({ texto: "", tipo: "" });
   const [cargando, setCargando] = useState(false);
+  const [numeroFactura, setNumeroFactura] = useState("");
 
   // Cola "por facturar": pedidos ya despachados por el jefe que aún no se han
   // facturado. (El estado se mantiene en "despachado"; el flag `facturado`
   // distingue la cola del historial.)
   const cargarPedidos = async () => {
     try {
-      const { data } = await api.get("/api/pedidos?estado=despachado");
-      setPedidos(data.filter((p) => !p.facturado));
+      const [r1, r2] = await Promise.all([
+        api.get("/api/pedidos?estado=verificado"),
+        api.get("/api/pedidos?estado=con_diferencia"),
+      ]);
+      setPedidos(
+        [...(r1.data || []), ...(r2.data || [])].filter((p) => !p.facturado),
+      );
     } catch (err) {
       console.error(err);
     }
@@ -26,8 +32,8 @@ export default function Facturacion() {
   // Historial: pedidos despachados que ya fueron facturados.
   const cargarFacturados = async () => {
     try {
-      const { data } = await api.get("/api/pedidos?estado=despachado");
-      setFacturados(data.filter((p) => p.facturado));
+      const { data } = await api.get("/api/pedidos?estado=facturado");
+      setFacturados(data || []);
     } catch (err) {
       console.error(err);
     }
@@ -56,14 +62,21 @@ export default function Facturacion() {
 
   const marcarFacturado = async () => {
     if (!pedidoActivo) return;
+    if (!numeroFactura.trim()) {
+      mostrarMensaje("El numero de factura es obligatorio", "error");
+      return;
+    }
     setCargando(true);
     try {
-      await api.patch(`/api/pedidos/${pedidoActivo.id}/facturar`);
-      mostrarMensaje("✓ Pedido facturado — inventario actualizado");
+      await api.patch(`/api/pedidos/${pedidoActivo.id}/facturar`, {
+        numero_factura: numeroFactura.trim(),
+      });
+      mostrarMensaje("OK Pedido facturado — inventario actualizado");
       cargarPedidos();
       cargarFacturados();
       setVista("lista");
       setPedidoActivo(null);
+      setNumeroFactura("");
     } catch (err) {
       mostrarMensaje(
         "Error al facturar: " + (err.response?.data?.error || ""),
@@ -170,7 +183,9 @@ export default function Facturacion() {
                 textAlign: "center",
               }}
             >
-              <div style={{ fontSize: "40px", marginBottom: "1rem" }}>🧾</div>
+              <div style={{ fontSize: "40px", marginBottom: "1rem" }}>
+                Factura
+              </div>
               <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
                 No hay pedidos pendientes de facturar
               </p>
@@ -295,7 +310,9 @@ export default function Facturacion() {
                 textAlign: "center",
               }}
             >
-              <div style={{ fontSize: "40px", marginBottom: "1rem" }}>📚</div>
+              <div style={{ fontSize: "40px", marginBottom: "1rem" }}>
+                Historial
+              </div>
               <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
                 Aún no hay pedidos facturados
               </p>
@@ -491,7 +508,7 @@ export default function Facturacion() {
                           display: "inline-block",
                         }}
                       >
-                        ⚠ {item.motivo_diferencia}
+                        Aviso: {item.motivo_diferencia}
                       </p>
                     )}
                   </div>
@@ -557,7 +574,7 @@ export default function Facturacion() {
                   margin: "0 0 12px 0",
                 }}
               >
-                🚛 Despacho y transportista
+                Despacho Despacho y transportista
               </h4>
               <div
                 style={{
@@ -601,7 +618,7 @@ export default function Facturacion() {
                     display: "inline-block",
                   }}
                 >
-                  ⚠ Despacho parcial
+                  Aviso: Despacho parcial
                 </div>
               )}
             </div>
@@ -625,7 +642,7 @@ export default function Facturacion() {
                   margin: 0,
                 }}
               >
-                ✓ Pedido facturado
+                OK Pedido facturado
                 {pedidoActivo.hora_facturacion &&
                   ` — ${new Date(pedidoActivo.hora_facturacion).toLocaleString("es-CO", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}`}
               </p>
@@ -643,9 +660,38 @@ export default function Facturacion() {
             </div>
           ) : (
             <>
+              <div style={{ marginBottom: "12px" }}>
+                <label
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: "#374151",
+                    display: "block",
+                    marginBottom: "6px",
+                  }}
+                >
+                  Numero de factura SIESA *
+                </label>
+                <input
+                  value={numeroFactura}
+                  onChange={(e) => setNumeroFactura(e.target.value)}
+                  placeholder="Ej: FV-2024-001234"
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    border: "1.5px solid #E8E8E8",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    fontFamily: "DM Mono, monospace",
+                    boxSizing: "border-box",
+                  }}
+                  onFocus={(e) => (e.target.style.borderColor = "#0A0A0A")}
+                  onBlur={(e) => (e.target.style.borderColor = "#E8E8E8")}
+                />
+              </div>
               <button
                 onClick={marcarFacturado}
-                disabled={cargando}
+                disabled={cargando || !numeroFactura.trim()}
                 style={{
                   width: "100%",
                   background: "#00FF87",
@@ -662,7 +708,7 @@ export default function Facturacion() {
               >
                 {cargando
                   ? "Procesando..."
-                  : "✓ Marcar como facturado — descontar inventario"}
+                  : "OK Marcar como facturado — descontar inventario"}
               </button>
               <p
                 style={{
@@ -672,8 +718,8 @@ export default function Facturacion() {
                   marginTop: "8px",
                 }}
               >
-                Esta acción descuenta las unidades del inventario general y no se
-                puede deshacer
+                Esta acción descuenta las unidades del inventario general y no
+                se puede deshacer
               </p>
             </>
           )}

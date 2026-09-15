@@ -5,37 +5,37 @@ import Campana from "./Campana";
 
 const menuPorRol = {
   administrador: [
-    { path: "/admin", label: "Dashboard", icon: "◼" },
-    { path: "/admin/usuarios", label: "Usuarios", icon: "👷" },
-    { path: "/admin/pedidos", label: "Pedidos", icon: "📋" },
-    { path: "/admin/recepcion", label: "Recepciones", icon: "📥" },
-    { path: "/admin/verificacion", label: "Verificación", icon: "✅" },
-    { path: "/admin/historial", label: "Historial", icon: "🔍" },
-    { path: "/inventario", label: "Inventario", icon: "📦" },
+    { path: "/admin", label: "Dashboard", icon: "" },
+    { path: "/admin/usuarios", label: "Usuarios", icon: "Operario" },
+    { path: "/admin/pedidos", label: "Pedidos", icon: "Lista" },
+    { path: "/admin/recepcion", label: "Recepciones", icon: "Recibir" },
+    { path: "/admin/verificacion", label: "Verificación", icon: "Completado" },
+    { path: "/admin/historial", label: "Historial", icon: "Buscar" },
+    { path: "/inventario", label: "Inventario", icon: "Cajas" },
   ],
   montacarguista: [
-    { path: "/montacarguista", label: "Mis pedidos", icon: "◼" },
-    { path: "/montacarguista/estibas", label: "Estibas", icon: "🪵" },
-    { path: "/inventario", label: "Inventario", icon: "📦" },
+    { path: "/montacarguista", label: "Mis pedidos", icon: "" },
+    { path: "/montacarguista/estibas", label: "Estibas", icon: "Estibas" },
+    { path: "/inventario", label: "Inventario", icon: "Cajas" },
   ],
-  operario: [{ path: "/operario", label: "Mis pedidos", icon: "◼" }],
+  operario: [{ path: "/operario", label: "Mis pedidos", icon: "" }],
   saldos: [
-    { path: "/saldos", label: "Cola de saldos", icon: "◼" },
-    { path: "/inventario", label: "Inventario", icon: "📦" },
+    { path: "/saldos", label: "Cola de saldos", icon: "" },
+    { path: "/inventario", label: "Inventario", icon: "Cajas" },
   ],
   gerente_logistico: [
-    { path: "/gerente", label: "Dashboard", icon: "◼" },
-    { path: "/gerente/reportes", label: "Indicadores", icon: "📊" },
-    { path: "/inventario", label: "Inventario", icon: "📦" },
+    { path: "/gerente", label: "Dashboard", icon: "" },
+    { path: "/gerente/reportes", label: "Indicadores", icon: "Dashboard" },
+    { path: "/inventario", label: "Inventario", icon: "Cajas" },
   ],
   inventarios: [
-    { path: "/inventarios", label: "Panel", icon: "◼" },
-    { path: "/inventario", label: "Inventario", icon: "📦" },
+    { path: "/inventarios", label: "Panel", icon: "" },
+    { path: "/inventario", label: "Inventario", icon: "Cajas" },
   ],
   facturacion: [
-    { path: "/facturacion", label: "Por facturar", icon: "🧾" },
-    { path: "/facturacion/historial", label: "Facturados", icon: "✅" },
-    { path: "/inventario", label: "Inventario", icon: "📦" },
+    { path: "/facturacion", label: "Por facturar", icon: "Factura" },
+    { path: "/facturacion/historial", label: "Facturados", icon: "Completado" },
+    { path: "/inventario", label: "Inventario", icon: "Cajas" },
   ],
 };
 

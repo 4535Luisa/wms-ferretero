@@ -56,7 +56,8 @@ const verificarItem = async (req, res) => {
   // marcar ítems de un pedido ya verificado/despachado/facturado.
   if (item.pedidos?.estado !== "cerrado") {
     return res.status(400).json({
-      error: "Solo se pueden verificar pedidos cerrados pendientes de verificación",
+      error:
+        "Solo se pueden verificar pedidos cerrados pendientes de verificación",
     });
   }
 
@@ -165,9 +166,163 @@ const confirmarVerificacion = async (req, res) => {
   return res.json({ mensaje: "Pedido verificado y enviado a despacho" });
 };
 
+// El jefe registra una diferencia cuando falta una caja durante la verificacion
+const registrarDiferencia = async (req, res) => {
+  const { id, itemId } = req.params;
+  const { cantidad_real, motivo } = req.body || {};
+  const usuario_id = req.usuario?.id;
+
+  if (!cantidad_real || !motivo?.trim()) {
+    return res
+      .status(400)
+      .json({ error: "cantidad_real y motivo son requeridos" });
+  }
+
+  const { data: item } = await supabase
+    .from("pedido_items")
+    .select(
+      "id, pedido_id, producto_id, cantidad_pedida, cantidad_picking, pedidos(estado, numero)",
+    )
+    .eq("id", itemId)
+    .eq("pedido_id", id)
+    .single();
+
+  if (!item) return res.status(404).json({ error: "Item no encontrado" });
+  if (item.pedidos?.estado !== "cerrado") {
+    return res
+      .status(400)
+      .json({
+        error: "Solo se pueden registrar diferencias en pedidos cerrados",
+      });
+  }
+
+  const cantidadPedida = item.cantidad_pedida || 0;
+  const cantidadReal = Number(cantidad_real);
+
+  if (cantidadReal >= cantidadPedida) {
+    return res
+      .status(400)
+      .json({
+        error:
+          "La cantidad real no puede ser mayor o igual a la pedida si hay diferencia",
+      });
+  }
+
+  // Registrar la diferencia
+  await supabase.from("pedido_diferencias").insert({
+    pedido_id: id,
+    pedido_item_id: itemId,
+    producto_id: item.producto_id,
+    cantidad_pedida: cantidadPedida,
+    cantidad_real: cantidadReal,
+    motivo: motivo.trim(),
+    aprobado_por: usuario_id,
+    fecha_aprobacion: new Date().toISOString(),
+  });
+
+  // Actualizar el item con la cantidad real y marcar como verificado con diferencia
+  await supabase
+    .from("pedido_items")
+    .update({
+      cantidad_picking: cantidadReal,
+      verificado: true,
+      motivo_diferencia: motivo.trim(),
+    })
+    .eq("id", itemId);
+
+  // Cambiar estado del pedido a con_diferencia
+  await supabase
+    .from("pedidos")
+    .update({ estado: "con_diferencia" })
+    .eq("id", id)
+    .eq("estado", "cerrado");
+
+  await supabase.from("bitacora").insert({
+    usuario_id,
+    accion: "DIFERENCIA_VERIFICACION",
+    tabla: "pedido_items",
+    registro_id: itemId,
+    valores_antes: { cantidad_pedida: cantidadPedida },
+    valores_despues: {
+      cantidad_real: cantidadReal,
+      diferencia: cantidadPedida - cantidadReal,
+      motivo: motivo.trim(),
+      pedido_numero: item.pedidos?.numero,
+    },
+  });
+
+  return res.json({
+    mensaje: `Diferencia registrada: pedido ${cantidadPedida}, real ${cantidadReal}, diferencia ${cantidadPedida - cantidadReal}`,
+    aprobado_por: usuario_id,
+  });
+};
+
+// Confirma verificacion con diferencias — el jefe aprueba despachar con lo que hay
+const confirmarConDiferencias = async (req, res) => {
+  const { id } = req.params;
+  const usuario_id = req.usuario?.id;
+
+  const { data: pedido } = await supabase
+    .from("pedidos")
+    .select("id, numero, estado, pedido_items(id, verificado)")
+    .eq("id", id)
+    .single();
+
+  if (!pedido) return res.status(404).json({ error: "Pedido no encontrado" });
+  if (!["cerrado", "con_diferencia"].includes(pedido.estado)) {
+    return res
+      .status(400)
+      .json({
+        error: "El pedido debe estar cerrado o con diferencia para confirmar",
+      });
+  }
+
+  const items = pedido.pedido_items || [];
+  const pendientes = items.filter((i) => !i.verificado);
+  if (pendientes.length > 0) {
+    return res.status(400).json({
+      error: `Faltan ${pendientes.length} item(s) por verificar o registrar diferencia`,
+    });
+  }
+
+  await supabase
+    .from("pedidos")
+    .update({
+      estado: "verificado",
+      hora_verificacion: new Date().toISOString(),
+      verificado_por: usuario_id,
+    })
+    .eq("id", id);
+
+  // Notificar a facturacion
+  const { data: facturadores } = await supabase
+    .from("usuarios")
+    .select("id")
+    .eq("rol", "facturacion")
+    .eq("activo", true);
+
+  if (facturadores?.length > 0) {
+    await supabase.from("notificaciones").insert(
+      facturadores.map((f) => ({
+        usuario_id: f.id,
+        tipo: "pedido_por_verificar",
+        titulo: "Pedido listo para facturar",
+        mensaje: `El pedido ${pedido.numero} fue verificado y esta listo para facturar`,
+        datos: { pedido_id: id, pedido_numero: pedido.numero },
+      })),
+    );
+  }
+
+  return res.json({
+    mensaje: `Pedido ${pedido.numero} verificado y enviado a facturacion`,
+  });
+};
+
 module.exports = {
   listarPorVerificar,
   detalleVerificacion,
   verificarItem,
   confirmarVerificacion,
+  registrarDiferencia,
+  confirmarConDiferencias,
 };
