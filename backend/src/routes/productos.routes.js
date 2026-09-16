@@ -7,6 +7,7 @@ const {
   historialProducto,
   inventarioGeneral,
   actualizarCodigoBarras,
+  crearProducto,
 } = require("../controllers/productos.controller");
 const { requireRoles } = require("../middlewares/auth.middleware");
 
@@ -35,5 +36,7 @@ router.patch(
   requireRoles("administrador", "inventarios"),
   actualizarCodigoBarras,
 );
+
+router.post("/crear", requireRoles("administrador"), crearProducto);
 
 module.exports = router;

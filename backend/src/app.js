@@ -16,6 +16,7 @@ const verificacionRoutes = require("./routes/verificacion.routes");
 const ajustesRoutes = require("./routes/ajustes.routes");
 const reportesRoutes = require("./routes/reportes.routes");
 const ubicacionesRoutes = require("./routes/ubicaciones.routes");
+const alertasRoutes = require("./routes/alertas.routes");
 const { errorHandler, notFoundHandler } = require("./utils/errors");
 const { apiLimiter, authLimiter } = require("./middlewares/rateLimit");
 const { construirCorsOptions } = require("./utils/cors");
@@ -65,6 +66,7 @@ app.use("/api/verificacion", authMiddleware, verificacionRoutes);
 app.use("/api/ajustes", authMiddleware, ajustesRoutes);
 app.use("/api/ubicaciones", authMiddleware, ubicacionesRoutes);
 app.use("/api/reportes", authMiddleware, reportesRoutes);
+app.use("/api/alertas", authMiddleware, alertasRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

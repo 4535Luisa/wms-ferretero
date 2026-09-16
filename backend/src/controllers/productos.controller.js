@@ -164,6 +164,63 @@ const actualizarCodigoBarras = async (req, res) => {
   return res.json({ data, mensaje: "Código de barras actualizado" });
 };
 
+const crearProducto = async (req, res) => {
+  const { codigo_interno, descripcion_corta, unidad_empaque } = req.body || {};
+
+  if (
+    !codigo_interno?.trim() ||
+    !descripcion_corta?.trim() ||
+    !unidad_empaque
+  ) {
+    return res
+      .status(400)
+      .json({
+        error:
+          "codigo_interno, descripcion_corta y unidad_empaque son requeridos",
+      });
+  }
+
+  // Verificar que no existe
+  const { data: existe } = await supabase
+    .from("productos")
+    .select("id")
+    .eq("codigo_interno", codigo_interno.trim())
+    .single();
+
+  if (existe) {
+    return res
+      .status(409)
+      .json({
+        error: `El codigo interno ${codigo_interno} ya existe en el catalogo`,
+      });
+  }
+
+  const ue = Number(unidad_empaque);
+  if (!Number.isInteger(ue) || ue < 1) {
+    return res
+      .status(400)
+      .json({ error: "unidad_empaque debe ser un numero entero mayor a 0" });
+  }
+
+  const { data, error } = await supabase
+    .from("productos")
+    .insert({
+      codigo_interno: codigo_interno.trim().toUpperCase(),
+      descripcion_corta: descripcion_corta.trim().toUpperCase(),
+      unidad_empaque: ue,
+      minimo_saldos: Math.ceil(ue * 0.4),
+      activo: true,
+      sin_codigo_barras: true,
+    })
+    .select()
+    .single();
+
+  if (error) return sendServerError(res, error, req);
+  return res
+    .status(201)
+    .json({ data, mensaje: "Producto creado correctamente" });
+};
+
 module.exports = {
   buscarProducto,
   buscarPorBarras,
@@ -171,4 +228,5 @@ module.exports = {
   historialProducto,
   inventarioGeneral,
   actualizarCodigoBarras,
+  crearProducto,
 };

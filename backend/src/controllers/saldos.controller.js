@@ -311,7 +311,45 @@ const entregarSaldo = async (req, res) => {
     datos: { producto_id, cantidad },
   });
 
-  return res.json({ mensaje: "✓ Saldo entregado al operario" });
+  // Verificar si el stock de SALDOS bajo del minimo y hay pedidos activos
+  const { data: prodMinimo } = await supabase
+    .from("productos")
+    .select("codigo_interno, descripcion_corta, minimo_saldos")
+    .eq("id", producto_id)
+    .single();
+
+  if (prodMinimo?.minimo_saldos) {
+    const { data: invActual } = await supabase
+      .from("inventario")
+      .select("cantidad_disponible")
+      .eq("producto_id", producto_id)
+      .eq("bodega_id", bodegaSaldos.id)
+      .single();
+
+    const stockActual = invActual?.cantidad_disponible || 0;
+
+    if (stockActual < prodMinimo.minimo_saldos) {
+      const { data: montacarguistas } = await supabase
+        .from("usuarios")
+        .select("id")
+        .eq("rol", "montacarguista")
+        .eq("activo", true);
+
+      if (montacarguistas?.length > 0) {
+        await supabase.from("notificaciones").insert(
+          montacarguistas.map((m) => ({
+            usuario_id: m.id,
+            tipo: "requisicion_saldos",
+            titulo: "Requisicion de reposicion",
+            mensaje: `SALDOS necesita reposicion de ${prodMinimo.descripcion_corta} (${prodMinimo.codigo_interno}). Stock actual: ${stockActual} u. Minimo: ${prodMinimo.minimo_saldos} u.`,
+            datos: { producto_id, referencia: prodMinimo.codigo_interno },
+          })),
+        );
+      }
+    }
+  }
+
+  return res.json({ mensaje: "Saldo entregado al operario" });
 };
 
 // Cola antigua — mantener compatibilidad

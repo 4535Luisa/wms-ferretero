@@ -18,6 +18,8 @@ import Gerente from "./pages/Gerente";
 import Inventarios from "./pages/Inventarios";
 import Facturacion from "./pages/Facturacion";
 import InventarioGeneral from "./pages/InventarioGeneral";
+import GestionProductos from "./pages/GestionProductos";
+import Reportes from "./pages/Reportes";
 
 const ADMIN = ["administrador"];
 

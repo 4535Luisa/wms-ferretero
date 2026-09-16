@@ -6,6 +6,8 @@ const {
   filtros,
   movimientos,
   generarAlertasInventario,
+  tiempoAlistamiento,
+  referenciasMasDespachadas,
 } = require("../controllers/reportes.controller");
 
 router.get("/kpis", requireRoles("gerente_logistico"), kpis);
@@ -15,6 +17,17 @@ router.post(
   "/alertas",
   requireRoles("gerente_logistico"),
   generarAlertasInventario,
+);
+
+router.get(
+  "/tiempo-alistamiento",
+  requireRoles(ADMIN, GERENTE),
+  tiempoAlistamiento,
+);
+router.get(
+  "/referencias-despachadas",
+  requireRoles(ADMIN, GERENTE),
+  referenciasMasDespachadas,
 );
 
 module.exports = router;

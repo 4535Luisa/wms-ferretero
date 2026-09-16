@@ -176,6 +176,17 @@ const generarListasPicking = async (req, res) => {
       .single();
     if (error || !listaCreada) continue;
 
+    // Asignar wave_id por referencia — agrupa items de la misma referencia
+    // para que el montacarguista vea un solo item con el total de cajas
+    const waveMap = {};
+    let waveCounter = 1;
+    for (const item of lista.items) {
+      const key = item.producto_id + "|" + (item.ubicacion_id || "");
+      if (!waveMap[key])
+        waveMap[key] = "W" + String(waveCounter++).padStart(3, "0");
+      item.wave_id = waveMap[key];
+    }
+
     await supabase.from("lista_picking_items").insert(
       lista.items.map((item) => ({
         lista_id: listaCreada.id,
@@ -188,6 +199,7 @@ const generarListasPicking = async (req, res) => {
         cantidad_cajas: item.cantidad_cajas,
         cantidad_unidades: item.cantidad_unidades,
         destino_saldos: item.destino_saldos,
+        wave_id: item.wave_id,
         estado: "pendiente",
       })),
     );

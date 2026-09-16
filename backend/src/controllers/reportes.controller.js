@@ -6,7 +6,9 @@ const { sendServerError } = require("../utils/errors");
 // de una bodega lo permite). Resiliente: si una tabla de Fase 5 aún no existe,
 // su contador queda en 0 en vez de fallar.
 const kpis = async (req, res) => {
-  const bajo = Number.isFinite(Number(req.query.bajo)) ? Number(req.query.bajo) : 5;
+  const bajo = Number.isFinite(Number(req.query.bajo))
+    ? Number(req.query.bajo)
+    : 5;
   const alto = Number(req.query.alto) > 0 ? Number(req.query.alto) : 1000;
 
   const { data: pedidos, error } = await supabase
@@ -53,10 +55,7 @@ const kpis = async (req, res) => {
 
   // Info de productos para quiebres/sobrestock/productividad (acotada).
   const idsInfo = [
-    ...new Set([
-      ...quiebreIds.slice(0, 100),
-      ...sobreIds.slice(0, 100),
-    ]),
+    ...new Set([...quiebreIds.slice(0, 100), ...sobreIds.slice(0, 100)]),
   ];
   let prodInfo = {};
   if (idsInfo.length > 0) {
@@ -186,9 +185,13 @@ const movimientos = async (req, res) => {
     supabase.from("bodegas").select("id, codigo"),
     supabase.from("ubicaciones").select("id, bodega_id"),
   ]);
-  const uMap = Object.fromEntries((usuarios.data || []).map((u) => [u.id, u.nombre]));
+  const uMap = Object.fromEntries(
+    (usuarios.data || []).map((u) => [u.id, u.nombre]),
+  );
   const pMap = Object.fromEntries((productos.data || []).map((p) => [p.id, p]));
-  const bMap = Object.fromEntries((bodegas.data || []).map((b) => [b.id, b.codigo]));
+  const bMap = Object.fromEntries(
+    (bodegas.data || []).map((b) => [b.id, b.codigo]),
+  );
   const ubMap = Object.fromEntries(
     (ubicaciones.data || []).map((x) => [x.id, x.bodega_id]),
   );
@@ -241,7 +244,8 @@ const generarAlertasInventarioCore = async ({ bajo = 5, alto = 1000 } = {}) => {
 
   const disp = {};
   for (const r of inv || [])
-    disp[r.producto_id] = (disp[r.producto_id] || 0) + (r.cantidad_disponible || 0);
+    disp[r.producto_id] =
+      (disp[r.producto_id] || 0) + (r.cantidad_disponible || 0);
 
   const quiebre = Object.entries(disp)
     .filter(([, v]) => v <= bajo)
@@ -335,7 +339,9 @@ const generarAlertasInventarioCore = async ({ bajo = 5, alto = 1000 } = {}) => {
 // puede invocar manualmente o agendar (cron) sin spamear. Tope de 100 productos
 // por tipo (los más críticos).
 const generarAlertasInventario = async (req, res) => {
-  const bajo = Number.isFinite(Number(req.query.bajo)) ? Number(req.query.bajo) : 5;
+  const bajo = Number.isFinite(Number(req.query.bajo))
+    ? Number(req.query.bajo)
+    : 5;
   const alto = Number(req.query.alto) > 0 ? Number(req.query.alto) : 1000;
   try {
     return res.json(await generarAlertasInventarioCore({ bajo, alto }));
@@ -344,10 +350,120 @@ const generarAlertasInventario = async (req, res) => {
   }
 };
 
+// Reporte de tiempo de alistamiento por pedido y operario
+const tiempoAlistamiento = async (req, res) => {
+  const { fecha_desde, fecha_hasta } = req.query;
+
+  let query = supabase
+    .from("pedidos")
+    .select(
+      "id, numero, operario_id, estado, created_at, updated_at, hora_facturacion, usuarios!pedidos_operario_id_fkey(nombre)",
+    )
+    .in("estado", ["cerrado", "verificado", "facturado", "con_diferencia"])
+    .not("operario_id", "is", null)
+    .order("updated_at", { ascending: false })
+    .limit(200);
+
+  if (fecha_desde) query = query.gte("created_at", fecha_desde);
+  if (fecha_hasta) query = query.lte("created_at", fecha_hasta);
+
+  const { data, error } = await query;
+  if (error) return sendServerError(res, error, req);
+
+  const porOperario = {};
+  const detalle = [];
+
+  for (const p of data || []) {
+    const inicio = new Date(p.created_at);
+    const fin = new Date(p.updated_at);
+    const minutosAlistamiento = Math.round((fin - inicio) / 60000);
+
+    detalle.push({
+      pedido_numero: p.numero,
+      operario: p.usuarios?.nombre || "Desconocido",
+      operario_id: p.operario_id,
+      estado: p.estado,
+      inicio: p.created_at,
+      fin: p.updated_at,
+      minutos: minutosAlistamiento,
+    });
+
+    const uid = p.operario_id;
+    if (!porOperario[uid]) {
+      porOperario[uid] = {
+        operario: p.usuarios?.nombre || "Desconocido",
+        total_pedidos: 0,
+        tiempo_total_minutos: 0,
+        tiempos: [],
+      };
+    }
+    porOperario[uid].total_pedidos++;
+    porOperario[uid].tiempo_total_minutos += minutosAlistamiento;
+    porOperario[uid].tiempos.push(minutosAlistamiento);
+  }
+
+  // Calcular promedio por operario
+  const resumenOperario = Object.values(porOperario)
+    .map((op) => ({
+      ...op,
+      promedio_minutos: Math.round(op.tiempo_total_minutos / op.total_pedidos),
+    }))
+    .sort((a, b) => a.promedio_minutos - b.promedio_minutos);
+
+  return res.json({
+    total_pedidos: detalle.length,
+    por_operario: resumenOperario,
+    detalle,
+  });
+};
+
+// Reporte de referencias mas despachadas
+const referenciasMasDespachadas = async (req, res) => {
+  const { limit = 20, fecha_desde, fecha_hasta } = req.query;
+
+  let query = supabase
+    .from("pedido_items")
+    .select(
+      "producto_id, cantidad_picking, cantidad_pedida, productos(codigo_interno, descripcion_corta), pedidos(estado, created_at)",
+    )
+    .in("pedidos.estado", ["cerrado", "verificado", "facturado"]);
+
+  if (fecha_desde) query = query.gte("pedidos.created_at", fecha_desde);
+  if (fecha_hasta) query = query.lte("pedidos.created_at", fecha_hasta);
+
+  const { data, error } = await query;
+  if (error) return sendServerError(res, error, req);
+
+  const porProducto = {};
+  for (const item of data || []) {
+    const pid = item.producto_id;
+    if (!porProducto[pid]) {
+      porProducto[pid] = {
+        producto_id: pid,
+        referencia: item.productos?.codigo_interno || "—",
+        descripcion: item.productos?.descripcion_corta || "—",
+        total_unidades: 0,
+        total_pedidos: 0,
+      };
+    }
+    porProducto[pid].total_unidades +=
+      item.cantidad_picking || item.cantidad_pedida || 0;
+    porProducto[pid].total_pedidos++;
+  }
+
+  const ranking = Object.values(porProducto)
+    .sort((a, b) => b.total_unidades - a.total_unidades)
+    .slice(0, Number(limit));
+
+  return res.json({ total: ranking.length, referencias: ranking });
+};
+
 module.exports = {
   kpis,
   filtros,
   movimientos,
   generarAlertasInventario,
   generarAlertasInventarioCore,
+  tiempoAlistamiento,
+  referenciasMasDespachadas,
 };
