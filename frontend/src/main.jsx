@@ -95,6 +95,22 @@ createRoot(document.getElementById("root")).render(
               </PrivateRoute>
             }
           />
+          <Route
+            path="/admin/productos"
+            element={
+              <PrivateRoute roles={ADMIN}>
+                <GestionProductos />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/admin/reportes"
+            element={
+              <PrivateRoute roles={["administrador", "gerente_logistico"]}>
+                <Reportes />
+              </PrivateRoute>
+            }
+          />
 
           {/* Montacarguista */}
           <Route
