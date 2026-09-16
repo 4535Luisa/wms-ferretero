@@ -10,23 +10,30 @@ const {
   referenciasMasDespachadas,
 } = require("../controllers/reportes.controller");
 
-router.get("/kpis", requireRoles("gerente_logistico"), kpis);
-router.get("/filtros", requireRoles("gerente_logistico"), filtros);
-router.get("/movimientos", requireRoles("gerente_logistico"), movimientos);
+router.get("/kpis", requireRoles("gerente_logistico", "administrador"), kpis);
+router.get(
+  "/filtros",
+  requireRoles("gerente_logistico", "administrador"),
+  filtros,
+);
+router.get(
+  "/movimientos",
+  requireRoles("gerente_logistico", "administrador"),
+  movimientos,
+);
 router.post(
   "/alertas",
-  requireRoles("gerente_logistico"),
+  requireRoles("gerente_logistico", "administrador"),
   generarAlertasInventario,
 );
-
 router.get(
   "/tiempo-alistamiento",
-  requireRoles(ADMIN, GERENTE),
+  requireRoles("administrador", "gerente_logistico"),
   tiempoAlistamiento,
 );
 router.get(
   "/referencias-despachadas",
-  requireRoles(ADMIN, GERENTE),
+  requireRoles("administrador", "gerente_logistico"),
   referenciasMasDespachadas,
 );
 
