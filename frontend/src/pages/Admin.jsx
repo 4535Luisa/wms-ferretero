@@ -14,13 +14,13 @@ const modulos = [
     path: "/admin/recepcion",
     icon: "",
     titulo: "Recepciones",
-    descripcion: "Registrar mercancía que llega a bodega con escaneo",
+    descripcion: "Registrar mercancia que llega a bodega con escaneo",
     activo: true,
   },
   {
     path: "/admin/verificacion",
     icon: "",
-    titulo: "Verificación",
+    titulo: "Verificacion",
     descripcion: "Verificar pedidos antes de despachar",
     activo: true,
   },
@@ -56,14 +56,21 @@ const modulos = [
     path: "/inventario",
     icon: "",
     titulo: "Inventario",
-    descripcion: "Stock actual por referencia, bodega y ubicación",
+    descripcion: "Stock actual por referencia, bodega y ubicacion",
+    activo: true,
+  },
+  {
+    path: "/admin/reportes",
+    icon: "",
+    titulo: "Reportes",
+    descripcion: "KPIs, tiempo de alistamiento y errores de escaneo",
     activo: true,
   },
   {
     path: "/admin/productos",
     icon: "",
     titulo: "Productos",
-    descripcion: "Gestionar códigos de barras EAN14 por referencia",
+    descripcion: "Gestionar codigos de barras EAN14 por referencia",
     activo: true,
   },
 ];
@@ -74,7 +81,7 @@ export default function Admin() {
   return (
     <Layout
       titulo="Panel Administrador"
-      subtitulo="Selecciona un módulo para continuar"
+      subtitulo="Selecciona un modulo para continuar"
     >
       <div
         style={{
@@ -94,7 +101,6 @@ export default function Admin() {
               padding: "1.5rem",
               cursor: "pointer",
               transition: "all 0.15s",
-              position: "relative",
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.borderColor = "#00FF87";
@@ -106,9 +112,6 @@ export default function Admin() {
               e.currentTarget.style.boxShadow = "none";
             }}
           >
-            <div style={{ fontSize: "32px", marginBottom: "1rem" }}>
-              {mod.icon}
-            </div>
             <div
               style={{
                 fontFamily: "Bebas Neue, sans-serif",
