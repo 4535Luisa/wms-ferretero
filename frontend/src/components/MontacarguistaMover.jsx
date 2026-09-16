@@ -43,14 +43,14 @@ export default function MontacarguistaMover() {
         if (paso === "origen") {
           if (resolucion.tipo !== "ubicacion") {
             bip("error");
-            aviso("⚠ Escanea la etiqueta de la ubicación origen", "error");
+            aviso("Aviso: Escanea la etiqueta de la ubicación origen", "error");
             return;
           }
           bip("ok");
           setOrigen(resolucion.datos);
           setPaso("cajas");
           aviso(
-            `📍 Origen: ${resolucion.datos.codigo} — ahora escanea las cajas a mover`,
+            ` Origen: ${resolucion.datos.codigo} — ahora escanea las cajas a mover`,
           );
           return;
         }
@@ -60,7 +60,7 @@ export default function MontacarguistaMover() {
             if (cajasMovidas.length === 0) {
               bip("error");
               aviso(
-                "⚠ Escanea al menos una caja antes de indicar el destino",
+                "Aviso: Escanea al menos una caja antes de indicar el destino",
                 "error",
               );
               return;
@@ -68,7 +68,7 @@ export default function MontacarguistaMover() {
             setDestino(resolucion.datos);
             setPaso("destino");
             aviso(
-              `📍 Destino: ${resolucion.datos.codigo} — confirmando traslado...`,
+              ` Destino: ${resolucion.datos.codigo} — confirmando traslado...`,
             );
             // Ejecutar todos los movimientos
             let errores = 0;
@@ -92,8 +92,8 @@ export default function MontacarguistaMover() {
             });
             aviso(
               errores === 0
-                ? `✓ ${cajasMovidas.length} caja(s) movidas de ${origen.codigo} a ${resolucion.datos.codigo}`
-                : `⚠ ${errores} errores al mover`,
+                ? ` ${cajasMovidas.length} caja(s) movidas de ${origen.codigo} a ${resolucion.datos.codigo}`
+                : `Aviso: ${errores} errores al mover`,
               errores > 0 ? "error" : "ok",
             );
             return;
@@ -103,7 +103,7 @@ export default function MontacarguistaMover() {
             bip("ok");
             setCajasMovidas((prev) => [...prev, resolucion.datos]);
             aviso(
-              `✓ ${resolucion.datos.codigo_interno} agregada — escanea más cajas o escanea la ubicación destino`,
+              ` ${resolucion.datos.codigo_interno} agregada — escanea más cajas o escanea la ubicación destino`,
             );
             return;
           }
@@ -115,25 +115,28 @@ export default function MontacarguistaMover() {
         if (paso === "origen") {
           if (resolucion.tipo !== "ubicacion") {
             bip("error");
-            aviso("⚠ Escanea la etiqueta de la ubicación origen", "error");
+            aviso("Aviso: Escanea la etiqueta de la ubicación origen", "error");
             return;
           }
           bip("ok");
           setOrigen(resolucion.datos);
           setPaso("destino");
           aviso(
-            `📍 Origen: ${resolucion.datos.codigo} — ahora escanea la ubicación destino`,
+            ` Origen: ${resolucion.datos.codigo} — ahora escanea la ubicación destino`,
           );
           return;
         }
         if (paso === "destino") {
           if (resolucion.tipo !== "ubicacion") {
             bip("error");
-            aviso("⚠ Escanea la etiqueta de la ubicación destino", "error");
+            aviso(
+              "Aviso: Escanea la etiqueta de la ubicación destino",
+              "error",
+            );
             return;
           }
           setDestino(resolucion.datos);
-          aviso(`📍 Destino: ${resolucion.datos.codigo} — moviendo todo...`);
+          aviso(` Destino: ${resolucion.datos.codigo} — moviendo todo...`);
           const { data } = await api.post("/api/ubicaciones/mover-ubicacion", {
             ubicacion_origen_escaneada: `UB-${origen.codigo}`,
             ubicacion_destino_escaneada: `UB-${resolucion.datos.codigo}`,
@@ -215,7 +218,7 @@ export default function MontacarguistaMover() {
               marginBottom: "8px",
             }}
           >
-            ✓ Traslado completado
+            Traslado completado
           </div>
           <div style={{ fontSize: "13px", color: "#374151" }}>
             De <strong>{resumen.origen}</strong> →{" "}
@@ -258,13 +261,13 @@ export default function MontacarguistaMover() {
           {[
             {
               id: "cajas",
-              icon: "📦",
+              icon: "",
               titulo: "Cajas sueltas",
               desc: "Mueve una o varias cajas específicas de una ubicación a otra",
             },
             {
               id: "ubicacion",
-              icon: "🏗",
+              icon: "",
               titulo: "Toda una ubicación",
               desc: "Mueve todo el contenido de una estantería a otra",
             },

@@ -25,24 +25,29 @@ async function resolverCodigoEscaneado(escaneada) {
   const raw = normalizarRef(escaneada);
   if (!raw) return raw;
 
-  // Si tiene 8-14 dígitos numéricos, probablemente es un EAN-13
-  const esEAN = /^\d{8,14}$/.test(raw);
-  if (!esEAN) return raw;
+  // Limpiar prefijo GS1 AI (01) que algunos scanners agregan
+  // Ej: "0117709898161151" -> "17709898161151"
+  const sinPrefijo = raw.replace(/^\(01\)/, "").replace(/^01(\d{14})$/, "$1");
+
+  // Si tiene 8-14 digitos numericos, puede ser EAN-14 o EAN-13
+  const esEAN = /^\d{8,14}$/.test(sinPrefijo);
+  if (!esEAN) return sinPrefijo;
 
   try {
     const supabase = require("./supabase");
+    // Buscar primero por EAN14 (caja master), luego por GTIN13
     const { data } = await supabase
       .from("productos")
       .select("codigo_interno")
-      .eq("codigo_barras", raw)
+      .or("ean14.eq." + sinPrefijo + ",codigo_barras.eq." + sinPrefijo)
       .eq("activo", true)
-      .single();
-    if (data?.codigo_interno) return normalizarRef(data.codigo_interno);
+      .limit(1);
+    if (data?.[0]?.codigo_interno) return normalizarRef(data[0].codigo_interno);
   } catch {
-    // best-effort: si falla, seguimos con el valor original
+    // best-effort
   }
 
-  return raw;
+  return sinPrefijo;
 }
 
 // Registra el intento de escaneo en bitácora (trazabilidad).

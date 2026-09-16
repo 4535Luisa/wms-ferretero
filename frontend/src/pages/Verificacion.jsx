@@ -19,6 +19,9 @@ export default function Verificacion() {
   const [vista, setVista] = useState("lista");
   const [mensaje, setMensaje] = useState({ texto: "", tipo: "" });
   const [cargando, setCargando] = useState(false);
+  const [modalDiferencia, setModalDiferencia] = useState(null); // { item }
+  const [motivo, setMotivo] = useState("");
+  const [cantidadReal, setCantidadReal] = useState("");
 
   const aviso = (texto, tipo = "ok") => {
     setMensaje({ texto, tipo });
@@ -68,8 +71,8 @@ export default function Verificacion() {
       bip("error");
       aviso(
         yaVerificado
-          ? `⚠ La referencia ${norm} ya fue verificada`
-          : `⚠ CAJA INCORRECTA: ${norm} no pertenece a este pedido`,
+          ? `Aviso: La referencia ${norm} ya fue verificada`
+          : `Aviso: CAJA INCORRECTA: ${norm} no pertenece a este pedido`,
         "error",
       );
       return;
@@ -88,7 +91,7 @@ export default function Verificacion() {
         ),
       }));
       bip("ok");
-      aviso(`✓ Verificada (${data.verificados}/${data.total})`);
+      aviso(` Verificada (${data.verificados}/${data.total})`);
     } catch (err) {
       bip("error");
       aviso(err.response?.data?.error || "Error al verificar", "error");
@@ -102,7 +105,53 @@ export default function Verificacion() {
     setCargando(true);
     try {
       await api.patch(`/api/verificacion/${activo.id}/confirmar`);
-      aviso("✓ Pedido verificado y enviado a facturación");
+      aviso(" Pedido verificado y enviado a facturación");
+      setVista("lista");
+      setActivo(null);
+      await cargarLista();
+    } catch (err) {
+      aviso(err.response?.data?.error || "Error al confirmar", "error");
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const registrarDiferencia = async () => {
+    if (!modalDiferencia || !cantidadReal || !motivo.trim()) return;
+    setCargando(true);
+    try {
+      await api.post(
+        `/api/verificacion/${activo.id}/items/${modalDiferencia.item.id}/diferencia`,
+        {
+          cantidad_real: Number(cantidadReal),
+          motivo: motivo.trim(),
+        },
+      );
+      bip("ok");
+      aviso("Diferencia registrada correctamente");
+      setModalDiferencia(null);
+      setMotivo("");
+      setCantidadReal("");
+      // Recargar pedido
+      const { data } = await api.get(`/api/verificacion/${activo.id}`);
+      setActivo(data);
+    } catch (err) {
+      bip("error");
+      aviso(
+        err.response?.data?.error || "Error al registrar diferencia",
+        "error",
+      );
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const confirmarConDiferencias = async () => {
+    if (!activo) return;
+    setCargando(true);
+    try {
+      await api.post(`/api/verificacion/${activo.id}/confirmar-diferencias`);
+      aviso("Pedido aprobado con diferencias — enviado a facturacion");
       setVista("lista");
       setActivo(null);
       await cargarLista();
@@ -171,7 +220,7 @@ export default function Verificacion() {
       {vista === "lista" &&
         (pedidos.length === 0 ? (
           <div style={{ ...C.card, padding: "3rem", textAlign: "center" }}>
-            <div style={{ fontSize: "44px", marginBottom: "1rem" }}>✅</div>
+            <div style={{ fontSize: "44px", marginBottom: "1rem" }}></div>
             <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
               No hay pedidos por verificar
             </p>
@@ -285,41 +334,253 @@ export default function Verificacion() {
                     {item.cantidad_picking ?? item.cantidad_pedida} und
                   </div>
                 </div>
-                <span
+                <div
                   style={{
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    color: item.verificado ? "#007A40" : "#999",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "flex-end",
+                    gap: "6px",
                     flexShrink: 0,
                   }}
                 >
-                  {item.verificado ? "✓ Verificada" : "Pendiente"}
-                </span>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      color: item.verificado
+                        ? "#007A40"
+                        : item.motivo_diferencia
+                          ? "#854D0E"
+                          : "#999",
+                    }}
+                  >
+                    {item.verificado
+                      ? "Verificada"
+                      : item.motivo_diferencia
+                        ? "Con diferencia"
+                        : "Pendiente"}
+                  </span>
+                  {!item.verificado && !item.motivo_diferencia && (
+                    <button
+                      onClick={() => {
+                        setModalDiferencia({ item });
+                        setCantidadReal(
+                          String(item.cantidad_picking ?? item.cantidad_pedida),
+                        );
+                        setMotivo("");
+                      }}
+                      style={{
+                        background: "#FEF9C3",
+                        color: "#854D0E",
+                        border: "1px solid #FDE68A",
+                        borderRadius: "6px",
+                        padding: "4px 10px",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Registrar diferencia
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
 
-          <button
-            onClick={confirmar}
-            disabled={cargando || !todosVerificados}
-            style={{
-              width: "100%",
-              marginTop: "1rem",
-              background: todosVerificados ? "#00FF87" : "#E8E8E8",
-              color: todosVerificados ? "#0A0A0A" : "#999",
-              border: "none",
-              borderRadius: "10px",
-              padding: "14px",
-              fontSize: "16px",
-              fontWeight: 700,
-              cursor: cargando || !todosVerificados ? "not-allowed" : "pointer",
-              fontFamily: "Outfit, sans-serif",
-            }}
-          >
-            {todosVerificados
-              ? "✓ Confirmar verificación — enviar a facturación"
-              : `Faltan ${items.length - verificados} referencia(s) por escanear`}
-          </button>
+          {/* Modal diferencia */}
+          {modalDiferencia && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(0,0,0,0.5)",
+                zIndex: 500,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "1rem",
+              }}
+            >
+              <div
+                style={{
+                  background: "#FFFFFF",
+                  borderRadius: "16px",
+                  padding: "1.5rem",
+                  width: "100%",
+                  maxWidth: "400px",
+                }}
+              >
+                <h3
+                  style={{
+                    fontSize: "16px",
+                    fontWeight: 700,
+                    margin: "0 0 4px 0",
+                  }}
+                >
+                  Registrar diferencia
+                </h3>
+                <p
+                  style={{
+                    fontSize: "13px",
+                    color: "#888",
+                    margin: "0 0 16px 0",
+                  }}
+                >
+                  {modalDiferencia.item.productos?.descripcion_corta}
+                </p>
+                <label
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: "#666",
+                    display: "block",
+                    marginBottom: "4px",
+                  }}
+                >
+                  Cantidad real despachada
+                </label>
+                <input
+                  type="number"
+                  value={cantidadReal}
+                  onChange={(e) => setCantidadReal(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    border: "1.5px solid #E8E8E8",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    marginBottom: "12px",
+                    boxSizing: "border-box",
+                  }}
+                />
+                <label
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: "#666",
+                    display: "block",
+                    marginBottom: "4px",
+                  }}
+                >
+                  Motivo de la diferencia *
+                </label>
+                <input
+                  value={motivo}
+                  onChange={(e) => setMotivo(e.target.value)}
+                  placeholder="Ej: Caja no encontrada en bodega"
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    border: "1.5px solid #E8E8E8",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    marginBottom: "16px",
+                    boxSizing: "border-box",
+                  }}
+                />
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    onClick={() => setModalDiferencia(null)}
+                    style={{
+                      flex: 1,
+                      padding: "12px",
+                      border: "1.5px solid #E8E8E8",
+                      borderRadius: "8px",
+                      background: "transparent",
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={registrarDiferencia}
+                    disabled={cargando || !motivo.trim() || !cantidadReal}
+                    style={{
+                      flex: 2,
+                      padding: "12px",
+                      border: "none",
+                      borderRadius: "8px",
+                      background: "#0A0A0A",
+                      color: "#FFFFFF",
+                      fontSize: "14px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Registrar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {todosVerificados ? (
+            <button
+              onClick={confirmar}
+              disabled={cargando}
+              style={{
+                width: "100%",
+                marginTop: "1rem",
+                background: "#00FF87",
+                color: "#0A0A0A",
+                border: "none",
+                borderRadius: "10px",
+                padding: "14px",
+                fontSize: "16px",
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "Outfit, sans-serif",
+              }}
+            >
+              Confirmar verificacion — enviar a facturacion
+            </button>
+          ) : items.some((i) => i.motivo_diferencia) &&
+            items.every((i) => i.verificado || i.motivo_diferencia) ? (
+            <button
+              onClick={confirmarConDiferencias}
+              disabled={cargando}
+              style={{
+                width: "100%",
+                marginTop: "1rem",
+                background: "#FEF9C3",
+                color: "#854D0E",
+                border: "1px solid #FDE68A",
+                borderRadius: "10px",
+                padding: "14px",
+                fontSize: "16px",
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "Outfit, sans-serif",
+              }}
+            >
+              Aprobar despacho con diferencias
+            </button>
+          ) : (
+            <div
+              style={{
+                width: "100%",
+                marginTop: "1rem",
+                background: "#E8E8E8",
+                color: "#999",
+                borderRadius: "10px",
+                padding: "14px",
+                fontSize: "14px",
+                fontWeight: 600,
+                textAlign: "center",
+                fontFamily: "Outfit, sans-serif",
+              }}
+            >
+              Faltan{" "}
+              {
+                items.filter((i) => !i.verificado && !i.motivo_diferencia)
+                  .length
+              }{" "}
+              referencia(s) por verificar o registrar diferencia
+            </div>
+          )}
         </div>
       )}
     </Layout>

@@ -237,8 +237,7 @@ export default function Dashboard() {
               >
                 Carga por operario (pedidos activos)
               </div>
-              {(!data.operarios_carga ||
-                data.operarios_carga.length === 0) ? (
+              {!data.operarios_carga || data.operarios_carga.length === 0 ? (
                 <div style={{ fontSize: "13px", color: "#BBB" }}>
                   Nadie con pedidos activos
                 </div>
@@ -261,7 +260,7 @@ export default function Dashboard() {
                         borderBottom: "1px solid #F5F5F5",
                       }}
                     >
-                      <span style={{ color: "#555" }}>👷 {o.nombre}</span>
+                      <span style={{ color: "#555" }}> {o.nombre}</span>
                       <span style={{ fontWeight: 700, color: "#0A0A0A" }}>
                         {o.pedidos_activos}
                       </span>

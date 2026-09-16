@@ -98,7 +98,7 @@ export default function JefeBodegaRecepcion() {
             cantidad_recibida: 1,
           },
         ]);
-        mostrarMensaje(`✓ Agregado: ${data.descripcion_corta}`);
+        mostrarMensaje(` Agregado: ${data.descripcion_corta}`);
       }
       setScanInput("");
     } catch {
@@ -137,7 +137,7 @@ export default function JefeBodegaRecepcion() {
       await api.patch(
         `/api/recepciones/${recepcionActiva.id}/confirmar-directo`,
       );
-      mostrarMensaje("✓ Recepción confirmada — inventario actualizado");
+      mostrarMensaje(" Recepción confirmada — inventario actualizado");
 
       const cola = items.map((item) => ({
         producto: {
@@ -260,7 +260,7 @@ export default function JefeBodegaRecepcion() {
                 color: "#BBB",
               }}
             >
-              <div style={{ fontSize: "40px", marginBottom: "1rem" }}>📥</div>
+              <div style={{ fontSize: "40px", marginBottom: "1rem" }}></div>
               <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
                 No hay recepciones registradas
               </p>
@@ -317,9 +317,7 @@ export default function JefeBodegaRecepcion() {
                           justifyContent: "center",
                           fontSize: "20px",
                         }}
-                      >
-                        📥
-                      </div>
+                      ></div>
                       <div>
                         <p
                           style={{
@@ -584,8 +582,8 @@ export default function JefeBodegaRecepcion() {
                               }}
                             >
                               {esCaja
-                                ? `✓ ${item.cantidad_recibida / item.unidad_empaque} caja(s)`
-                                : `⚠ Saldo (x${item.unidad_empaque})`}
+                                ? ` ${item.cantidad_recibida / item.unidad_empaque} caja(s)`
+                                : `Aviso: Saldo (x${item.unidad_empaque})`}
                             </span>
                           )}
                         </div>
@@ -706,7 +704,7 @@ export default function JefeBodegaRecepcion() {
                 disabled={items.length === 0}
                 style={{ width: "100%", padding: "12px", fontSize: "14px" }}
               >
-                Confirmar recepción ✓
+                Confirmar recepción
               </button>
               <p
                 style={{

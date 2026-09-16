@@ -118,10 +118,10 @@ export default function Operario() {
           (i.estado === "completo" || itemInfo(i).cajasListas),
       );
       if (yaCompleto) {
-        aviso(`⚠ ${norm} ya tiene todas las cajas escaneadas`, "error");
+        aviso(`Aviso: ${norm} ya tiene todas las cajas escaneadas`, "error");
       } else {
         aviso(
-          `⚠ CAJA INCORRECTA: ${refEscaneada} no pertenece a este pedido`,
+          `Aviso: CAJA INCORRECTA: ${refEscaneada} no pertenece a este pedido`,
           "error",
         );
       }
@@ -139,7 +139,7 @@ export default function Operario() {
         },
       );
       bip("ok");
-      aviso(respuesta.mensaje || "✓ Caja escaneada");
+      aviso(respuesta.mensaje || " Caja escaneada");
       await cargar();
     } catch (err) {
       bip("error");
@@ -182,7 +182,7 @@ export default function Operario() {
         motivo_diferencia: motivoEdit.trim(),
         estado: "completo",
       });
-      aviso("✓ Cantidad actualizada");
+      aviso(" Cantidad actualizada");
       setEditando(null);
       setCantidadEdit("");
       setMotivoEdit("");
@@ -199,7 +199,7 @@ export default function Operario() {
     setCargando(true);
     try {
       await api.patch(`/api/pedidos/${activo.id}/cerrar`);
-      aviso("✓ Pedido cerrado y enviado a verificación");
+      aviso(" Pedido cerrado y enviado a verificación");
       setVista("lista");
       setActivo(null);
       await cargar();
@@ -267,7 +267,7 @@ export default function Operario() {
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           {pedidos.length === 0 ? (
             <div style={{ ...C.card, padding: "3rem", textAlign: "center" }}>
-              <div style={{ fontSize: "48px", marginBottom: "1rem" }}>📋</div>
+              <div style={{ fontSize: "48px", marginBottom: "1rem" }}></div>
               <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
                 No tienes pedidos asignados
               </p>
@@ -515,7 +515,7 @@ export default function Operario() {
                             }}
                           >
                             <span>
-                              📦 Cajas: {info.cajasEscaneadas}/
+                              Cajas: {info.cajasEscaneadas}/
                               {info.cajasCompletas} ({info.ue} u/caja)
                             </span>
                             <span>{progCajas}%</span>
@@ -562,7 +562,7 @@ export default function Operario() {
                               fontWeight: 600,
                             }}
                           >
-                            🪣 Saldos: {info.cantSaldos} u pendientes
+                            Saldos: {info.cantSaldos} u pendientes
                           </span>
                         )}
                         {item.cajasListas && info.cantSaldos > 0 && (
@@ -590,7 +590,7 @@ export default function Operario() {
                               fontWeight: 600,
                             }}
                           >
-                            ⚠ {item.motivo_diferencia}
+                            Aviso: {item.motivo_diferencia}
                           </span>
                         )}
                       </div>
@@ -604,9 +604,7 @@ export default function Operario() {
                             fontWeight: 700,
                             fontSize: "24px",
                           }}
-                        >
-                          ✓
-                        </span>
+                        ></span>
                       ) : info.cajasListas && info.cantSaldos > 0 ? (
                         <span
                           style={{
@@ -774,7 +772,7 @@ export default function Operario() {
                 }}
               >
                 {todoListo
-                  ? "✓ Cerrar pedido y enviar a verificación"
+                  ? " Cerrar pedido y enviar a verificación"
                   : `Faltan ${prog.total - prog.listos} referencia(s) por alistar`}
               </button>
               <p
@@ -809,7 +807,7 @@ export default function Operario() {
                   margin: 0,
                 }}
               >
-                ✓ Pedido cerrado — en verificación
+                Pedido cerrado — en verificación
               </p>
             </div>
           )}

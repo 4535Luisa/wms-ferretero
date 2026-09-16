@@ -151,7 +151,7 @@ export default function Montacarguista() {
         nombre: nombreEstiba.trim(),
         foto_url: fotoEstiba,
       });
-      mostrarMensaje("✓ Estiba registrada");
+      mostrarMensaje(" Estiba registrada");
       setNombreEstiba("");
       setFotoEstiba("");
       setShowEstibaForm(false);
@@ -198,8 +198,8 @@ export default function Montacarguista() {
       if (restantes === 0) setUbicacionActiva(null);
       mostrarMensaje(
         restantes > 0
-          ? `✓ Caja bajada — faltan ${restantes} caja${restantes !== 1 ? "s" : ""} en ${grupo.ubicacion_codigo}`
-          : `✓ Todas las cajas de ${grupo.referencia} bajadas`,
+          ? ` Caja bajada — faltan ${restantes} caja${restantes !== 1 ? "s" : ""} en ${grupo.ubicacion_codigo}`
+          : ` Todas las cajas de ${grupo.referencia} bajadas`,
       );
     } catch (err) {
       bip("error");
@@ -240,7 +240,7 @@ export default function Montacarguista() {
       if (enEstaUbicacion.length === 0) {
         bip("error");
         mostrarMensaje(
-          `⚠ La ubicación ${codigoUb} no tiene cajas pendientes en esta lista`,
+          `Aviso: La ubicación ${codigoUb} no tiene cajas pendientes en esta lista`,
           "error",
         );
         return;
@@ -252,7 +252,7 @@ export default function Montacarguista() {
         0,
       );
       mostrarMensaje(
-        `📍 Ubicación ${codigoUb} activa — ${totalCajas} caja${totalCajas !== 1 ? "s" : ""} pendiente${totalCajas !== 1 ? "s" : ""}`,
+        ` Ubicación ${codigoUb} activa — ${totalCajas} caja${totalCajas !== 1 ? "s" : ""} pendiente${totalCajas !== 1 ? "s" : ""}`,
       );
       return;
     }
@@ -292,13 +292,13 @@ export default function Montacarguista() {
         if (enOtraUbicacion) {
           bip("error");
           mostrarMensaje(
-            `⚠ Esta caja (${codigoResuelto}) pertenece a la ubicación ${enOtraUbicacion.ubicacion_codigo}, no a ${ubicacionActiva}`,
+            `Aviso: Esta caja (${codigoResuelto}) pertenece a la ubicación ${enOtraUbicacion.ubicacion_codigo}, no a ${ubicacionActiva}`,
             "error",
           );
         } else {
           bip("error");
           mostrarMensaje(
-            `⚠ CAJA NO ENCONTRADA: ${codigoResuelto} no está en esta lista o ya fue bajada`,
+            `Aviso: CAJA NO ENCONTRADA: ${codigoResuelto} no está en esta lista o ya fue bajada`,
             "error",
           );
         }
@@ -314,14 +314,14 @@ export default function Montacarguista() {
       if (!objetivo) {
         bip("error");
         mostrarMensaje(
-          `⚠ CAJA NO ENCONTRADA: ${codigoResuelto} no está en esta lista o ya fue bajada`,
+          `Aviso: CAJA NO ENCONTRADA: ${codigoResuelto} no está en esta lista o ya fue bajada`,
           "error",
         );
         return;
       }
       // Sugerencia: escanear la ubicación primero
       mostrarMensaje(
-        `💡 Tip: escanea primero la etiqueta de la ubicación ${objetivo.ubicacion_codigo} para mayor precisión`,
+        ` Tip: escanea primero la etiqueta de la ubicación ${objetivo.ubicacion_codigo} para mayor precisión`,
       );
     }
 
@@ -375,10 +375,10 @@ export default function Montacarguista() {
           }}
         >
           {[
-            ["lista", "📦 Mis listas"],
-            ["estibas", `🪵 Estibas (${estibas.length})`],
-            ["ubicar", "📥 Ubicar"],
-            ["mover", "🔄 Mover"],
+            ["lista", " Mis listas"],
+            ["estibas", ` Estibas (${estibas.length})`],
+            ["ubicar", " Ubicar"],
+            ["mover", " Mover"],
           ].map(([v, label]) => (
             <button
               key={v}
@@ -445,7 +445,7 @@ export default function Montacarguista() {
                 textAlign: "center",
               }}
             >
-              <div style={{ fontSize: "48px", marginBottom: "1rem" }}>📦</div>
+              <div style={{ fontSize: "48px", marginBottom: "1rem" }}></div>
               <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
                 No tienes listas asignadas
               </p>
@@ -661,7 +661,7 @@ export default function Montacarguista() {
                 textAlign: "center",
               }}
             >
-              <div style={{ fontSize: "48px", marginBottom: "1rem" }}>🪵</div>
+              <div style={{ fontSize: "48px", marginBottom: "1rem" }}></div>
               <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
                 No tienes estibas activas
               </p>
@@ -746,7 +746,7 @@ export default function Montacarguista() {
                             display: "inline-block",
                           }}
                         >
-                          ✓ Estiba activa
+                          Estiba activa
                         </div>
                       )}
                     </div>
@@ -900,7 +900,7 @@ export default function Montacarguista() {
               <span
                 style={{ fontSize: "13px", fontWeight: 600, color: "#0A0A0A" }}
               >
-                📦 Estiba:
+                Estiba:
               </span>
               <select
                 value={estibaActiva}
@@ -1124,7 +1124,7 @@ export default function Montacarguista() {
                           }}
                         >
                           {bajada
-                            ? "✓ Bajada"
+                            ? " Bajada"
                             : cajasBajadas > 0
                               ? `${cajasBajadas}/${grupo.cajas_total} bajadas`
                               : "Pendiente"}

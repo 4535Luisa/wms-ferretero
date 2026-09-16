@@ -69,7 +69,7 @@ export default function Saldos() {
         if (nuevas.length > 0) {
           bip("ok");
           aviso(
-            `🔔 Llegó ${nuevas.length} caja(s) de reposición — escanea para confirmar`,
+            ` Llegó ${nuevas.length} caja(s) de reposición — escanea para confirmar`,
           );
         }
       }
@@ -96,7 +96,7 @@ export default function Saldos() {
     if (!objetivo) {
       bip("error");
       aviso(
-        `⚠ Caja incorrecta: ${refEscaneada} no está entre las cajas por confirmar`,
+        `Aviso: Caja incorrecta: ${refEscaneada} no está entre las cajas por confirmar`,
         "error",
       );
       return;
@@ -107,7 +107,7 @@ export default function Saldos() {
         referencia_escaneada: refEscaneada,
       });
       bip("ok");
-      aviso("✓ Caja confirmada — inventario de SALDOS actualizado");
+      aviso(" Caja confirmada — inventario de SALDOS actualizado");
       await cargar();
     } catch (err) {
       bip("error");
@@ -129,7 +129,7 @@ export default function Saldos() {
         cantidad: requerido,
       });
       bip("ok");
-      aviso("✓ Saldo entregado al operario");
+      aviso(" Saldo entregado al operario");
       setEntregando(null);
       await cargar();
     } catch (err) {
@@ -274,7 +274,8 @@ export default function Saldos() {
                   marginBottom: "12px",
                 }}
               >
-                ⚠ Stock insuficiente — confirma primero la caja de reposición
+                Aviso: Stock insuficiente — confirma primero la caja de
+                reposición
               </div>
             )}
             <div style={{ display: "flex", gap: "8px" }}>
@@ -319,7 +320,7 @@ export default function Saldos() {
                       : "not-allowed",
                 }}
               >
-                ✓ Entregar {entregando.requerido} unidades
+                Entregar {entregando.requerido} unidades
               </button>
             </div>
           </div>
@@ -347,7 +348,7 @@ export default function Saldos() {
                 margin: 0,
               }}
             >
-              📥 Cajas por confirmar ({entrantes.length})
+              Cajas por confirmar ({entrantes.length})
             </h3>
             <div
               style={{
@@ -453,7 +454,7 @@ export default function Saldos() {
 
       {operarios.length === 0 ? (
         <div style={{ ...C.card, padding: "3rem", textAlign: "center" }}>
-          <div style={{ fontSize: "48px", marginBottom: "1rem" }}>📦</div>
+          <div style={{ fontSize: "48px", marginBottom: "1rem" }}></div>
           <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
             No hay solicitudes de saldos pendientes
           </p>
@@ -608,7 +609,7 @@ export default function Saldos() {
                                 fontWeight: 600,
                               }}
                             >
-                              📥 Caja en camino
+                              Caja en camino
                             </span>
                           )}
                           {item.faltante > 0 && item.entrantes.length === 0 && (
@@ -622,7 +623,7 @@ export default function Saldos() {
                                 fontWeight: 600,
                               }}
                             >
-                              ⚠ Falta: {item.faltante} u
+                              Aviso: Falta: {item.faltante} u
                             </span>
                           )}
                         </div>

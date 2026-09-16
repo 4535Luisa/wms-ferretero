@@ -292,7 +292,7 @@ export default function Login() {
               fontWeight: 500,
             }}
           >
-            ⚠ {error}
+            Aviso: {error}
           </div>
         )}
 
@@ -373,7 +373,7 @@ export default function Login() {
                   justifyContent: "center",
                 }}
               >
-                {showPassword ? "🙈" : "👁️"}
+                {showPassword ? "" : "️"}
               </button>
             </div>
           </div>
@@ -464,9 +464,7 @@ export default function Login() {
                 justifyContent: "center",
                 fontSize: "18px",
               }}
-            >
-              🔧
-            </div>
+            ></div>
           </div>
         </div>
       </div>

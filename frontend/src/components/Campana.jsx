@@ -121,7 +121,7 @@ export default function Campana({ variant = "light" }) {
           justifyContent: "center",
         }}
       >
-        <span>🔔</span>
+        <span></span>
         {noLeidas > 0 && (
           <span
             style={{

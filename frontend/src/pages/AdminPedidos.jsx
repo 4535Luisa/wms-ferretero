@@ -45,6 +45,8 @@ export default function AdminPedidos() {
   const [previaCsv, setPreviaCsv] = useState([]);
   const [mensaje, setMensaje] = useState({ texto: "", tipo: "" });
   const [cargando, setCargando] = useState(false);
+  const [modalCancelar, setModalCancelar] = useState(null);
+  const [motivoCancelacion, setMotivoCancelacion] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("");
 
   const cargarDatos = async () => {
@@ -222,13 +224,13 @@ export default function AdminPedidos() {
 
       const avisoRef =
         noEncontradas.size > 0
-          ? ` · ⚠ ${noEncontradas.size} referencia(s) no encontradas y omitidas`
+          ? ` · Aviso: ${noEncontradas.size} referencia(s) no encontradas y omitidas`
           : "";
       const { data: importResult } = await api.post("/api/pedidos/csv", {
         pedidos: pedidosConIds,
       });
       mostrarMensaje(
-        `✓ ${importResult.importados} pedidos importados · generando listas...${avisoRef}`,
+        ` ${importResult.importados} pedidos importados · generando listas...${avisoRef}`,
         noEncontradas.size > 0 ? "error" : "ok",
       );
 
@@ -241,7 +243,7 @@ export default function AdminPedidos() {
           pedido_ids: ids,
         });
         mostrarMensaje(
-          `✓ ${importResult.importados} pedidos importados · ${listasResult.listas.length} listas generadas${avisoRef}`,
+          ` ${importResult.importados} pedidos importados · ${listasResult.listas.length} listas generadas${avisoRef}`,
           noEncontradas.size > 0 ? "error" : "ok",
         );
       }
@@ -274,7 +276,7 @@ export default function AdminPedidos() {
       const { data } = await api.post("/api/picking/generar", {
         pedido_ids: ids,
       });
-      mostrarMensaje(`✓ ${data.listas.length} listas de picking generadas`);
+      mostrarMensaje(` ${data.listas.length} listas de picking generadas`);
       cargarDatos();
     } catch (err) {
       mostrarMensaje(
@@ -340,7 +342,7 @@ export default function AdminPedidos() {
         montacarguistas: montacarguistasPorBodega,
       });
       mostrarMensaje(
-        `✓ ${seleccionados.length} pedidos asignados a ${operarios.find((o) => o.id === operarioTanda)?.nombre}`,
+        ` ${seleccionados.length} pedidos asignados a ${operarios.find((o) => o.id === operarioTanda)?.nombre}`,
       );
       setSeleccionados([]);
       setOperarioTanda("");
@@ -362,7 +364,7 @@ export default function AdminPedidos() {
       await api.patch(`/api/picking/${listaId}/asignar`, {
         montacarguista_id: montacarguistaId,
       });
-      mostrarMensaje("✓ Montacarguista asignado a la lista");
+      mostrarMensaje(" Montacarguista asignado a la lista");
       cargarDatos();
     } catch {
       mostrarMensaje("Error al asignar montacarguista", "error");
@@ -424,8 +426,8 @@ export default function AdminPedidos() {
         }}
       >
         {[
-          { id: "lista", label: "📋 Pedidos" },
-          { id: "listas", label: "📦 Listas picking" },
+          { id: "lista", label: " Pedidos" },
+          { id: "listas", label: " Listas picking" },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -498,7 +500,7 @@ export default function AdminPedidos() {
                 gap: "6px",
               }}
             >
-              📂 Cargar CSV
+              Cargar CSV
               <input
                 type="file"
                 accept=".csv,.xls,.xlsx"
@@ -596,7 +598,7 @@ export default function AdminPedidos() {
                 textAlign: "center",
               }}
             >
-              <div style={{ fontSize: "40px", marginBottom: "1rem" }}>📋</div>
+              <div style={{ fontSize: "40px", marginBottom: "1rem" }}></div>
               <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
                 No hay pedidos cargados
               </p>
@@ -717,9 +719,9 @@ export default function AdminPedidos() {
                               marginTop: "4px",
                             }}
                           >
-                            👷 {pedido.operario.nombre}
+                            {pedido.operario.nombre}
                             {pedido.montacarguista &&
-                              ` · 🚜 ${pedido.montacarguista.nombre}`}
+                              ` ·  ${pedido.montacarguista.nombre}`}
                           </div>
                         )}
                         {pedido.operario &&
@@ -785,8 +787,8 @@ export default function AdminPedidos() {
                           }}
                         >
                           {pedido.prioridad === "urgente"
-                            ? "🔴 Urgente"
-                            : "⚡ Normal"}
+                            ? " Urgente"
+                            : " Normal"}
                         </button>
                       )}
                     </div>
@@ -819,7 +821,7 @@ export default function AdminPedidos() {
             >
               {cargando
                 ? "Generando..."
-                : "⚡ Generar listas desde pedidos pendientes"}
+                : " Generar listas desde pedidos pendientes"}
             </button>
           </div>
           {listas.length === 0 ? (
@@ -832,7 +834,7 @@ export default function AdminPedidos() {
                 textAlign: "center",
               }}
             >
-              <div style={{ fontSize: "40px", marginBottom: "1rem" }}>📦</div>
+              <div style={{ fontSize: "40px", marginBottom: "1rem" }}></div>
               <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
                 No hay listas de picking generadas
               </p>
@@ -913,7 +915,7 @@ export default function AdminPedidos() {
                           0,
                         ) || 0}{" "}
                         cajas
-                        {lista.usuarios && ` · 🚜 ${lista.usuarios.nombre}`}
+                        {lista.usuarios && ` ·  ${lista.usuarios.nombre}`}
                       </div>
                     </div>
                     {lista.estado === "pendiente" && (
@@ -1329,6 +1331,103 @@ export default function AdminPedidos() {
             >
               {cargando ? "Asignando..." : "Confirmar asignación →"}
             </button>
+          </div>
+        </div>
+      )}
+      {modalCancelar && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            zIndex: 500,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1rem",
+          }}
+        >
+          <div
+            style={{
+              background: "#FFFFFF",
+              borderRadius: "16px",
+              padding: "1.5rem",
+              width: "100%",
+              maxWidth: "400px",
+            }}
+          >
+            <h3
+              style={{ fontSize: "16px", fontWeight: 700, margin: "0 0 4px 0" }}
+            >
+              Cancelar pedido
+            </h3>
+            <p
+              style={{ fontSize: "13px", color: "#888", margin: "0 0 16px 0" }}
+            >
+              Pedido {modalCancelar.numero} — Estado: {modalCancelar.estado}
+            </p>
+            <label
+              style={{
+                fontSize: "12px",
+                fontWeight: 600,
+                color: "#666",
+                display: "block",
+                marginBottom: "4px",
+              }}
+            >
+              Motivo de cancelacion *
+            </label>
+            <input
+              value={motivoCancelacion}
+              onChange={(e) => setMotivoCancelacion(e.target.value)}
+              placeholder="Ej: Cliente cancelo el pedido"
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                border: "1.5px solid #E8E8E8",
+                borderRadius: "8px",
+                fontSize: "14px",
+                marginBottom: "16px",
+                boxSizing: "border-box",
+              }}
+            />
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button
+                onClick={() => {
+                  setModalCancelar(null);
+                  setMotivoCancelacion("");
+                }}
+                style={{
+                  flex: 1,
+                  padding: "12px",
+                  border: "1.5px solid #E8E8E8",
+                  borderRadius: "8px",
+                  background: "transparent",
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Volver
+              </button>
+              <button
+                onClick={cancelarPedido}
+                disabled={cargando || !motivoCancelacion.trim()}
+                style={{
+                  flex: 2,
+                  padding: "12px",
+                  border: "none",
+                  borderRadius: "8px",
+                  background: "#991B1B",
+                  color: "#FFFFFF",
+                  fontSize: "14px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Confirmar cancelacion
+              </button>
+            </div>
           </div>
         </div>
       )}

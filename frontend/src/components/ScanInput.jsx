@@ -42,7 +42,7 @@ function bip(tipo) {
 //                           O puede llamar bip directamente importando la función
 //   disabled               — bloquea el input
 //   label / placeholder    — textos de UI
-//   permitirCamara         — muestra el botón 📷 Cámara
+//   permitirCamara         — muestra el botón  Cámara
 export { bip };
 
 export default function ScanInput({
@@ -154,7 +154,7 @@ export default function ScanInput({
               fontFamily: "Outfit, sans-serif",
             }}
           >
-            {camara ? "⌨️ Texto" : "📷 Cámara"}
+            {camara ? "⌨️ Texto" : " Cámara"}
           </button>
         )}
       </div>

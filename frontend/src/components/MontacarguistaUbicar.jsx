@@ -54,7 +54,7 @@ export default function MontacarguistaUbicar() {
         setUbicacionActiva(resolucion.datos);
         setNuevaUbicacion(null);
         aviso(
-          `📍 Ubicación ${resolucion.datos.codigo} activa — ahora escanea las cajas`,
+          ` Ubicación ${resolucion.datos.codigo} activa — ahora escanea las cajas`,
         );
         return;
       }
@@ -63,7 +63,7 @@ export default function MontacarguistaUbicar() {
         if (!ubicacionActiva) {
           bip("error");
           aviso(
-            "⚠ Primero escanea la etiqueta de la ubicación destino",
+            "Aviso: Primero escanea la etiqueta de la ubicación destino",
             "error",
           );
           return;
@@ -116,7 +116,7 @@ export default function MontacarguistaUbicar() {
       setUbicacionActiva(data.data);
       setNuevaUbicacion(null);
       aviso(
-        `✓ Ubicación ${nuevaUbicacion.codigo.toUpperCase()} creada y activa — ahora escanea las cajas`,
+        ` Ubicación ${nuevaUbicacion.codigo.toUpperCase()} creada y activa — ahora escanea las cajas`,
       );
     } catch (err) {
       bip("error");
@@ -212,7 +212,7 @@ export default function MontacarguistaUbicar() {
           }}
         >
           <div style={{ fontSize: "13px", fontWeight: 600, color: "#854D0E" }}>
-            ⚠ Escanea primero la etiqueta de la ubicación destino
+            Aviso: Escanea primero la etiqueta de la ubicación destino
           </div>
           <div style={{ fontSize: "12px", color: "#92400E", marginTop: "4px" }}>
             Ejemplo: escanea la etiqueta UB-f1-3 de la estantería
@@ -238,7 +238,7 @@ export default function MontacarguistaUbicar() {
               marginBottom: "8px",
             }}
           >
-            📍 Ubicación nueva detectada — ¿Crearla?
+            Ubicación nueva detectada — ¿Crearla?
           </div>
           <div
             style={{
@@ -300,7 +300,7 @@ export default function MontacarguistaUbicar() {
                 cursor: "pointer",
               }}
             >
-              ✓ Crear y activar
+              Crear y activar
             </button>
           </div>
         </div>
@@ -358,7 +358,7 @@ export default function MontacarguistaUbicar() {
             marginBottom: "8px",
           }}
         >
-          📦 Pendientes de ubicar ({pendientes.length})
+          Pendientes de ubicar ({pendientes.length})
         </div>
         {pendientes.length === 0 ? (
           <div
@@ -371,7 +371,7 @@ export default function MontacarguistaUbicar() {
             }}
           >
             <p style={{ fontSize: "14px", color: "#888" }}>
-              ✓ Toda la mercancía está ubicada
+              Toda la mercancía está ubicada
             </p>
           </div>
         ) : (

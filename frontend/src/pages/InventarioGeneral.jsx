@@ -124,9 +124,9 @@ export default function InventarioGeneral() {
         }}
       >
         {[
-          { key: "referencia", placeholder: "🔍 Filtrar referencia..." },
-          { key: "descripcion", placeholder: "🔍 Filtrar descripción..." },
-          { key: "bodega", placeholder: "🔍 Filtrar bodega..." },
+          { key: "referencia", placeholder: " Filtrar referencia..." },
+          { key: "descripcion", placeholder: " Filtrar descripción..." },
+          { key: "bodega", placeholder: " Filtrar bodega..." },
         ].map(({ key, placeholder }) => (
           <input
             key={key}
@@ -189,8 +189,8 @@ export default function InventarioGeneral() {
           fontStyle: "italic",
         }}
       >
-        💡 Click derecho (PC) o mantén presionado (celular) para ver
-        ubicaciones, pedidos comprometidos y movimientos
+        Click derecho (PC) o mantén presionado (celular) para ver ubicaciones,
+        pedidos comprometidos y movimientos
       </p>
 
       {/* Totales */}
@@ -551,9 +551,9 @@ export default function InventarioGeneral() {
             {/* Tabs del panel */}
             <div style={{ display: "flex", borderBottom: "1px solid #F0F0F0" }}>
               {[
-                ["ubicaciones", "📍 Ubicaciones"],
-                ["pedidos", "📋 Comprometido"],
-                ["movimientos", "📜 Movimientos"],
+                ["ubicaciones", " Ubicaciones"],
+                ["pedidos", " Comprometido"],
+                ["movimientos", " Movimientos"],
               ].map(([tab, label]) => (
                 <button
                   key={tab}
