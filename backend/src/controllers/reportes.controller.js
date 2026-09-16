@@ -356,9 +356,7 @@ const tiempoAlistamiento = async (req, res) => {
 
   let query = supabase
     .from("pedidos")
-    .select(
-      "id, numero, operario_id, estado, created_at, updated_at, hora_facturacion, usuarios!pedidos_operario_id_fkey(nombre)",
-    )
+    .select("id, numero, operario_id, estado, created_at, updated_at")
     .in("estado", ["cerrado", "verificado", "facturado", "con_diferencia"])
     .not("operario_id", "is", null)
     .order("updated_at", { ascending: false })
@@ -370,6 +368,19 @@ const tiempoAlistamiento = async (req, res) => {
   const { data, error } = await query;
   if (error) return sendServerError(res, error, req);
 
+  // Obtener nombres de operarios
+  const opIds = [
+    ...new Set((data || []).map((p) => p.operario_id).filter(Boolean)),
+  ];
+  const opNames = {};
+  if (opIds.length > 0) {
+    const { data: users } = await supabase
+      .from("usuarios")
+      .select("id, nombre")
+      .in("id", opIds);
+    for (const u of users || []) opNames[u.id] = u.nombre;
+  }
+
   const porOperario = {};
   const detalle = [];
 
@@ -380,7 +391,7 @@ const tiempoAlistamiento = async (req, res) => {
 
     detalle.push({
       pedido_numero: p.numero,
-      operario: p.usuarios?.nombre || "Desconocido",
+      operario: opNames[p.operario_id] || "Desconocido",
       operario_id: p.operario_id,
       estado: p.estado,
       inicio: p.created_at,
@@ -391,7 +402,7 @@ const tiempoAlistamiento = async (req, res) => {
     const uid = p.operario_id;
     if (!porOperario[uid]) {
       porOperario[uid] = {
-        operario: p.usuarios?.nombre || "Desconocido",
+        operario: opNames[p.operario_id] || "Desconocido",
         total_pedidos: 0,
         tiempo_total_minutos: 0,
         tiempos: [],
