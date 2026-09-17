@@ -65,8 +65,11 @@ export default function ScanInput({
 
   // Ejecuta la acción al recibir Enter — sin esperar confirmación manual.
   const enviar = () => {
-    const v = valor.trim();
+    let v = valor.trim();
     if (!v || disabled) return;
+    // Limpiar prefijo GS1 AI (01) que el Honeywell agrega al leer EAN14
+    // "0117708935847713" -> "17708935847713"
+    v = v.replace(/^01(\d{14})$/, "$1");
     setValor("");
     if (ref.current) ref.current.focus();
     onScan(v, "teclado");
