@@ -92,13 +92,17 @@ const login = async (req, res) => {
     return res.status(400).json({ error: "Email y contrasena son requeridos" });
   }
 
-  // Verificar bloqueo por IP
-  const bloqueo = await verificarBloqueoIp(ip);
-  if (bloqueo?.bloqueado) {
-    await registrarSesion(null, ip, dispositivo, "bloqueado");
-    return res.status(429).json({
-      error: `IP bloqueada por ${bloqueo.minutosRestantes} minuto${bloqueo.minutosRestantes !== 1 ? "s" : ""} debido a multiples intentos fallidos`,
-    });
+  // Verificar bloqueo por IP — best-effort, no bloquea el login si falla
+  try {
+    const bloqueo = await verificarBloqueoIp(ip);
+    if (bloqueo?.bloqueado) {
+      await registrarSesion(null, ip, dispositivo, "bloqueado").catch(() => {});
+      return res.status(429).json({
+        error: `IP bloqueada por ${bloqueo.minutosRestantes} minuto${bloqueo.minutosRestantes !== 1 ? "s" : ""} debido a multiples intentos fallidos`,
+      });
+    }
+  } catch {
+    // best-effort — continuar con el login
   }
 
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -154,11 +158,11 @@ const login = async (req, res) => {
       .eq("id", usuario.id);
   }
 
-  // Limpiar intentos fallidos al login exitoso
-  await limpiarIntentosIp(ip);
+  // Limpiar intentos fallidos al login exitoso — best-effort
+  limpiarIntentosIp(ip).catch(() => {});
 
-  // Registrar sesion
-  await registrarSesion(usuario.id, ip, dispositivo, "login");
+  // Registrar sesion — best-effort
+  registrarSesion(usuario.id, ip, dispositivo, "login").catch(() => {});
 
   return res.json({
     token: data.session.access_token,

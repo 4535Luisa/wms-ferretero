@@ -1,11 +1,8 @@
 const supabase = require("../utils/supabase");
 const { ORDEN_BODEGAS, splitCajaSaldo } = require("../utils/picking");
 const { sendServerError } = require("../utils/errors");
-const {
-  verificarYRegistrar,
-  normalizarRef,
-  resolverCodigoEscaneado,
-} = require("../utils/escaneo");
+const { verificarYRegistrar, normalizarRef } = require("../utils/escaneo");
+
 const generarListasPicking = async (req, res) => {
   const { pedido_ids } = req.body;
   if (!pedido_ids || pedido_ids.length === 0)
@@ -190,22 +187,29 @@ const generarListasPicking = async (req, res) => {
       item.wave_id = waveMap[key];
     }
 
-    await supabase.from("lista_picking_items").insert(
-      lista.items.map((item) => ({
-        lista_id: listaCreada.id,
-        pedido_id: item.pedido_id,
-        producto_id: item.producto_id,
-        ubicacion_id: item.ubicacion_id,
-        ubicacion_codigo: item.ubicacion_codigo,
-        referencia: item.referencia,
-        descripcion: item.descripcion,
-        cantidad_cajas: item.cantidad_cajas,
-        cantidad_unidades: item.cantidad_unidades,
-        destino_saldos: item.destino_saldos,
-        wave_id: item.wave_id,
-        estado: "pendiente",
-      })),
-    );
+    // Expandir items: 1 registro por caja fisica
+    // Si un item necesita 3 cajas, se crean 3 registros con cantidad_cajas=1
+    const itemsExpandidos = [];
+    for (const item of lista.items) {
+      const numCajas = item.cantidad_cajas || 1;
+      for (let c = 0; c < numCajas; c++) {
+        itemsExpandidos.push({
+          lista_id: listaCreada.id,
+          pedido_id: item.pedido_id,
+          producto_id: item.producto_id,
+          ubicacion_id: item.ubicacion_id,
+          ubicacion_codigo: item.ubicacion_codigo,
+          referencia: item.referencia,
+          descripcion: item.descripcion,
+          cantidad_cajas: 1,
+          cantidad_unidades: item.cantidad_unidades,
+          destino_saldos: item.destino_saldos,
+          wave_id: item.wave_id,
+          estado: "pendiente",
+        });
+      }
+    }
+    await supabase.from("lista_picking_items").insert(itemsExpandidos);
 
     listasCreadas.push({
       id: listaCreada.id,
@@ -344,18 +348,12 @@ const bajarCaja = async (req, res) => {
   // debe coincidir con la del ítem. Si no coincide, no se registra la bajada
   // ni se toca inventario. El intento queda trazado en bitácora.
   const refEsperada = item.referencia || item.productos?.codigo_interno;
-
-  // Limpiar prefijo GS1 AI (01) que el Honeywell agrega al leer EAN14
-  // Ej: "0117709947366711" -> "17709947366711" -> resuelve a codigo_interno
-  const refEscaneadaLimpia =
-    await resolverCodigoEscaneado(referencia_escaneada);
-
   const { ok, resultado } = await verificarYRegistrar({
     usuario_id,
     tabla: "lista_picking_items",
     registro_id: id,
     esperada: refEsperada,
-    escaneada: refEscaneadaLimpia,
+    escaneada: referencia_escaneada,
     metodo: metodoCaptura,
   });
   if (!ok) {
