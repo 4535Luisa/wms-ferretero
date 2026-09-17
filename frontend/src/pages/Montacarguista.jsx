@@ -257,12 +257,13 @@ export default function Montacarguista() {
       return;
     }
 
-    // Es un código de caja — resolver EAN-13 si aplica
-    let codigoResuelto = norm;
-    if (/^\d{8,14}$/.test(norm)) {
+    // Es un código de caja — limpiar prefijo GS1 (01) y resolver EAN14
+    const normLimpio = norm.replace(/^01(\d{14})$/, "$1");
+    let codigoResuelto = normLimpio;
+    if (/^\d{8,16}$/.test(normLimpio)) {
       try {
         const { data } = await api.get(
-          `/api/productos/buscar-barras?codigo_barras=${norm}`,
+          `/api/productos/buscar-barras?codigo_barras=${normLimpio}`,
         );
         if (data?.codigo_interno)
           codigoResuelto = data.codigo_interno.trim().toUpperCase();
