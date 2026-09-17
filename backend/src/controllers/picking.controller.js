@@ -1,8 +1,11 @@
 const supabase = require("../utils/supabase");
 const { ORDEN_BODEGAS, splitCajaSaldo } = require("../utils/picking");
 const { sendServerError } = require("../utils/errors");
-const { verificarYRegistrar, normalizarRef } = require("../utils/escaneo");
-
+const {
+  verificarYRegistrar,
+  normalizarRef,
+  resolverCodigoEscaneado,
+} = require("../utils/escaneo");
 const generarListasPicking = async (req, res) => {
   const { pedido_ids } = req.body;
   if (!pedido_ids || pedido_ids.length === 0)
