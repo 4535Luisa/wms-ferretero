@@ -41,7 +41,9 @@ const detalleVerificacion = async (req, res) => {
 // Fase 3): solo confirma físicamente y deja traza en bitácora (vía escaneo).
 const verificarItem = async (req, res) => {
   const { id, itemId } = req.params;
-  const { referencia_escaneada } = req.body || {};
+  const { referencia_escaneada: refRaw } = req.body || {};
+  // Limpiar prefijo GS1 AI (01) del Honeywell
+  const referencia_escaneada = await resolverCodigoEscaneado(refRaw || "");
   const usuario_id = req.usuario?.id;
 
   const { data: item } = await supabase
@@ -189,23 +191,19 @@ const registrarDiferencia = async (req, res) => {
 
   if (!item) return res.status(404).json({ error: "Item no encontrado" });
   if (item.pedidos?.estado !== "cerrado") {
-    return res
-      .status(400)
-      .json({
-        error: "Solo se pueden registrar diferencias en pedidos cerrados",
-      });
+    return res.status(400).json({
+      error: "Solo se pueden registrar diferencias en pedidos cerrados",
+    });
   }
 
   const cantidadPedida = item.cantidad_pedida || 0;
   const cantidadReal = Number(cantidad_real);
 
   if (cantidadReal >= cantidadPedida) {
-    return res
-      .status(400)
-      .json({
-        error:
-          "La cantidad real no puede ser mayor o igual a la pedida si hay diferencia",
-      });
+    return res.status(400).json({
+      error:
+        "La cantidad real no puede ser mayor o igual a la pedida si hay diferencia",
+    });
   }
 
   // Registrar la diferencia
@@ -270,11 +268,9 @@ const confirmarConDiferencias = async (req, res) => {
 
   if (!pedido) return res.status(404).json({ error: "Pedido no encontrado" });
   if (!["cerrado", "con_diferencia"].includes(pedido.estado)) {
-    return res
-      .status(400)
-      .json({
-        error: "El pedido debe estar cerrado o con diferencia para confirmar",
-      });
+    return res.status(400).json({
+      error: "El pedido debe estar cerrado o con diferencia para confirmar",
+    });
   }
 
   const items = pedido.pedido_items || [];
