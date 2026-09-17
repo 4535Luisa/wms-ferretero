@@ -194,12 +194,10 @@ export default function Montacarguista() {
       });
       bip("ok");
       const restantes = grupo.pendientes.length - 1;
-      // Si quedan más cajas en esta ubicación, mantener ubicación activa
-      if (restantes === 0) setUbicacionActiva(null);
       mostrarMensaje(
         restantes > 0
-          ? ` Caja bajada — faltan ${restantes} caja${restantes !== 1 ? "s" : ""} en ${grupo.ubicacion_codigo}`
-          : ` Todas las cajas de ${grupo.referencia} bajadas`,
+          ? `Caja bajada — faltan ${restantes} caja${restantes !== 1 ? "s" : ""} de ${grupo.referencia}`
+          : `Todas las cajas de ${grupo.referencia} bajadas`,
       );
     } catch (err) {
       bip("error");
@@ -209,6 +207,19 @@ export default function Montacarguista() {
       );
     } finally {
       await recargarListaActiva();
+      // Desactivar ubicacion solo si ya no quedan pendientes en ella
+      if (ubicacionActiva) {
+        const lista = await api.get("/api/picking/mis-listas");
+        const listaAct = lista.data?.find((l) => l.id === listaActiva?.id);
+        if (listaAct) {
+          const pendientesEnUbic = (listaAct.lista_picking_items || []).filter(
+            (i) =>
+              i.estado === "pendiente" &&
+              (i.ubicacion_codigo || "").toUpperCase() === ubicacionActiva,
+          );
+          if (pendientesEnUbic.length === 0) setUbicacionActiva(null);
+        }
+      }
       setCargando(false);
     }
   };
