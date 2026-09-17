@@ -71,8 +71,11 @@ export default function ScanInput({
     // "0117708935847713" -> "17708935847713"
     v = v.replace(/^01(\d{14})$/, "$1");
     setValor("");
-    if (ref.current) ref.current.focus();
     onScan(v, "teclado");
+    // Recuperar foco automaticamente para escaneo continuo
+    setTimeout(() => {
+      if (ref.current) ref.current.focus();
+    }, 50);
   };
 
   // Lectura por cámara: ejecuta inmediatamente al detectar el código.
