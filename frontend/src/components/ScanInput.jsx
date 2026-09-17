@@ -175,6 +175,12 @@ export default function ScanInput({
           onKeyDown={(e) => {
             if (e.key === "Enter") enviar();
           }}
+          onBlur={() => {
+            // Recuperar foco automaticamente para escaneo continuo con pistola
+            setTimeout(() => {
+              if (ref.current && !disabled) ref.current.focus();
+            }, 100);
+          }}
           placeholder={placeholder}
           disabled={disabled}
           style={{
