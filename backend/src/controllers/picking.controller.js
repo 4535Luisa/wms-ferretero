@@ -341,12 +341,18 @@ const bajarCaja = async (req, res) => {
   // debe coincidir con la del ítem. Si no coincide, no se registra la bajada
   // ni se toca inventario. El intento queda trazado en bitácora.
   const refEsperada = item.referencia || item.productos?.codigo_interno;
+
+  // Limpiar prefijo GS1 AI (01) que el Honeywell agrega al leer EAN14
+  // Ej: "0117709947366711" -> "17709947366711" -> resuelve a codigo_interno
+  const refEscaneadaLimpia =
+    await resolverCodigoEscaneado(referencia_escaneada);
+
   const { ok, resultado } = await verificarYRegistrar({
     usuario_id,
     tabla: "lista_picking_items",
     registro_id: id,
     esperada: refEsperada,
-    escaneada: referencia_escaneada,
+    escaneada: refEscaneadaLimpia,
     metodo: metodoCaptura,
   });
   if (!ok) {
