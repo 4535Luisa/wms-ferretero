@@ -6,6 +6,7 @@ const {
   listarPorVerificar,
   detalleVerificacion,
   verificarItem,
+  confirmarSaldoItem,
   confirmarVerificacion,
   registrarDiferencia,
   confirmarConDiferencias,
@@ -26,12 +27,18 @@ router.patch(
   verificarItem,
 );
 router.patch(
+  "/:id/items/:itemId/saldo",
+  requireRoles("administrador"),
+  requireUuidParam("id"),
+  requireUuidParam("itemId"),
+  confirmarSaldoItem,
+);
+router.patch(
   "/:id/confirmar",
   requireRoles("administrador"),
   requireUuidParam("id"),
   confirmarVerificacion,
 );
-
 router.post(
   "/:id/items/:itemId/diferencia",
   requireRoles("administrador"),
