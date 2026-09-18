@@ -8,8 +8,7 @@ const generarListasPicking = async (req, res) => {
   if (!pedido_ids || pedido_ids.length === 0)
     return res.status(400).json({ error: "No hay pedidos para procesar" });
 
-  // Idempotencia: omite pedidos que YA tienen ítems de picking generados. Sin
-  // esto, re-ejecutar volvía a comprometer inventario y duplicaba listas.
+  // Idempotencia: omite pedidos que YA tienen ítems de picking generados.
   const { data: yaGenerados } = await supabase
     .from("lista_picking_items")
     .select("pedido_id")
@@ -34,8 +33,7 @@ const generarListasPicking = async (req, res) => {
   for (const codigo of ORDEN_BODEGAS)
     bodegaIds[codigo] = codigoToId[codigo] || null;
 
-  // Mapa de ubicaciones (id -> codigo) de las bodegas de picking, en una consulta
-  // (evita un SELECT por cada fila de inventario elegida).
+  // Mapa de ubicaciones (id -> codigo) de las bodegas de picking.
   const bodegaIdList = ORDEN_BODEGAS.map((c) => bodegaIds[c]).filter(Boolean);
   const ubicMap = {};
   if (bodegaIdList.length > 0) {
@@ -57,7 +55,7 @@ const generarListasPicking = async (req, res) => {
     }
   }
 
-  // Todos los pedidos con sus ítems en una sola consulta (en vez de uno por uno).
+  // Todos los pedidos con sus ítems en una sola consulta.
   const { data: pedidosData } = await supabase
     .from("pedidos")
     .select(
@@ -67,9 +65,8 @@ const generarListasPicking = async (req, res) => {
   const pedidosMap = {};
   for (const p of pedidosData || []) pedidosMap[p.id] = p;
 
-  // Las unidades sueltas (saldos) y su reposición se calculan al asignar
-  // el pedido a un operario (ver asignarPedido en pedidos.controller.js).
-  // El generador de picking solo maneja cajas completas.
+  // Acumula advertencias de stock insuficiente para devolver al jefe de bodega.
+  const advertencias = [];
 
   for (const pedidoId of pedidosAProcesar) {
     const pedido = pedidosMap[pedidoId];
@@ -77,90 +74,117 @@ const generarListasPicking = async (req, res) => {
 
     for (const item of pedido.pedido_items || []) {
       const unidadEmpaque = item.productos?.unidad_empaque || 0;
-      const { cajasCompletas } = splitCajaSaldo(
+      const ref = item.productos?.codigo_interno || item.producto_id;
+      const desc = item.productos?.descripcion_corta || ref;
+      const { cajasCompletas, unidadesSueltas } = splitCajaSaldo(
         item.cantidad_pedida,
         unidadEmpaque,
       );
 
-      // Sin unidad_empaque conocida (>1), cajasCompletas = 0: el producto no
-      // genera caja para el montacarguista y toda su cantidad va a SALDOS (se
-      // resuelve al asignar el pedido, ver asignarTanda). Ya no se omite.
-      // Las unidades sueltas (saldos) y su reposición se resuelven al asignar
-      // el pedido a un operario (consolidado por operario, ver asignarTanda).
-      if (cajasCompletas > 0) {
-        let cajasRestantes = cajasCompletas;
-        for (const codigo of ORDEN_BODEGAS) {
-          if (cajasRestantes <= 0) break;
-          const bodegaId = bodegaIds[codigo];
-          if (!bodegaId) continue;
-
-          const { data: invs } = await supabase
-            .from("inventario")
-            .select(
-              "id, cantidad_disponible, cantidad_comprometida, ubicacion_id",
-            )
-            .eq("producto_id", item.producto_id)
-            .eq("bodega_id", bodegaId)
-            .gt("cantidad_disponible", 0)
-            .order("cantidad_disponible", { ascending: true });
-
-          for (const inv of invs || []) {
-            if (cajasRestantes <= 0) break;
-            // Disponible real = físico menos lo ya comprometido por otra lista
-            // (bloqueo: dos pickers no pueden tomar el mismo stock).
-            const disponibleReal =
-              inv.cantidad_disponible - (inv.cantidad_comprometida || 0);
-            let cajasDisponibles = Math.floor(disponibleReal / unidadEmpaque);
-            if (cajasDisponibles <= 0) continue;
-
-            // Reserva ATÓMICA: el stock pasa a COMPROMETIDO solo si hay
-            // disponible real (RPC con FOR UPDATE, anti doble-picking). Si otro
-            // proceso se adelantó entre la lectura y este punto, reintenta con
-            // lo que realmente quede. Ver sql/2026-06-02_rpc_reservar_picking.sql
-            let cajasATomar = 0;
-            let unidadesATomar = 0;
-            for (let intento = 0; intento < 2; intento++) {
-              const cajas = Math.min(cajasRestantes, cajasDisponibles);
-              if (cajas <= 0) break;
-              const unidades = cajas * unidadEmpaque;
-              const { data: rsv } = await supabase.rpc(
-                "reservar_inventario_picking",
-                { p_inventario_id: inv.id, p_unidades: unidades },
-              );
-              if (rsv?.status === "ok") {
-                cajasATomar = cajas;
-                unidadesATomar = unidades;
-                break;
-              }
-              if (rsv?.status === "insufficient") {
-                cajasDisponibles = Math.floor(
-                  (rsv.disponible || 0) / unidadEmpaque,
-                );
-                continue; // reintenta con lo que quede
-              }
-              break; // not_found u otro estado: no reservar
-            }
-            if (cajasATomar <= 0) continue;
-
-            const ubicCodigo = inv.ubicacion_id
-              ? ubicMap[inv.ubicacion_id] || null
-              : null;
-
-            listasPorBodega[bodegaId].items.push({
-              pedido_id: pedidoId,
-              pedido_numero: pedido.numero,
-              producto_id: item.producto_id,
-              ubicacion_id: inv.ubicacion_id,
-              ubicacion_codigo: ubicCodigo,
-              referencia: item.productos?.codigo_interno,
-              descripcion: item.productos?.descripcion_corta,
-              cantidad_cajas: cajasATomar,
-              cantidad_unidades: unidadesATomar,
-              destino_saldos: false,
-            });
-            cajasRestantes -= cajasATomar;
-          }
+      // Sin unidad_empaque o sin cajas completas: va todo a SALDOS.
+      if (cajasCompletas === 0) {
+        if (item.cantidad_pedida > 0) {
+          advertencias.push({
+            pedido_numero: pedido.numero,
+            referencia: ref,
+            descripcion: desc,
+            cantidad_pedida: item.cantidad_pedida,
+            cajas_requeridas: 0,
+            cajas_disponibles: 0,
+            motivo:
+              "Sin unidad de empaque definida o cantidad menor a 1 caja — se resolverá como saldo",
+          });
         }
+        continue;
+      }
+
+      let cajasRestantes = cajasCompletas;
+      let cajasReservadas = 0;
+
+      for (const codigo of ORDEN_BODEGAS) {
+        if (cajasRestantes <= 0) break;
+        const bodegaId = bodegaIds[codigo];
+        if (!bodegaId) continue;
+
+        const { data: invs } = await supabase
+          .from("inventario")
+          .select(
+            "id, cantidad_disponible, cantidad_comprometida, ubicacion_id",
+          )
+          .eq("producto_id", item.producto_id)
+          .eq("bodega_id", bodegaId)
+          .gt("cantidad_disponible", 0)
+          .order("cantidad_disponible", { ascending: true });
+
+        for (const inv of invs || []) {
+          if (cajasRestantes <= 0) break;
+          const disponibleReal =
+            inv.cantidad_disponible - (inv.cantidad_comprometida || 0);
+          let cajasDisponibles = Math.floor(disponibleReal / unidadEmpaque);
+          if (cajasDisponibles <= 0) continue;
+
+          let cajasATomar = 0;
+          let unidadesATomar = 0;
+          for (let intento = 0; intento < 2; intento++) {
+            const cajas = Math.min(cajasRestantes, cajasDisponibles);
+            if (cajas <= 0) break;
+            const unidades = cajas * unidadEmpaque;
+            const { data: rsv } = await supabase.rpc(
+              "reservar_inventario_picking",
+              { p_inventario_id: inv.id, p_unidades: unidades },
+            );
+            if (rsv?.status === "ok") {
+              cajasATomar = cajas;
+              unidadesATomar = unidades;
+              break;
+            }
+            if (rsv?.status === "insufficient") {
+              cajasDisponibles = Math.floor(
+                (rsv.disponible || 0) / unidadEmpaque,
+              );
+              continue;
+            }
+            break;
+          }
+          if (cajasATomar <= 0) continue;
+
+          const ubicCodigo = inv.ubicacion_id
+            ? ubicMap[inv.ubicacion_id] || null
+            : null;
+
+          listasPorBodega[bodegaId].items.push({
+            pedido_id: pedidoId,
+            pedido_numero: pedido.numero,
+            producto_id: item.producto_id,
+            ubicacion_id: inv.ubicacion_id,
+            ubicacion_codigo: ubicCodigo,
+            referencia: ref,
+            descripcion: desc,
+            cantidad_cajas: cajasATomar,
+            cantidad_unidades: unidadesATomar,
+            destino_saldos: false,
+            wave_id: null,
+          });
+          cajasReservadas += cajasATomar;
+          cajasRestantes -= cajasATomar;
+        }
+      }
+
+      // Si no se pudo reservar todas las cajas requeridas, genera advertencia.
+      if (cajasRestantes > 0) {
+        advertencias.push({
+          pedido_numero: pedido.numero,
+          referencia: ref,
+          descripcion: desc,
+          cantidad_pedida: item.cantidad_pedida,
+          cajas_requeridas: cajasCompletas,
+          cajas_disponibles: cajasReservadas,
+          cajas_faltantes: cajasRestantes,
+          motivo:
+            cajasReservadas === 0
+              ? "Sin stock en bodegas de picking — se alistara lo que haya en saldos"
+              : `Stock parcial: se reservaron ${cajasReservadas} de ${cajasCompletas} cajas requeridas`,
+        });
       }
     }
   }
@@ -176,8 +200,7 @@ const generarListasPicking = async (req, res) => {
       .single();
     if (error || !listaCreada) continue;
 
-    // Asignar wave_id por referencia — agrupa items de la misma referencia
-    // para que el montacarguista vea un solo item con el total de cajas
+    // Asignar wave_id por referencia + ubicacion
     const waveMap = {};
     let waveCounter = 1;
     for (const item of lista.items) {
@@ -188,7 +211,6 @@ const generarListasPicking = async (req, res) => {
     }
 
     // Expandir items: 1 registro por caja fisica
-    // Si un item necesita 3 cajas, se crean 3 registros con cantidad_cajas=1
     const itemsExpandidos = [];
     for (const item of lista.items) {
       const numCajas = item.cantidad_cajas || 1;
@@ -222,7 +244,13 @@ const generarListasPicking = async (req, res) => {
 
   return res.json({
     listas: listasCreadas,
-    mensaje: `${listasCreadas.length} listas de picking generadas`,
+    advertencias,
+    mensaje:
+      listasCreadas.length > 0
+        ? `${listasCreadas.length} listas de picking generadas${advertencias.length > 0 ? ` — ${advertencias.length} referencia(s) con stock insuficiente` : ""}`
+        : advertencias.length > 0
+          ? "No se generaron listas — sin stock en bodegas de picking"
+          : "Sin items para generar",
   });
 };
 
@@ -328,8 +356,6 @@ const bajarCaja = async (req, res) => {
   const { estiba_id, referencia_escaneada, metodo } = req.body || {};
   const usuario_id = req.usuario?.id;
   const esAdmin = req.usuario?.rol === "administrador";
-  // Trazabilidad de captura: "camara" (lectura óptica) o "teclado" (pistola o
-  // digitación manual de una caja sin etiqueta). Solo afecta la bitácora.
   const metodoCaptura = metodo === "camara" ? "camara" : "teclado";
 
   const { data: item } = await supabase
@@ -337,16 +363,12 @@ const bajarCaja = async (req, res) => {
     .select("*, productos(codigo_interno)")
     .eq("id", id)
     .single();
-  if (!item) return res.status(404).json({ error: "Ítem no encontrado" });
+  if (!item) return res.status(404).json({ error: "Item no encontrado" });
 
-  // Idempotencia: si ya fue procesada, no volver a descontar inventario.
   if (item.estado !== "pendiente") {
     return res.status(400).json({ error: "Esta caja ya fue bajada" });
   }
 
-  // Verificación de escaneo (railguard): la referencia de la caja escaneada
-  // debe coincidir con la del ítem. Si no coincide, no se registra la bajada
-  // ni se toca inventario. El intento queda trazado en bitácora.
   const refEsperada = item.referencia || item.productos?.codigo_interno;
   const { ok, resultado } = await verificarYRegistrar({
     usuario_id,
@@ -360,14 +382,13 @@ const bajarCaja = async (req, res) => {
     return res.status(422).json({
       error:
         resultado === "faltante"
-          ? "Debes escanear el código de barras de la caja antes de bajarla"
-          : `Caja incorrecta: escaneaste ${normalizarRef(referencia_escaneada)}, pero esta línea es ${refEsperada}`,
+          ? "Debes escanear el codigo de barras de la caja antes de bajarla"
+          : `Caja incorrecta: escaneaste ${normalizarRef(referencia_escaneada)}, pero esta linea es ${refEsperada}`,
       resultado,
       referencia_esperada: refEsperada,
     });
   }
 
-  // La estiba debe existir y tener foto (railguard) — se valida al crearla.
   if (estiba_id) {
     const { data: estiba } = await supabase
       .from("estibas")
@@ -381,20 +402,15 @@ const bajarCaja = async (req, res) => {
     }
   }
 
-  // Propiedad: la lista debe estar asignada a este montacarguista.
   const { data: lista } = await supabase
     .from("listas_picking")
     .select("id, montacarguista_id")
     .eq("id", item.lista_id)
     .single();
   if (!esAdmin && lista?.montacarguista_id !== usuario_id) {
-    return res.status(403).json({ error: "Esta lista no está asignada a ti" });
+    return res.status(403).json({ error: "Esta lista no esta asignada a ti" });
   }
 
-  // Núcleo atómico: transición pendiente -> bajada + vínculo de estiba +
-  // descuento de inventario + liberación de comprometido + bitácora, en UNA
-  // transacción con bloqueo de filas (idempotente, anti doble descuento).
-  // Ver backend/sql/2026-06-01_rpc_picking_saldos.sql
   const { data: rpcData, error } = await supabase.rpc("bajar_caja", {
     p_item_id: id,
     p_usuario_id: usuario_id || null,
@@ -403,7 +419,7 @@ const bajarCaja = async (req, res) => {
   if (error) return sendServerError(res, error, req);
   const r = rpcData || {};
   if (r.status === "not_found")
-    return res.status(404).json({ error: "Ítem no encontrado" });
+    return res.status(404).json({ error: "Item no encontrado" });
   if (r.status === "already_done")
     return res.status(400).json({ error: "Esta caja ya fue bajada" });
   if (r.status !== "ok")
@@ -416,7 +432,6 @@ const bajarCaja = async (req, res) => {
     destino_saldos: item.destino_saldos,
   };
 
-  // Notifica al operario dueño del pedido (notificación en tiempo real).
   if (item.pedido_id) {
     const { data: pedido } = await supabase
       .from("pedidos")
@@ -428,13 +443,12 @@ const bajarCaja = async (req, res) => {
         usuario_id: pedido.operario_id,
         tipo: "caja_bajada",
         titulo: "Caja bajada",
-        mensaje: `Se bajó una caja de ${item.descripcion}`,
+        mensaje: `Se bajo una caja de ${item.descripcion}`,
         datos: { ...datosNotif, pedido_numero: pedido.numero },
       });
     }
   }
 
-  // Si la caja va a SALDOS, alerta al perfil de saldos (railguard).
   if (item.destino_saldos) {
     const { data: saldosUsers } = await supabase
       .from("usuarios")
@@ -447,14 +461,13 @@ const bajarCaja = async (req, res) => {
           usuario_id: u.id,
           tipo: "caja_saldos_entrante",
           titulo: "Caja con destino SALDOS",
-          mensaje: `Llegó una caja de ${item.descripcion} para confirmar`,
+          mensaje: `Llego una caja de ${item.descripcion} para confirmar`,
           datos: datosNotif,
         })),
       );
     }
   }
 
-  // Estado de la lista: en_proceso al primer movimiento, completada al terminar.
   if (item.lista_id) {
     const { data: pendientes } = await supabase
       .from("lista_picking_items")
@@ -474,10 +487,6 @@ const bajarCaja = async (req, res) => {
   });
 };
 
-// ----- Estibas (Fase 3) -----
-
-// Registra una estiba. La foto es obligatoria (railguard: estiba sin foto no
-// puede usarse para marcar cajas como listas).
 const crearEstiba = async (req, res) => {
   const usuario_id = req.usuario?.id;
   const { nombre, foto_url } = req.body;
@@ -526,8 +535,6 @@ const misEstibas = async (req, res) => {
   return res.json(data || []);
 };
 
-// Cancela una lista de picking y libera el comprometido de sus ítems pendientes
-// (RPC transaccional). Ver backend/sql/2026-06-01_rpc_cancelar_lista.sql
 const cancelarLista = async (req, res) => {
   const { id } = req.params;
   const usuario_id = req.usuario?.id || null;
@@ -551,7 +558,7 @@ const cancelarLista = async (req, res) => {
   }
 
   return res.json({
-    mensaje: `Lista cancelada — ${r.items_cancelados} ítem(s) liberados`,
+    mensaje: `Lista cancelada — ${r.items_cancelados} item(s) liberados`,
   });
 };
 

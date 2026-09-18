@@ -26,11 +26,130 @@ const prioridadColor = {
   urgente: { bg: "#FEE2E2", color: "#991B1B", label: "Urgente" },
 };
 
-// Convierte cualquier valor de celda a string seguro
 const celdaStr = (v) => {
   if (v === null || v === undefined) return "";
   return String(v).trim();
 };
+
+function PanelAdvertencias({ advertencias, onCerrar }) {
+  if (!advertencias || advertencias.length === 0) return null;
+  return (
+    <div
+      style={{
+        background: "#FFFBEB",
+        border: "1.5px solid #FCD34D",
+        borderRadius: "12px",
+        padding: "1.25rem",
+        marginBottom: "1.25rem",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "0.75rem",
+        }}
+      >
+        <div>
+          <span style={{ fontSize: "14px", fontWeight: 700, color: "#92400E" }}>
+            Stock insuficiente — {advertencias.length} referencia
+            {advertencias.length > 1 ? "s" : ""} con problema
+          </span>
+          <p
+            style={{ fontSize: "12px", color: "#B45309", margin: "2px 0 0 0" }}
+          >
+            Se alistara lo que haya disponible. Las unidades faltantes quedaran
+            pendientes en SALDOS.
+          </p>
+        </div>
+        <button
+          onClick={onCerrar}
+          style={{
+            background: "transparent",
+            border: "none",
+            fontSize: "18px",
+            cursor: "pointer",
+            color: "#92400E",
+            lineHeight: 1,
+            padding: "0 4px",
+          }}
+        >
+          ×
+        </button>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+        {advertencias.map((adv, i) => (
+          <div
+            key={i}
+            style={{
+              background: "#FFFFFF",
+              border: "1px solid #FDE68A",
+              borderRadius: "8px",
+              padding: "10px 14px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              gap: "12px",
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  color: "#0A0A0A",
+                  marginBottom: "2px",
+                }}
+              >
+                {adv.descripcion}
+              </div>
+              <div
+                style={{
+                  fontSize: "11px",
+                  color: "#888",
+                  fontFamily: "DM Mono, monospace",
+                }}
+              >
+                {adv.referencia} · {adv.pedido_numero}
+              </div>
+              <div
+                style={{ fontSize: "12px", color: "#B45309", marginTop: "4px" }}
+              >
+                {adv.motivo}
+              </div>
+            </div>
+            {adv.cajas_requeridas > 0 && (
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                <div
+                  style={{
+                    fontSize: "11px",
+                    color: "#888",
+                    fontFamily: "DM Mono, monospace",
+                  }}
+                >
+                  {adv.cajas_disponibles}/{adv.cajas_requeridas} cajas
+                </div>
+                {adv.cajas_faltantes > 0 && (
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      color: "#991B1B",
+                      fontFamily: "DM Mono, monospace",
+                    }}
+                  >
+                    Faltan {adv.cajas_faltantes}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function AdminPedidos() {
   const [vista, setVista] = useState("lista");
@@ -48,6 +167,7 @@ export default function AdminPedidos() {
   const [modalCancelar, setModalCancelar] = useState(null);
   const [motivoCancelacion, setMotivoCancelacion] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("");
+  const [advertencias, setAdvertencias] = useState([]);
 
   const cargarDatos = async () => {
     try {
@@ -74,7 +194,7 @@ export default function AdminPedidos() {
 
   const mostrarMensaje = (texto, tipo = "ok") => {
     setMensaje({ texto, tipo });
-    setTimeout(() => setMensaje({ texto: "", tipo: "" }), 4000);
+    setTimeout(() => setMensaje({ texto: "", tipo: "" }), 6000);
   };
 
   const leerCSV = (e) => {
@@ -88,8 +208,6 @@ export default function AdminPedidos() {
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
 
-        // defval:"" hace que las celdas vacías devuelvan "" en vez de undefined
-        // Detectar automáticamente columnas buscando el encabezado
         const palabrasNumero = [
           "nro",
           "numero",
@@ -153,7 +271,6 @@ export default function AdminPedidos() {
 
           if (!numero || !referencia || cantidad <= 0) continue;
 
-          // Limpiar referencia decimal: "101012.0" → "101012"
           if (/^\d+\.0+$/.test(referencia))
             referencia = String(Math.round(Number(referencia)));
 
@@ -164,7 +281,7 @@ export default function AdminPedidos() {
         const pedidos = Object.values(pedidosMap);
         if (pedidos.length === 0) {
           mostrarMensaje(
-            "El archivo no tiene filas válidas. Verifica columnas: número de pedido, referencia y cantidad.",
+            "El archivo no tiene filas validas. Verifica columnas: numero de pedido, referencia y cantidad.",
             "error",
           );
           return;
@@ -174,7 +291,7 @@ export default function AdminPedidos() {
       } catch (err) {
         console.error("Error leyendo archivo:", err);
         mostrarMensaje(
-          "No se pudo leer el archivo. Verifica que sea un CSV o Excel (.xls/.xlsx) válido.",
+          "No se pudo leer el archivo. Verifica que sea un CSV o Excel valido.",
           "error",
         );
       }
@@ -187,6 +304,7 @@ export default function AdminPedidos() {
     if (previaCsv.length === 0)
       return mostrarMensaje("No hay pedidos para importar", "error");
     setCargando(true);
+    setAdvertencias([]);
     try {
       const productosCache = {};
       const pedidosConIds = [];
@@ -229,10 +347,6 @@ export default function AdminPedidos() {
       const { data: importResult } = await api.post("/api/pedidos/csv", {
         pedidos: pedidosConIds,
       });
-      mostrarMensaje(
-        ` ${importResult.importados} pedidos importados · generando listas...${avisoRef}`,
-        noEncontradas.size > 0 ? "error" : "ok",
-      );
 
       const { data: pedidosNuevos } = await api.get(
         "/api/pedidos?estado=pendiente",
@@ -242,8 +356,21 @@ export default function AdminPedidos() {
         const { data: listasResult } = await api.post("/api/picking/generar", {
           pedido_ids: ids,
         });
+
+        // Mostrar advertencias de stock insuficiente
+        if (listasResult.advertencias && listasResult.advertencias.length > 0) {
+          setAdvertencias(listasResult.advertencias);
+        }
+
         mostrarMensaje(
-          ` ${importResult.importados} pedidos importados · ${listasResult.listas.length} listas generadas${avisoRef}`,
+          `${importResult.importados} pedidos importados · ${listasResult.listas.length} listas generadas${listasResult.advertencias?.length > 0 ? ` · ${listasResult.advertencias.length} referencia(s) con stock insuficiente` : ""}${avisoRef}`,
+          listasResult.advertencias?.length > 0 || noEncontradas.size > 0
+            ? "error"
+            : "ok",
+        );
+      } else {
+        mostrarMensaje(
+          `${importResult.importados} pedidos importados${avisoRef}`,
           noEncontradas.size > 0 ? "error" : "ok",
         );
       }
@@ -263,6 +390,7 @@ export default function AdminPedidos() {
 
   const generarListasManual = async () => {
     setCargando(true);
+    setAdvertencias([]);
     try {
       const pedidosActivos = pedidos.filter((p) =>
         ["pendiente", "asignado", "en_picking"].includes(p.estado),
@@ -276,7 +404,16 @@ export default function AdminPedidos() {
       const { data } = await api.post("/api/picking/generar", {
         pedido_ids: ids,
       });
-      mostrarMensaje(` ${data.listas.length} listas de picking generadas`);
+
+      // Mostrar advertencias de stock insuficiente
+      if (data.advertencias && data.advertencias.length > 0) {
+        setAdvertencias(data.advertencias);
+      }
+
+      mostrarMensaje(
+        `${data.listas.length} listas generadas${data.advertencias?.length > 0 ? ` · ${data.advertencias.length} referencia(s) con stock insuficiente` : ""}`,
+        data.advertencias?.length > 0 ? "error" : "ok",
+      );
       cargarDatos();
     } catch (err) {
       mostrarMensaje(
@@ -342,7 +479,7 @@ export default function AdminPedidos() {
         montacarguistas: montacarguistasPorBodega,
       });
       mostrarMensaje(
-        ` ${seleccionados.length} pedidos asignados a ${operarios.find((o) => o.id === operarioTanda)?.nombre}`,
+        `${seleccionados.length} pedidos asignados a ${operarios.find((o) => o.id === operarioTanda)?.nombre}`,
       );
       setSeleccionados([]);
       setOperarioTanda("");
@@ -364,7 +501,7 @@ export default function AdminPedidos() {
       await api.patch(`/api/picking/${listaId}/asignar`, {
         montacarguista_id: montacarguistaId,
       });
-      mostrarMensaje(" Montacarguista asignado a la lista");
+      mostrarMensaje("Montacarguista asignado a la lista");
       cargarDatos();
     } catch {
       mostrarMensaje("Error al asignar montacarguista", "error");
@@ -426,8 +563,8 @@ export default function AdminPedidos() {
         }}
       >
         {[
-          { id: "lista", label: " Pedidos" },
-          { id: "listas", label: " Listas picking" },
+          { id: "lista", label: "Pedidos" },
+          { id: "listas", label: "Listas picking" },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -561,6 +698,12 @@ export default function AdminPedidos() {
         </div>
       )}
 
+      {/* Panel de advertencias de stock insuficiente */}
+      <PanelAdvertencias
+        advertencias={advertencias}
+        onCerrar={() => setAdvertencias([])}
+      />
+
       {vista === "lista" && (
         <div>
           {pedidosPendientes.length > 0 && (
@@ -598,7 +741,6 @@ export default function AdminPedidos() {
                 textAlign: "center",
               }}
             >
-              <div style={{ fontSize: "40px", marginBottom: "1rem" }}></div>
               <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
                 No hay pedidos cargados
               </p>
@@ -721,7 +863,7 @@ export default function AdminPedidos() {
                           >
                             {pedido.operario.nombre}
                             {pedido.montacarguista &&
-                              ` ·  ${pedido.montacarguista.nombre}`}
+                              ` · ${pedido.montacarguista.nombre}`}
                           </div>
                         )}
                         {pedido.operario &&
@@ -787,8 +929,8 @@ export default function AdminPedidos() {
                           }}
                         >
                           {pedido.prioridad === "urgente"
-                            ? " Urgente"
-                            : " Normal"}
+                            ? "Urgente"
+                            : "Normal"}
                         </button>
                       )}
                     </div>
@@ -821,7 +963,7 @@ export default function AdminPedidos() {
             >
               {cargando
                 ? "Generando..."
-                : " Generar listas desde pedidos pendientes"}
+                : "Generar listas desde pedidos pendientes"}
             </button>
           </div>
           {listas.length === 0 ? (
@@ -834,7 +976,6 @@ export default function AdminPedidos() {
                 textAlign: "center",
               }}
             >
-              <div style={{ fontSize: "40px", marginBottom: "1rem" }}></div>
               <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
                 No hay listas de picking generadas
               </p>
@@ -909,13 +1050,13 @@ export default function AdminPedidos() {
                           marginTop: "4px",
                         }}
                       >
-                        {lista.lista_picking_items?.length || 0} ítems ·{" "}
+                        {lista.lista_picking_items?.length || 0} items ·{" "}
                         {lista.lista_picking_items?.reduce(
                           (a, i) => a + (i.cantidad_cajas || 0),
                           0,
                         ) || 0}{" "}
                         cajas
-                        {lista.usuarios && ` ·  ${lista.usuarios.nombre}`}
+                        {lista.usuarios && ` · ${lista.usuarios.nombre}`}
                       </div>
                     </div>
                     {lista.estado === "pendiente" && (
@@ -1007,7 +1148,7 @@ export default function AdminPedidos() {
                                         fontWeight: 700,
                                       }}
                                     >
-                                      → SALDOS
+                                      SALDOS
                                     </span>
                                   )}
                                 </div>
@@ -1077,7 +1218,7 @@ export default function AdminPedidos() {
             <p
               style={{ fontSize: "13px", color: "#888", marginBottom: "1rem" }}
             >
-              Al importar el sistema generará automáticamente las listas de
+              Al importar el sistema generara automaticamente las listas de
               picking por bodega
             </p>
             <div
@@ -1143,7 +1284,7 @@ export default function AdminPedidos() {
                     ))}
                     {pedido.items.length > 5 && (
                       <span style={{ fontSize: "11px", color: "#AAA" }}>
-                        +{pedido.items.length - 5} más
+                        +{pedido.items.length - 5} mas
                       </span>
                     )}
                   </div>
@@ -1188,7 +1329,7 @@ export default function AdminPedidos() {
             <p
               style={{ fontSize: "13px", color: "#888", marginBottom: "1rem" }}
             >
-              Los siguientes pedidos se asignarán al mismo operario:
+              Los siguientes pedidos se asignaran al mismo operario:
             </p>
             <div
               style={{ display: "flex", flexDirection: "column", gap: "8px" }}
@@ -1329,11 +1470,12 @@ export default function AdminPedidos() {
                 opacity: cargando ? 0.6 : 1,
               }}
             >
-              {cargando ? "Asignando..." : "Confirmar asignación →"}
+              {cargando ? "Asignando..." : "Confirmar asignacion →"}
             </button>
           </div>
         </div>
       )}
+
       {modalCancelar && (
         <div
           style={{
