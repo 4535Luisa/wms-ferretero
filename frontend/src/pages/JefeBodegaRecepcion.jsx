@@ -67,9 +67,12 @@ export default function JefeBodegaRecepcion() {
   const buscarProducto = async (referencia) => {
     if (!referencia.trim()) return;
     setBuscando(true);
+    // Limpiar prefijo GS1 AI (01) del Honeywell: "01" + 14 dígitos → 14 dígitos
+    let codigo = referencia.trim();
+    if (/^01\d{14}$/.test(codigo)) codigo = codigo.slice(2);
     try {
       const { data } = await api.get(
-        `/api/productos/buscar?referencia=${referencia.trim()}`,
+        `/api/productos/buscar?referencia=${codigo}`,
       );
       if (!data) {
         mostrarMensaje(`Referencia ${referencia} no encontrada`, "error");

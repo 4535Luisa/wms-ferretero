@@ -3,10 +3,16 @@ const { sendServerError } = require("../utils/errors");
 const { toFiniteNumber } = require("../utils/validate");
 
 const crearRecepcion = async (req, res) => {
-  const { bodega_id, proveedor, numero_oc } = req.body;
+  const { proveedor, numero_oc } = req.body;
+  // bodega_id viene del cuerpo o, si no, del usuario autenticado (jefe_bodega)
+  const bodega_id = req.body.bodega_id || req.usuario?.bodega_id;
 
   if (!bodega_id || !proveedor) {
-    return res.status(400).json({ error: "Faltan datos obligatorios" });
+    return res
+      .status(400)
+      .json({
+        error: "Faltan datos obligatorios (proveedor o bodega no configurada)",
+      });
   }
 
   const { data: recepcion, error } = await supabase
@@ -57,8 +63,7 @@ const obtenerRecepcion = async (req, res) => {
     .single();
 
   if (error) return sendServerError(res, error, req);
-  if (!data)
-    return res.status(404).json({ error: "Recepción no encontrada" });
+  if (!data) return res.status(404).json({ error: "Recepción no encontrada" });
 
   // Aislamiento por bodega: el jefe_bodega solo accede a su propia bodega.
   if (
@@ -108,7 +113,8 @@ const inspeccionarItem = async (req, res) => {
   // Las cantidades son opcionales, pero si vienen deben ser números >= 0.
   const aprobada = toFiniteNumber(cantidad_aprobada);
   const rechazada = toFiniteNumber(cantidad_rechazada);
-  const aprobadaProvista = cantidad_aprobada != null && cantidad_aprobada !== "";
+  const aprobadaProvista =
+    cantidad_aprobada != null && cantidad_aprobada !== "";
   const rechazadaProvista =
     cantidad_rechazada != null && cantidad_rechazada !== "";
   if (
