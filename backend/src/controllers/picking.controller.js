@@ -1,13 +1,54 @@
 const supabase = require("../utils/supabase");
-const { ORDEN_BODEGAS, splitCajaSaldo } = require("../utils/picking");
-const { sendServerError } = require("../utils/errors");
+const {
+  ORDEN_BODEGAS,
+  splitCajaSaldo,
+  expandirCajas,
+} = require("../utils/picking");
+const { sendServerError, logError } = require("../utils/errors");
 const { verificarYRegistrar, normalizarRef } = require("../utils/escaneo");
+
+// Pedidos con una generación en curso en este proceso: evita que un doble clic
+// (dos requests simultáneos) pase la comprobación de idempotencia dos veces y
+// reserve el stock por duplicado.
+const pedidosEnGeneracion = new Set();
+
+// Devuelve a disponible lo reservado para una lista que no se pudo crear.
+// Requiere sql/2026-10-20_fix_auditoria.sql (liberar_inventario_picking).
+const liberarReservas = async (reservas, req) => {
+  for (const r of reservas) {
+    const { data, error } = await supabase.rpc("liberar_inventario_picking", {
+      p_inventario_id: r.inventario_id,
+      p_unidades: r.unidades,
+    });
+    if (error || data?.status !== "ok") {
+      logError(
+        `${req.method} ${req.originalUrl} liberar reserva ${r.inventario_id} (${r.unidades} u)`,
+        error || data,
+      );
+    }
+  }
+};
 
 const generarListasPicking = async (req, res) => {
   const { pedido_ids } = req.body;
-  if (!pedido_ids || pedido_ids.length === 0)
+  if (!Array.isArray(pedido_ids) || pedido_ids.length === 0)
     return res.status(400).json({ error: "No hay pedidos para procesar" });
 
+  if (pedido_ids.some((id) => pedidosEnGeneracion.has(id))) {
+    return res.status(409).json({
+      error:
+        "Ya se están generando listas para alguno de estos pedidos. Espera unos segundos y recarga.",
+    });
+  }
+  for (const id of pedido_ids) pedidosEnGeneracion.add(id);
+  try {
+    return await generarListasPickingInterno(req, res, pedido_ids);
+  } finally {
+    for (const id of pedido_ids) pedidosEnGeneracion.delete(id);
+  }
+};
+
+const generarListasPickingInterno = async (req, res, pedido_ids) => {
   // Idempotencia: omite pedidos que YA tienen ítems de picking generados.
   const { data: yaGenerados } = await supabase
     .from("lista_picking_items")
@@ -153,6 +194,7 @@ const generarListasPicking = async (req, res) => {
             : null;
 
           listasPorBodega[bodegaId].items.push({
+            inventario_id: inv.id,
             pedido_id: pedidoId,
             pedido_numero: pedido.numero,
             producto_id: item.producto_id,
@@ -190,15 +232,40 @@ const generarListasPicking = async (req, res) => {
   }
 
   const listasCreadas = [];
+  // Si falla la creación de una lista, sus cajas se reportan como advertencia
+  // (el frontend ya las muestra) en vez de perderse en silencio.
+  const reportarListaFallida = (lista) => {
+    for (const item of lista.items) {
+      advertencias.push({
+        pedido_numero: item.pedido_numero,
+        referencia: item.referencia,
+        descripcion: item.descripcion,
+        cajas_requeridas: item.cantidad_cajas,
+        cajas_disponibles: 0,
+        cajas_faltantes: item.cantidad_cajas,
+        motivo: `Error al crear la lista de picking de ${lista.codigo}: estas cajas NO quedaron en ninguna lista (stock liberado)`,
+      });
+    }
+  };
   for (const [bodegaId, lista] of Object.entries(listasPorBodega)) {
     if (lista.items.length === 0) continue;
+
+    const reservas = lista.items.map((i) => ({
+      inventario_id: i.inventario_id,
+      unidades: i.cantidad_unidades,
+    }));
 
     const { data: listaCreada, error } = await supabase
       .from("listas_picking")
       .insert({ bodega_id: bodegaId, estado: "pendiente" })
       .select()
       .single();
-    if (error || !listaCreada) continue;
+    if (error || !listaCreada) {
+      logError(`${req.method} ${req.originalUrl} crear lista`, error);
+      await liberarReservas(reservas, req);
+      reportarListaFallida(lista);
+      continue;
+    }
 
     // Asignar wave_id por referencia + ubicacion
     const waveMap = {};
@@ -211,27 +278,19 @@ const generarListasPicking = async (req, res) => {
     }
 
     // Expandir items: 1 registro por caja fisica
-    const itemsExpandidos = [];
-    for (const item of lista.items) {
-      const numCajas = item.cantidad_cajas || 1;
-      for (let c = 0; c < numCajas; c++) {
-        itemsExpandidos.push({
-          lista_id: listaCreada.id,
-          pedido_id: item.pedido_id,
-          producto_id: item.producto_id,
-          ubicacion_id: item.ubicacion_id,
-          ubicacion_codigo: item.ubicacion_codigo,
-          referencia: item.referencia,
-          descripcion: item.descripcion,
-          cantidad_cajas: 1,
-          cantidad_unidades: item.cantidad_unidades,
-          destino_saldos: item.destino_saldos,
-          wave_id: item.wave_id,
-          estado: "pendiente",
-        });
-      }
+    const itemsExpandidos = expandirCajas(lista.items, listaCreada.id);
+    const { error: errorItems } = await supabase
+      .from("lista_picking_items")
+      .insert(itemsExpandidos);
+    if (errorItems) {
+      // Sin ítems la lista queda vacía y el stock comprometido para siempre:
+      // se elimina la lista y se devuelve lo reservado.
+      logError(`${req.method} ${req.originalUrl} insertar items`, errorItems);
+      await supabase.from("listas_picking").delete().eq("id", listaCreada.id);
+      await liberarReservas(reservas, req);
+      reportarListaFallida(lista);
+      continue;
     }
-    await supabase.from("lista_picking_items").insert(itemsExpandidos);
 
     listasCreadas.push({
       id: listaCreada.id,
