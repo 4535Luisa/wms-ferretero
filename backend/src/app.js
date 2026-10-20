@@ -43,12 +43,17 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok", proyecto: "WMS Ferretero" });
 });
 
-app.get("/test-supabase", async (req, res) => {
-  const { error } = await supabase.from("usuarios").select("*").limit(1);
-  if (error)
-    return res.status(500).json({ error: "Error conectando a Supabase" });
-  res.json({ conexion: "ok", mensaje: "Supabase conectado correctamente" });
-});
+app.get(
+  "/test-supabase",
+  authMiddleware,
+  authMiddleware.requireRoles("administrador"),
+  async (req, res) => {
+    const { error } = await supabase.from("usuarios").select("*").limit(1);
+    if (error)
+      return res.status(500).json({ error: "Error conectando a Supabase" });
+    res.json({ conexion: "ok", mensaje: "Supabase conectado correctamente" });
+  },
+);
 
 app.use("/api", apiLimiter);
 app.use("/api/auth/login", authLimiter);
