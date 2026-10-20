@@ -1,11 +1,23 @@
 const crypto = require("crypto");
 const supabase = require("../utils/supabase");
+const { crearClienteAuth } = supabase;
+const { logError, sendServerError } = require("../utils/errors");
 
-const SINGLE_SESSION = process.env.SINGLE_SESSION !== "false";
+// Mismo criterio que el middleware y la documentación: solo "true" la activa.
+const SINGLE_SESSION = process.env.SINGLE_SESSION === "true";
 const MAX_INTENTOS = 5;
 const BLOQUEO_MINUTOS = 15;
+const MAX_LIMIT_SESIONES = 500;
 
-// Registra un intento de login fallido por IP y bloquea si supera el maximo
+// Clave del contador de intentos: IP + email. Toda la bodega sale por la misma
+// IP pública, así que bloquear solo por IP dejaba fuera a todos los usuarios
+// por los errores de uno. Se guarda en la columna `ip` de intentos_login.
+const claveIntentos = (ip, email) =>
+  `${ip}|${String(email || "")
+    .trim()
+    .toLowerCase()}`;
+
+// Registra un intento de login fallido por IP+email y bloquea si supera el maximo
 const registrarIntentoFallido = async (ip) => {
   const { data } = await supabase
     .from("intentos_login")
@@ -16,7 +28,7 @@ const registrarIntentoFallido = async (ip) => {
   if (data) {
     const nuevosIntentos = (data.intentos || 0) + 1;
     const bloqueado = nuevosIntentos >= MAX_INTENTOS;
-    await supabase
+    const { error } = await supabase
       .from("intentos_login")
       .update({
         intentos: nuevosIntentos,
@@ -26,16 +38,18 @@ const registrarIntentoFallido = async (ip) => {
         ultimo_intento: new Date().toISOString(),
       })
       .eq("ip", ip);
+    if (error) logError("registrarIntentoFallido", error);
   } else {
-    await supabase.from("intentos_login").insert({
+    const { error } = await supabase.from("intentos_login").insert({
       ip,
       intentos: 1,
       ultimo_intento: new Date().toISOString(),
     });
+    if (error) logError("registrarIntentoFallido", error);
   }
 };
 
-// Verifica si la IP esta bloqueada
+// Verifica si la combinacion IP+email esta bloqueada
 const verificarBloqueoIp = async (ip) => {
   const { data } = await supabase
     .from("intentos_login")
@@ -92,26 +106,30 @@ const login = async (req, res) => {
     return res.status(400).json({ error: "Email y contrasena son requeridos" });
   }
 
-  // Verificar bloqueo por IP — best-effort, no bloquea el login si falla
+  const clave = claveIntentos(ip, email);
+
+  // Verificar bloqueo por IP+email — best-effort, no bloquea el login si falla
   try {
-    const bloqueo = await verificarBloqueoIp(ip);
+    const bloqueo = await verificarBloqueoIp(clave);
     if (bloqueo?.bloqueado) {
       await registrarSesion(null, ip, dispositivo, "bloqueado").catch(() => {});
       return res.status(429).json({
-        error: `IP bloqueada por ${bloqueo.minutosRestantes} minuto${bloqueo.minutosRestantes !== 1 ? "s" : ""} debido a multiples intentos fallidos`,
+        error: `Usuario bloqueado en este equipo por ${bloqueo.minutosRestantes} minuto${bloqueo.minutosRestantes !== 1 ? "s" : ""} debido a multiples intentos fallidos`,
       });
     }
   } catch {
     // best-effort — continuar con el login
   }
 
-  const { data, error } = await supabase.auth.signInWithPassword({
+  // Cliente aislado: signInWithPassword guarda la sesión en el cliente que lo
+  // ejecuta, y en el cliente compartido reemplazaría la service key.
+  const { data, error } = await crearClienteAuth().auth.signInWithPassword({
     email,
     password,
   });
 
   if (error) {
-    await registrarIntentoFallido(ip);
+    await registrarIntentoFallido(clave);
     return res.status(401).json({ error: "Credenciales incorrectas" });
   }
 
@@ -159,7 +177,7 @@ const login = async (req, res) => {
   }
 
   // Limpiar intentos fallidos al login exitoso — best-effort
-  limpiarIntentosIp(ip).catch(() => {});
+  limpiarIntentosIp(clave).catch(() => {});
 
   // Registrar sesion — best-effort
   registrarSesion(usuario.id, ip, dispositivo, "login").catch(() => {});
@@ -193,7 +211,6 @@ const logout = async (req, res) => {
     await registrarSesion(usuario_id, ip, dispositivo, "logout");
   }
 
-  await supabase.auth.signOut();
   return res.json({ mensaje: "Sesion cerrada correctamente" });
 };
 
@@ -215,11 +232,16 @@ const cambiarPassword = async (req, res) => {
       .json({ error: "La nueva contrasena debe tener al menos 8 caracteres" });
   }
 
-  // Verificar contrasena actual
-  const { error: loginError } = await supabase.auth.signInWithPassword({
-    email,
-    password: password_actual,
-  });
+  if (!email || !req.usuario?.auth_id) {
+    return res.status(401).json({ error: "No autenticado" });
+  }
+
+  // Verificar contrasena actual (cliente aislado, ver login)
+  const { error: loginError } =
+    await crearClienteAuth().auth.signInWithPassword({
+      email,
+      password: password_actual,
+    });
 
   if (loginError) {
     return res
@@ -229,11 +251,12 @@ const cambiarPassword = async (req, res) => {
 
   // Cambiar contrasena en Supabase Auth
   const { error: updateError } = await supabase.auth.admin.updateUserById(
-    req.usuario?.auth_id || usuario_id,
+    req.usuario.auth_id,
     { password: password_nuevo },
   );
 
   if (updateError) {
+    logError("cambiarPassword", updateError);
     return res.status(500).json({ error: "Error al cambiar la contrasena" });
   }
 
@@ -259,12 +282,12 @@ const obtenerSesiones = async (req, res) => {
     .from("sesiones_log")
     .select("*, usuarios(nombre, email, rol)")
     .order("created_at", { ascending: false })
-    .limit(Number(limit));
+    .limit(Math.min(Math.max(Number(limit) || 50, 1), MAX_LIMIT_SESIONES));
 
   if (usuario_id) query = query.eq("usuario_id", usuario_id);
 
   const { data, error } = await query;
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return sendServerError(res, error, req);
   return res.json(data || []);
 };
 
@@ -304,7 +327,16 @@ const crearUsuarios = async (req, res) => {
       password: u.password,
       email_confirm: true,
     });
-    resultados.push({ email: u.email, ok: !error, error: error?.message });
+    if (error) logError("crearUsuarios", error);
+    resultados.push({
+      email: u.email,
+      ok: !error,
+      error: error
+        ? /already registered/i.test(error.message || "")
+          ? "El email ya está registrado"
+          : "Error creando el usuario"
+        : undefined,
+    });
   }
 
   return res.json(resultados);
@@ -316,4 +348,5 @@ module.exports = {
   cambiarPassword,
   obtenerSesiones,
   crearUsuarios,
+  claveIntentos,
 };

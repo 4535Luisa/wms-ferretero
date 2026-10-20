@@ -15,7 +15,7 @@ const authMiddleware = async (req, res, next) => {
 
   const { data: usuario } = await supabase
     .from("usuarios")
-    .select("id, nombre, rol, bodega_id, activo")
+    .select("id, nombre, email, rol, bodega_id, activo")
     .eq("email", data.user.email)
     .single();
 
@@ -41,7 +41,9 @@ const authMiddleware = async (req, res, next) => {
     }
   }
 
-  req.usuario = usuario;
+  // auth_id: id del usuario en Supabase Auth (distinto de usuarios.id); lo
+  // necesita auth.admin.updateUserById al cambiar la contraseña.
+  req.usuario = { ...usuario, auth_id: data.user.id };
   next();
 };
 

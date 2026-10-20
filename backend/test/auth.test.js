@@ -80,3 +80,21 @@ describe("authMiddleware", () => {
     assert.equal(res.body.error, "Token requerido");
   });
 });
+
+describe("claveIntentos (bloqueo de login por IP + email)", () => {
+  const { claveIntentos } = require("../src/controllers/auth.controller");
+
+  test("combina IP y email normalizado", () => {
+    assert.equal(
+      claveIntentos("1.2.3.4", "  Ana@Bodega.COM "),
+      "1.2.3.4|ana@bodega.com",
+    );
+  });
+
+  test("misma IP con emails distintos da claves distintas", () => {
+    assert.notEqual(
+      claveIntentos("1.2.3.4", "a@x.com"),
+      claveIntentos("1.2.3.4", "b@x.com"),
+    );
+  });
+});
