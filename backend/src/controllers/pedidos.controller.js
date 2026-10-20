@@ -1,7 +1,22 @@
 const supabase = require("../utils/supabase");
 const { ORDEN_BODEGAS, splitCajaSaldo } = require("../utils/picking");
-const { sendServerError } = require("../utils/errors");
+const { sendServerError, logError } = require("../utils/errors");
 const { toFiniteNumber } = require("../utils/validate");
+
+// Mensaje para el cliente a partir de un error de Postgres/PostgREST, sin
+// exponer el detalle interno (constraint, tabla, query). El detalle va al log.
+const mensajeErrorBD = (error) => {
+  switch (error?.code) {
+    case "23505":
+      return "Registro duplicado";
+    case "23503":
+      return "Hace referencia a un producto o bodega que no existe";
+    case "22P02":
+      return "Dato con formato inválido";
+    default:
+      return "Error guardando el pedido";
+  }
+};
 const { verificarYRegistrar, normalizarRef } = require("../utils/escaneo");
 
 const cargarCSV = async (req, res) => {
@@ -13,6 +28,14 @@ const cargarCSV = async (req, res) => {
   const resultados = { importados: 0, omitidos: 0, errores: [] };
 
   for (const pedido of pedidos) {
+    if (!Array.isArray(pedido?.items)) {
+      resultados.errores.push({
+        numero: pedido?.numero,
+        error: "El pedido no trae ítems válidos",
+      });
+      continue;
+    }
+
     const { data: existente } = await supabase
       .from("pedidos")
       .select("id")
@@ -37,9 +60,13 @@ const cargarCSV = async (req, res) => {
       .single();
 
     if (errorPedido) {
+      logError(
+        `${req.method} ${req.originalUrl} pedido ${pedido.numero}`,
+        errorPedido,
+      );
       resultados.errores.push({
         numero: pedido.numero,
-        error: errorPedido.message,
+        error: mensajeErrorBD(errorPedido),
       });
       continue;
     }
@@ -52,13 +79,28 @@ const cargarCSV = async (req, res) => {
       estado: "pendiente",
     }));
 
-    const { error: errorItems } = await supabase
-      .from("pedido_items")
-      .insert(items);
+    const { error: errorItems } = items.length
+      ? await supabase.from("pedido_items").insert(items)
+      : { error: null };
     if (errorItems) {
+      // Sin esto el pedido quedaba creado sin ítems y una nueva carga lo
+      // omitía por "ya existe": se elimina para poder reintentar.
+      logError(
+        `${req.method} ${req.originalUrl} items ${pedido.numero}`,
+        errorItems,
+      );
+      const { error: errorBorrado } = await supabase
+        .from("pedidos")
+        .delete()
+        .eq("id", nuevoPedido.id);
+      if (errorBorrado)
+        logError(
+          `${req.method} ${req.originalUrl} borrar ${pedido.numero}`,
+          errorBorrado,
+        );
       resultados.errores.push({
         numero: pedido.numero,
-        error: errorItems.message,
+        error: mensajeErrorBD(errorItems),
       });
       continue;
     }
@@ -628,33 +670,13 @@ const facturarPedido = async (req, res) => {
     cantidad_pedida: item.cantidad_pedida,
   }));
 
-  // Descontar inventario segun cantidad real despachada
-  for (const item of pedido.pedido_items || []) {
-    const cantidadReal = item.cantidad_picking ?? item.cantidad_pedida;
-    if (cantidadReal > 0) {
-      const { data: invRows } = await supabase
-        .from("inventario")
-        .select("id, cantidad_disponible")
-        .eq("producto_id", item.producto_id)
-        .gt("cantidad_disponible", 0)
-        .order("cantidad_disponible", { ascending: false })
-        .limit(1);
+  // El inventario NO se descuenta aquí: ya salió físicamente al bajar cada
+  // caja (bajar_caja) y al entregar los saldos (entregar_saldo). Descontar
+  // de nuevo al facturar restaba dos veces lo despachado.
 
-      for (const inv of invRows || []) {
-        await supabase
-          .from("inventario")
-          .update({
-            cantidad_disponible: Math.max(
-              0,
-              (inv.cantidad_disponible || 0) - cantidadReal,
-            ),
-          })
-          .eq("id", inv.id);
-      }
-    }
-  }
-
-  const { error } = await supabase
+  // Update condicionado a "no facturado": dos clics simultáneos no pueden
+  // facturar dos veces el mismo pedido.
+  const { data: actualizados, error } = await supabase
     .from("pedidos")
     .update({
       facturado: true,
@@ -663,9 +685,13 @@ const facturarPedido = async (req, res) => {
       facturador_id: usuario_id,
       estado: "facturado",
     })
-    .eq("id", id);
+    .eq("id", id)
+    .or("facturado.is.null,facturado.eq.false")
+    .select("id");
 
   if (error) return sendServerError(res, error, req);
+  if (!actualizados || actualizados.length === 0)
+    return res.status(400).json({ error: "El pedido ya fue facturado" });
 
   await supabase.from("bitacora").insert({
     usuario_id,
@@ -825,15 +851,21 @@ const actualizarItemOperario = async (req, res) => {
   if (escaneo_caja && !esAdmin) {
     // Verificar que el código escaneado corresponde a esta referencia
     const refEsperada = item.referencia || item.productos?.codigo_interno;
-    const escaneadaResuelta =
-      await require("../utils/escaneo").resolverCodigoEscaneado(
-        referencia_escaneada,
-      );
-    const { normalizarRef } = require("../utils/escaneo");
-    if (normalizarRef(escaneadaResuelta) !== normalizarRef(refEsperada)) {
+    // verificarYRegistrar resuelve EAN y deja el escaneo en bitácora.
+    const { ok, resultado, escaneadaResuelta } = await verificarYRegistrar({
+      usuario_id,
+      tabla: "pedido_items",
+      registro_id: itemId,
+      esperada: refEsperada,
+      escaneada: referencia_escaneada,
+    });
+    if (!ok) {
       return res.status(422).json({
-        error: `⚠ Caja incorrecta: escaneaste ${normalizarRef(escaneadaResuelta)}, pero este ítem es ${refEsperada}`,
-        resultado: "mismatch",
+        error:
+          resultado === "faltante"
+            ? "Debes escanear el código de barras de la caja"
+            : `⚠ Caja incorrecta: escaneaste ${normalizarRef(escaneadaResuelta)}, pero este ítem es ${refEsperada}`,
+        resultado,
       });
     }
 
@@ -855,18 +887,31 @@ const actualizarItemOperario = async (req, res) => {
     const nuevoEstado =
       cajasListas && cantSaldos === 0 ? "completo" : item.estado;
 
-    const { data, error } = await supabase
+    // Update condicionado al valor leído: si dos escaneos llegan a la vez,
+    // el segundo no pisa al primero (se perdería una caja) sino que se rechaza.
+    let actualizacion = supabase
       .from("pedido_items")
       .update({
         unidades_escaneadas: nuevasUnidades,
         cantidad_picking: nuevasUnidades,
         estado: nuevoEstado,
       })
-      .eq("id", itemId)
-      .select()
-      .single();
+      .eq("id", itemId);
+    actualizacion =
+      item.unidades_escaneadas === null ||
+      item.unidades_escaneadas === undefined
+        ? actualizacion.is("unidades_escaneadas", null)
+        : actualizacion.eq("unidades_escaneadas", item.unidades_escaneadas);
+    const { data: filas, error } = await actualizacion.select();
 
     if (error) return sendServerError(res, error, req);
+    if (!filas || filas.length === 0) {
+      return res.status(409).json({
+        error:
+          "Se registró otro escaneo de esta referencia al mismo tiempo. Vuelve a escanear la caja.",
+      });
+    }
+    const data = filas[0];
 
     const cajasEscaneadas = Math.floor(nuevasUnidades / ue);
     return res.json({
@@ -881,28 +926,10 @@ const actualizarItemOperario = async (req, res) => {
     });
   }
 
-  // ── MODO MANUAL (edición o marcado directo por admin) ──────────────────
-  if (!esAdmin) {
-    const refEsperada = item.referencia || item.productos?.codigo_interno;
-    const { ok, resultado } = await verificarYRegistrar({
-      usuario_id,
-      tabla: "pedido_items",
-      registro_id: itemId,
-      esperada: refEsperada,
-      escaneada: referencia_escaneada,
-    });
-    if (!ok) {
-      return res.status(422).json({
-        error:
-          resultado === "faltante"
-            ? "Debes escanear el código de barras de la caja antes de alistarla"
-            : `Referencia incorrecta: escaneaste ${normalizarRef(referencia_escaneada)}, pero este ítem es ${refEsperada}`,
-        resultado,
-        referencia_esperada: refEsperada,
-      });
-    }
-  }
-
+  // ── MODO MANUAL ─────────────────────────────────────────────────────────
+  // Administrador: edición libre. Operario: SOLO puede reportar un faltante
+  // (cantidad menor a la pedida, con motivo); completar la referencia exige
+  // el escaneo caja a caja de arriba. El estado lo fija el servidor.
   let cantidadFinal;
   if (cantidad_picking === undefined || cantidad_picking === null) {
     cantidadFinal = item.cantidad_pedida;
@@ -915,6 +942,12 @@ const actualizarItemOperario = async (req, res) => {
 
   if (cantidadFinal < 0) {
     return res.status(400).json({ error: "Cantidad inválida" });
+  }
+  if (!esAdmin && cantidadFinal >= item.cantidad_pedida) {
+    return res.status(400).json({
+      error:
+        "Para completar la referencia escanea las cajas una por una. Aquí solo puedes reportar una cantidad menor a la pedida.",
+    });
   }
   if (cantidadFinal !== item.cantidad_pedida && !motivo_diferencia?.trim()) {
     return res.status(400).json({
@@ -930,7 +963,7 @@ const actualizarItemOperario = async (req, res) => {
         cantidadFinal !== item.cantidad_pedida
           ? motivo_diferencia.trim()
           : null,
-      estado: estado || "completo",
+      estado: esAdmin ? estado || "completo" : "completo",
     })
     .eq("id", itemId)
     .select()
