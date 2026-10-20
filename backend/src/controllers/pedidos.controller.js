@@ -1045,11 +1045,12 @@ const cerrarPedido = async (req, res) => {
     .eq("id", id);
   if (errUpd) return sendServerError(res, errUpd, req);
 
-  // Notifica a jefes de bodega Y facturación cuando el operario cierra un pedido.
+  // Notifica a quien verifica (administrador; jefe_bodega se unificó con él)
+  // y a facturación cuando el operario cierra un pedido.
   const { data: destinatariosCierre } = await supabase
     .from("usuarios")
     .select("id, rol")
-    .in("rol", ["jefe_bodega", "facturacion"])
+    .in("rol", ["administrador", "jefe_bodega", "facturacion"])
     .eq("activo", true);
 
   if (destinatariosCierre?.length > 0) {
@@ -1058,11 +1059,11 @@ const cerrarPedido = async (req, res) => {
         usuario_id: u.id,
         tipo: "pedido_por_verificar",
         titulo:
-          u.rol === "jefe_bodega"
+          u.rol !== "facturacion"
             ? "Pedido listo para verificar"
             : "Pedido listo para facturar",
         mensaje:
-          u.rol === "jefe_bodega"
+          u.rol !== "facturacion"
             ? `El pedido ${pedido.numero} fue alistado y espera verificación antes del despacho`
             : `El pedido ${pedido.numero} fue alistado por el operario`,
         datos: { pedido_id: id, pedido_numero: pedido.numero },

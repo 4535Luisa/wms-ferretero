@@ -46,6 +46,7 @@ const {
   facturarPedido,
   actualizarItemOperario,
   cargarCSV,
+  cerrarPedido,
 } = require("../src/controllers/pedidos.controller");
 
 const mkRes = () => ({
@@ -297,5 +298,50 @@ describe("cargarCSV", () => {
     );
     assert.equal(res.statusCode, 200);
     assert.equal(res.body.errores.length, 1);
+  });
+});
+
+describe("cerrarPedido", () => {
+  test("avisa 'listo para verificar' a los administradores y a facturación", async () => {
+    responder = (tabla, ops) => {
+      if (tabla === "pedidos" && tiene(ops, "single"))
+        return {
+          data: {
+            id: "p1",
+            numero: "N1",
+            estado: "en_picking",
+            operario_id: "op1",
+            pedido_items: [{ id: "i1", estado: "completo" }],
+          },
+          error: null,
+        };
+      if (tabla === "usuarios")
+        return {
+          data: [
+            { id: "a1", rol: "administrador" },
+            { id: "f1", rol: "facturacion" },
+          ],
+          error: null,
+        };
+      return { data: null, error: null };
+    };
+    const res = mkRes();
+    await cerrarPedido(
+      { params: { id: "p1" }, usuario: { id: "op1", rol: "operario" } },
+      res,
+    );
+    assert.equal(res.statusCode, 200);
+
+    const consultaUsuarios = llamadas.find((l) => l.tabla === "usuarios");
+    const roles = consultaUsuarios.ops.find(([op]) => op === "in")[2];
+    assert.ok(roles.includes("administrador"));
+
+    const avisos = llamadas
+      .find((l) => l.tabla === "notificaciones")
+      .ops.find(([op]) => op === "insert")[1];
+    const admin = avisos.find((a) => a.usuario_id === "a1");
+    const fact = avisos.find((a) => a.usuario_id === "f1");
+    assert.equal(admin.titulo, "Pedido listo para verificar");
+    assert.equal(fact.titulo, "Pedido listo para facturar");
   });
 });
