@@ -13,7 +13,11 @@ const {
 } = require("../controllers/picking.controller");
 
 router.post("/generar", requireRoles("administrador"), generarListasPicking);
-router.get("/", listarListasPicking);
+router.get(
+  "/",
+  requireRoles("administrador", "jefe_bodega", "gerente_logistico"),
+  listarListasPicking,
+);
 router.get("/mis-listas", requireRoles("montacarguista"), misListas);
 router.get("/estibas", requireRoles("montacarguista"), misEstibas);
 router.post("/estibas", requireRoles("montacarguista"), crearEstiba);

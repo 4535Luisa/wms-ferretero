@@ -2,6 +2,17 @@ const supabase = require("../utils/supabase");
 const { sendServerError } = require("../utils/errors");
 const { isEmail } = require("../utils/validate");
 
+// Roles asignables desde la gestión de usuarios (crear y editar).
+const ROLES_ASIGNABLES = [
+  "operario",
+  "montacarguista",
+  "saldos",
+  "jefe_bodega",
+  "gerente_logistico",
+  "inventarios",
+  "facturacion",
+];
+
 const listarUsuarios = async (req, res) => {
   const { data, error } = await supabase
     .from("usuarios")
@@ -30,16 +41,7 @@ const crearUsuario = async (req, res) => {
       .json({ error: "La contraseña debe tener al menos 8 caracteres" });
   }
 
-  const rolesValidos = [
-    "operario",
-    "montacarguista",
-    "saldos",
-    "jefe_bodega",
-    "gerente_logistico",
-    "inventarios",
-    "facturacion",
-  ];
-  if (!rolesValidos.includes(rol)) {
+  if (!ROLES_ASIGNABLES.includes(rol)) {
     return res.status(400).json({ error: "Rol inválido" });
   }
 
@@ -74,6 +76,20 @@ const crearUsuario = async (req, res) => {
 const actualizarUsuario = async (req, res) => {
   const { id } = req.params;
   const { nombre, rol, bodega_id } = req.body;
+
+  // Mismos roles que al crear. Si el rol no cambia (p. ej. se edita el nombre
+  // de un administrador existente) se acepta tal cual.
+  if (rol !== undefined && !ROLES_ASIGNABLES.includes(rol)) {
+    const { data: actual } = await supabase
+      .from("usuarios")
+      .select("rol")
+      .eq("id", id)
+      .single();
+    if (!actual)
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    if (actual.rol !== rol)
+      return res.status(400).json({ error: "Rol inválido" });
+  }
 
   const { data, error } = await supabase
     .from("usuarios")
