@@ -55,7 +55,10 @@ El esquema vive en Supabase; el repo solo versiona las migraciones en
 | `2026-06-01_rpc_recepciones.sql` | RPC `confirmar_recepcion` y `confirmar_recepcion_directo`. |
 | `2026-06-01_rpc_cancelar_lista.sql` | RPC `cancelar_lista_picking` (libera comprometido). |
 | `2026-06-02_rpc_reservar_picking.sql` | RPC `reservar_inventario_picking` (reserva atómica, anti doble-picking). |
-| `2026-10-20_fix_auditoria.sql` | RPC `liberar_inventario_picking`, revoke de EXECUTE público en las RPC y corrección de cajas pendientes (ver comentarios del archivo; aplicar tras desplegar el backend). |
+| `2026-10-20_fix_auditoria.sql` | RPC `liberar_inventario_picking` y revoke de EXECUTE público en las RPC (aplicar tras desplegar el backend). |
+| `2026-10-20_fix_auditoria_3a_vista_previa.sql` | Solo lectura: cajas de picking pendientes con unidades erróneas. |
+| `2026-10-20_fix_auditoria_3b_correccion.sql` | **Modifica datos**: corrige esas cajas (tras revisar el 3a). |
+| `2026-10-20_fix_auditoria_4_diagnostico.sql` | Solo lectura: diferencias de stock comprometido. |
 
 Las funciones RPC son **obligatorias**: el backend las llama vía
 `supabase.rpc(...)` para garantizar atomicidad. Sin aplicarlas, esos endpoints

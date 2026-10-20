@@ -47,11 +47,15 @@ Migraciones por funcionalidad (fases 2/4/5, también obligatorias):
 17. `2026-06-29_fase5_familia_productos.sql` — columna `productos.familia`
     (para conteos cíclicos por familia; el dato se carga aparte).
 18. `2026-10-20_fix_auditoria.sql` — **aplicar DESPUÉS de desplegar el
-    backend de la auditoría 2026-10-20**, por secciones: (1) RPC
-    `liberar_inventario_picking`; (2) revoca EXECUTE de las RPC a
-    public/anon/authenticated; (3) corrige cajas de picking pendientes con
-    unidades erróneas — correr la vista previa 3a antes del UPDATE 3b;
-    (4) diagnóstico de stock comprometido (solo lectura).
+    backend de la auditoría 2026-10-20** (pegar completo): RPC
+    `liberar_inventario_picking` y revoke de EXECUTE de las RPC a
+    public/anon/authenticated.
+19. `2026-10-20_fix_auditoria_3a_vista_previa.sql` — solo lectura: lista
+    las cajas de picking pendientes con unidades erróneas.
+20. `2026-10-20_fix_auditoria_3b_correccion.sql` — **modifica datos**:
+    corrige esas cajas. Solo si el 3a devolvió filas y tras revisarlas.
+21. `2026-10-20_fix_auditoria_4_diagnostico.sql` — solo lectura:
+    diferencias de stock comprometido (para conteo).
 
 Las funciones RPC (archivos 2-6) son **obligatorias**: el backend las invoca
 para que las operaciones de inventario sean atómicas/idempotentes. Si no se
