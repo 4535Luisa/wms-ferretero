@@ -29,4 +29,21 @@ function requireUuidParam(nombre) {
   };
 }
 
-module.exports = { isUuid, isEmail, toFiniteNumber, requireUuidParam, UUID_RE };
+// Valor seguro para interpolar en un filtro .or() de PostgREST. Una coma o un
+// paréntesis en texto del usuario permitía añadir condiciones al filtro. Si el
+// valor trae caracteres reservados se envía entre comillas dobles (escapando
+// " y \), como indica la documentación de PostgREST; si no, va tal cual.
+function valorFiltro(v) {
+  const s = String(v ?? "");
+  if (!/[,.:()"\\]/.test(s)) return s;
+  return `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+module.exports = {
+  isUuid,
+  isEmail,
+  toFiniteNumber,
+  requireUuidParam,
+  valorFiltro,
+  UUID_RE,
+};

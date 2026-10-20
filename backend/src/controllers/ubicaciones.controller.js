@@ -1,6 +1,7 @@
 const supabase = require("../utils/supabase");
 const { sendServerError } = require("../utils/errors");
 const { resolverCodigoEscaneado, normalizarRef } = require("../utils/escaneo");
+const { valorFiltro } = require("../utils/validate");
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
@@ -32,7 +33,7 @@ const buscarProductoPorEscaneo = async (codigoEscaneado) => {
       "id, codigo_interno, descripcion_corta, unidad_empaque, codigo_barras",
     )
     .or(
-      `codigo_interno.ilike.${codigoResuelto},codigo_barras.eq.${codigoEscaneado}`,
+      `codigo_interno.ilike.${valorFiltro(codigoResuelto)},codigo_barras.eq.${valorFiltro(codigoEscaneado)}`,
     )
     .eq("activo", true)
     .single();
@@ -452,7 +453,7 @@ const listarMovimientos = async (req, res) => {
   if (producto_id) query = query.eq("producto_id", producto_id);
   if (ubicacion_id)
     query = query.or(
-      `ubicacion_origen_id.eq.${ubicacion_id},ubicacion_destino_id.eq.${ubicacion_id}`,
+      `ubicacion_origen_id.eq.${valorFiltro(ubicacion_id)},ubicacion_destino_id.eq.${valorFiltro(ubicacion_id)}`,
     );
   if (uid) query = query.eq("usuario_id", uid);
   if (tipo) query = query.eq("tipo", tipo);

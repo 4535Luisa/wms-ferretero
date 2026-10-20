@@ -86,3 +86,23 @@ describe("requireUuidParam", () => {
     assert.equal(res.statusCode, 400);
   });
 });
+
+describe("valorFiltro (filtros .or() de PostgREST)", () => {
+  const { valorFiltro } = require("../src/utils/validate");
+
+  test("valores normales van sin cambios", () => {
+    assert.equal(valorFiltro("120363"), "120363");
+    assert.equal(valorFiltro("7709031644636"), "7709031644636");
+    assert.equal(valorFiltro("TORN-3/8"), "TORN-3/8");
+  });
+
+  test("comas y paréntesis quedan encerrados entre comillas", () => {
+    assert.equal(valorFiltro("x)or(id.gt.0"), '"x)or(id.gt.0"');
+    assert.equal(valorFiltro("A,B"), '"A,B"');
+  });
+
+  test("escapa comillas y barras invertidas dentro del valor", () => {
+    assert.equal(valorFiltro('a"b'), '"a\\"b"');
+    assert.equal(valorFiltro("c\\d"), '"c\\\\d"');
+  });
+});

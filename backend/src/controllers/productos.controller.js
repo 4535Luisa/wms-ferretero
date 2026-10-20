@@ -1,19 +1,19 @@
 ﻿const supabase = require("../utils/supabase");
 const { sendServerError } = require("../utils/errors");
+const { valorFiltro } = require("../utils/validate");
 
 const buscarProducto = async (req, res) => {
   const { referencia } = req.query;
   if (!referencia)
     return res.status(400).json({ error: "referencia requerida" });
 
+  const ref = valorFiltro(referencia.trim());
   const { data, error } = await supabase
     .from("productos")
     .select(
       "id, codigo_interno, descripcion_corta, unidad_empaque, codigo_barras, ean14, sin_codigo_barras, familia",
     )
-    .or(
-      `codigo_interno.ilike.${referencia.trim()},codigo_barras.eq.${referencia.trim()},ean14.eq.${referencia.trim()}`,
-    )
+    .or(`codigo_interno.ilike.${ref},codigo_barras.eq.${ref},ean14.eq.${ref}`)
     .eq("activo", true)
     .single();
 
@@ -40,7 +40,7 @@ const buscarPorBarras = async (req, res) => {
     .select(
       "id, codigo_interno, descripcion_corta, unidad_empaque, codigo_barras, ean14, sin_codigo_barras",
     )
-    .or(`ean14.eq.${cb},codigo_barras.eq.${cb}`)
+    .or(`ean14.eq.${valorFiltro(cb)},codigo_barras.eq.${valorFiltro(cb)}`)
     .eq("activo", true)
     .limit(1);
 
