@@ -9,6 +9,7 @@ const {
   verMetas,
   guardarMetas,
   actividad,
+  ajustes,
 } = require("../controllers/panel.controller");
 
 // El administrador entra siempre (requireRoles); el gerente solo consulta.
@@ -21,5 +22,6 @@ router.get("/flujo", LECTURA, flujo);
 router.get("/metas", LECTURA, verMetas);
 router.put("/metas", requireRoles(), guardarMetas);
 router.get("/actividad", LECTURA, actividad);
+router.get("/ajustes", LECTURA, ajustes);
 
 module.exports = router;

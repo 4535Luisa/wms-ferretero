@@ -299,6 +299,43 @@ describe("panel.controller", () => {
   });
 });
 
+describe("panel.controller ajustes", () => {
+  test("solo aprobados, con signo según el sentido", async () => {
+    responder = (tabla) => {
+      assert.equal(tabla, "ajustes_inventario");
+      return {
+        data: [
+          {
+            tipo: "averia",
+            sentido: "decremento",
+            cantidad: "4",
+            resolved_at: "2026-10-20T15:00:00Z",
+            productos: { codigo_interno: "R1", descripcion_corta: "Tornillo" },
+            bodegas: { codigo: "B8" },
+          },
+          { tipo: "sobrante", sentido: "incremento", cantidad: 2 },
+        ],
+        error: null,
+      };
+    };
+    const res = mkRes();
+    await panel.ajustes(mkReq(), res);
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(
+      res.body.filas.map((f) => [f.referencia, f.bodega, f.unidades]),
+      [
+        ["R1", "B8", -4],
+        [null, null, 2],
+      ],
+    );
+    assert.ok(
+      llamadas[0].ops.some(
+        ([op, col, val]) => op === "eq" && col === "estado" && val === "aprobado",
+      ),
+    );
+  });
+});
+
 describe("generar listas registra los faltantes de stock", () => {
   test("una referencia sin stock en picking queda en la bitácora", async () => {
     responder = (tabla) => {

@@ -271,31 +271,39 @@ const guardarMetas = async (req, res) => {
   return res.json({ mensaje: "Metas guardadas" });
 };
 
-// Registro de acciones por usuario para la descarga en Excel. Pagina de 1.000
-// en 1.000 (límite de Supabase) hasta un tope razonable para una hoja.
-const TOPE_ACTIVIDAD = 20000;
+// Descargas en Excel: se pagina de 1.000 en 1.000 (límite de Supabase) hasta
+// un tope razonable para una hoja.
+const TOPE_FILAS = 20000;
 const PAGINA = 1000;
+
+// `consulta()` debe devolver una consulta nueva, ya filtrada y ordenada.
+async function leerPaginado(consulta) {
+  const filas = [];
+  for (let desde = 0; desde < TOPE_FILAS; desde += PAGINA) {
+    const { data, error } = await consulta().range(desde, desde + PAGINA - 1);
+    if (error) return { error };
+    filas.push(...(data || []));
+    if (!data || data.length < PAGINA) break;
+  }
+  return { filas, truncado: filas.length >= TOPE_FILAS };
+}
 
 const actividad = async (req, res) => {
   const p = leerPeriodo(req, res, "semana");
   if (!p) return;
-  const filas = [];
-  for (let desde = 0; desde < TOPE_ACTIVIDAD; desde += PAGINA) {
-    const { data, error } = await supabase
+  const { filas, truncado, error } = await leerPaginado(() =>
+    supabase
       .from("bitacora")
       .select("accion, tabla, valores_despues, created_at, usuarios(nombre, rol)")
       .gte("created_at", p.desde.toISOString())
       .lt("created_at", p.hasta.toISOString())
       .order("created_at", { ascending: true })
-      .order("id", { ascending: true })
-      .range(desde, desde + PAGINA - 1);
-    if (error) return sendServerError(res, error, req);
-    filas.push(...(data || []));
-    if (!data || data.length < PAGINA) break;
-  }
+      .order("id", { ascending: true }),
+  );
+  if (error) return sendServerError(res, error, req);
   return res.json({
     ...periodoJSON(p),
-    truncado: filas.length >= TOPE_ACTIVIDAD,
+    truncado,
     filas: filas.map((f) => ({
       fecha: f.created_at,
       usuario: f.usuarios?.nombre || null,
@@ -308,6 +316,44 @@ const actividad = async (req, res) => {
   });
 };
 
+// Ajustes aprobados en el periodo, para la descarga en Excel.
+const ajustes = async (req, res) => {
+  const p = leerPeriodo(req, res, "30d");
+  if (!p) return;
+  const { bodega } = req.query;
+  if (bodega && !isUuid(bodega))
+    return res.status(400).json({ error: "Bodega inválida" });
+  const { filas, truncado, error } = await leerPaginado(() => {
+    let q = supabase
+      .from("ajustes_inventario")
+      .select(
+        "tipo, sentido, cantidad, motivo, resolved_at, productos(codigo_interno, descripcion_corta), bodegas(codigo)",
+      )
+      .eq("estado", "aprobado")
+      .gte("resolved_at", p.desde.toISOString())
+      .lt("resolved_at", p.hasta.toISOString())
+      .order("resolved_at", { ascending: true })
+      .order("id", { ascending: true });
+    if (bodega) q = q.eq("bodega_id", bodega);
+    return q;
+  });
+  if (error) return sendServerError(res, error, req);
+  return res.json({
+    ...periodoJSON(p),
+    truncado,
+    filas: filas.map((a) => ({
+      fecha: a.resolved_at,
+      referencia: a.productos?.codigo_interno || null,
+      descripcion: a.productos?.descripcion_corta || null,
+      bodega: a.bodegas?.codigo || null,
+      tipo: a.tipo,
+      unidades:
+        a.sentido === "incremento" ? Number(a.cantidad) : -Number(a.cantidad),
+      motivo: a.motivo,
+    })),
+  });
+};
+
 module.exports = {
   enVivo,
   operarios,
@@ -316,4 +362,5 @@ module.exports = {
   verMetas,
   guardarMetas,
   actividad,
+  ajustes,
 };
