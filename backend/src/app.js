@@ -19,6 +19,7 @@ const ubicacionesRoutes = require("./routes/ubicaciones.routes");
 const alertasRoutes = require("./routes/alertas.routes");
 const trasladosRoutes = require("./routes/traslados.routes");
 const conteosRoutes = require("./routes/conteos.routes");
+const panelRoutes = require("./routes/panel.routes");
 const { errorHandler, notFoundHandler } = require("./utils/errors");
 const { apiLimiter, authLimiter } = require("./middlewares/rateLimit");
 const { construirCorsOptions } = require("./utils/cors");
@@ -76,6 +77,7 @@ app.use("/api/reportes", authMiddleware, reportesRoutes);
 app.use("/api/alertas", authMiddleware, alertasRoutes);
 app.use("/api/traslados", authMiddleware, trasladosRoutes);
 app.use("/api/conteos", authMiddleware, conteosRoutes);
+app.use("/api/panel", authMiddleware, panelRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

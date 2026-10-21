@@ -108,6 +108,8 @@ const generarListasPickingInterno = async (req, res, pedido_ids) => {
 
   // Acumula advertencias de stock insuficiente para devolver al jefe de bodega.
   const advertencias = [];
+  // Faltantes de stock en bodegas de picking, para el panel de control.
+  const faltantesStock = [];
 
   for (const pedidoId of pedidosAProcesar) {
     const pedido = pedidosMap[pedidoId];
@@ -227,6 +229,20 @@ const generarListasPickingInterno = async (req, res, pedido_ids) => {
               ? "Sin stock en bodegas de picking — se alistara lo que haya en saldos"
               : `Stock parcial: se reservaron ${cajasReservadas} de ${cajasCompletas} cajas requeridas`,
         });
+        faltantesStock.push({
+          usuario_id: req.usuario?.id || null,
+          accion: "FALTANTE_STOCK_PICKING",
+          tabla: "pedidos",
+          registro_id: pedidoId,
+          valores_despues: {
+            pedido_numero: pedido.numero,
+            producto_id: item.producto_id,
+            referencia: ref,
+            cajas_requeridas: cajasCompletas,
+            cajas_reservadas: cajasReservadas,
+            cajas_faltantes: cajasRestantes,
+          },
+        });
       }
     }
   }
@@ -299,6 +315,15 @@ const generarListasPickingInterno = async (req, res, pedido_ids) => {
       total_items: lista.items.length,
       total_cajas: lista.items.reduce((a, i) => a + i.cantidad_cajas, 0),
     });
+  }
+
+  // Trazabilidad best-effort: un fallo aquí no afecta las listas generadas.
+  if (faltantesStock.length > 0) {
+    const { error: errorFaltantes } = await supabase
+      .from("bitacora")
+      .insert(faltantesStock);
+    if (errorFaltantes)
+      logError(`${req.method} ${req.originalUrl} faltantes`, errorFaltantes);
   }
 
   return res.json({
