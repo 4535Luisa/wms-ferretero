@@ -7,7 +7,6 @@ const ROLES_ASIGNABLES = [
   "operario",
   "montacarguista",
   "saldos",
-  "jefe_bodega",
   "gerente_logistico",
   "inventarios",
   "facturacion",

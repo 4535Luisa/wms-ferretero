@@ -15,7 +15,7 @@ const {
 router.post("/generar", requireRoles("administrador"), generarListasPicking);
 router.get(
   "/",
-  requireRoles("administrador", "jefe_bodega", "gerente_logistico"),
+  requireRoles("administrador", "gerente_logistico"),
   listarListasPicking,
 );
 router.get("/mis-listas", requireRoles("montacarguista"), misListas);

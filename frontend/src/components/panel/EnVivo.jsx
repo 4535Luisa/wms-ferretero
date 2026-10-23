@@ -40,7 +40,6 @@ const ROL_LABEL = {
   saldos: "Saldos",
   facturacion: "Facturación",
   inventarios: "Inventarios",
-  jefe_bodega: "Jefe de bodega",
 };
 
 const ESTADO_PEDIDO = [

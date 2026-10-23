@@ -47,7 +47,7 @@ describe("requireRoles", () => {
   test("pasa si el rol está en la lista permitida", () => {
     const res = mkRes();
     let next = false;
-    requireRoles("jefe_bodega", "operario")(
+    requireRoles("gerente_logistico", "operario")(
       { usuario: { rol: "operario" } },
       res,
       () => {

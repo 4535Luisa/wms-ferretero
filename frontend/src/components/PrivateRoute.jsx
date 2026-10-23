@@ -11,12 +11,6 @@ const rutasPorRol = {
   montacarguista: ["/montacarguista", "/montacarguista/estibas"],
   operario: ["/operario"],
   saldos: ["/saldos"],
-  jefe_bodega: [
-    "/jefe-bodega",
-    "/jefe-bodega/recepcion",
-    "/jefe-bodega/verificacion",
-    "/jefe-bodega/despacho",
-  ],
   gerente_logistico: [
     "/gerente",
     "/gerente/inventario",

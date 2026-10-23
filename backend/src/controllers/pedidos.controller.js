@@ -1045,12 +1045,12 @@ const cerrarPedido = async (req, res) => {
     .eq("id", id);
   if (errUpd) return sendServerError(res, errUpd, req);
 
-  // Notifica a quien verifica (administrador; jefe_bodega se unificó con él)
+  // Notifica a quien verifica (administrador)
   // y a facturación cuando el operario cierra un pedido.
   const { data: destinatariosCierre } = await supabase
     .from("usuarios")
     .select("id, rol")
-    .in("rol", ["administrador", "jefe_bodega", "facturacion"])
+    .in("rol", ["administrador", "facturacion"])
     .eq("activo", true);
 
   if (destinatariosCierre?.length > 0) {

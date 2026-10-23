@@ -13,7 +13,6 @@ const { requireRoles } = require("../middlewares/auth.middleware");
 
 const rolesInventario = [
   "administrador",
-  "jefe_bodega",
   "gerente_logistico",
   "inventarios",
   "facturacion",

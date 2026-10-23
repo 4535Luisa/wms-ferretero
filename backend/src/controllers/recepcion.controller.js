@@ -4,7 +4,7 @@ const { toFiniteNumber } = require("../utils/validate");
 
 const crearRecepcion = async (req, res) => {
   const { proveedor, numero_oc } = req.body;
-  // bodega_id viene del cuerpo o, si no, del usuario autenticado (jefe_bodega)
+  // bodega_id viene del cuerpo o, si no, del usuario autenticado
   const bodega_id = req.body.bodega_id || req.usuario?.bodega_id;
 
   if (!bodega_id || !proveedor) {
@@ -36,7 +36,7 @@ const obtenerRecepciones = async (req, res) => {
     )
     .order("created_at", { ascending: false });
 
-  // Aislamiento por bodega: un jefe_bodega solo ve recepciones de su bodega
+  // Aislamiento por bodega: quien no es administrador solo ve recepciones de su bodega
   // (no se confía en el bodega_id del query). El administrador ve todas.
   if (req.usuario?.rol !== "administrador") {
     query = query.eq("bodega_id", req.usuario?.bodega_id || null);
@@ -65,7 +65,7 @@ const obtenerRecepcion = async (req, res) => {
   if (error) return sendServerError(res, error, req);
   if (!data) return res.status(404).json({ error: "Recepción no encontrada" });
 
-  // Aislamiento por bodega: el jefe_bodega solo accede a su propia bodega.
+  // Aislamiento por bodega: quien no es administrador solo accede a su bodega.
   if (
     req.usuario?.rol !== "administrador" &&
     data.bodega_id !== req.usuario?.bodega_id

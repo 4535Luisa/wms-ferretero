@@ -6,22 +6,16 @@ const {
   resolverCodigoEscaneado,
 } = require("../utils/escaneo");
 
-// Pedidos cerrados por el operario que esperan verificacion fisica del jefe de
-// bodega antes de pasar a facturacion. Aislamiento por bodega.
+// Pedidos cerrados por el operario que esperan verificacion fisica del
+// administrador antes de pasar a facturacion.
 const listarPorVerificar = async (req, res) => {
-  const { rol, bodega_id } = req.usuario || {};
-
-  let query = supabase
+  const query = supabase
     .from("pedidos")
     .select(
       "*, pedido_items(*, productos(codigo_interno, descripcion_corta, ean14, unidad_empaque))",
     )
     .eq("estado", "cerrado")
     .order("hora_cierre", { ascending: true });
-
-  if (rol === "jefe_bodega" && bodega_id) {
-    query = query.or(`bodega_id.eq.${bodega_id},bodega_id.is.null`);
-  }
 
   const { data, error } = await query;
   if (error) return sendServerError(res, error, req);

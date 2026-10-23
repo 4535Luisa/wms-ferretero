@@ -18,31 +18,30 @@ const {
   cancelarPedido,
 } = require("../controllers/pedidos.controller");
 
-const JEFE = "jefe_bodega";
 const ADMIN = "administrador";
 
-// Carga de CSV y gestión de pedidos — jefe de bodega y admin
-router.post("/csv", requireRoles(JEFE, ADMIN), cargarCSV);
+// Carga de CSV y gestión de pedidos — administrador
+router.post("/csv", requireRoles(ADMIN), cargarCSV);
 router.get(
   "/",
-  requireRoles(ADMIN, JEFE, "facturacion", "gerente_logistico"),
+  requireRoles(ADMIN, "facturacion", "gerente_logistico"),
   listarPedidos,
 );
-router.get("/operarios", requireRoles(ADMIN, JEFE), listarOperarios);
+router.get("/operarios", requireRoles(ADMIN), listarOperarios);
 router.get("/mis-pedidos", requireRoles("operario"), misPedidosOperario);
 router.get(
   "/:id",
-  requireRoles(ADMIN, JEFE, "facturacion", "gerente_logistico", "operario"),
+  requireRoles(ADMIN, "facturacion", "gerente_logistico", "operario"),
   obtenerPedido,
 );
 
-// Asignación — jefe de bodega y admin
-router.patch("/:id/asignar", requireRoles(JEFE, ADMIN), asignarPedido);
-router.patch("/:id/reasignar", requireRoles(JEFE, ADMIN), reasignarPedido);
-router.post("/tanda", requireRoles(JEFE, ADMIN), asignarTanda);
-router.patch("/:id/prioridad", requireRoles(JEFE, ADMIN), cambiarPrioridad);
-router.patch("/:id/reabrir", requireRoles(JEFE, ADMIN), reabrirPedido);
-router.patch("/:id/cancelar", requireRoles(JEFE, ADMIN), cancelarPedido);
+// Asignación — administrador
+router.patch("/:id/asignar", requireRoles(ADMIN), asignarPedido);
+router.patch("/:id/reasignar", requireRoles(ADMIN), reasignarPedido);
+router.post("/tanda", requireRoles(ADMIN), asignarTanda);
+router.patch("/:id/prioridad", requireRoles(ADMIN), cambiarPrioridad);
+router.patch("/:id/reabrir", requireRoles(ADMIN), reabrirPedido);
+router.patch("/:id/cancelar", requireRoles(ADMIN), cancelarPedido);
 
 // Facturación
 router.patch("/:id/facturar", requireRoles("facturacion"), facturarPedido);
