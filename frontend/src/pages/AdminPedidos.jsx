@@ -954,6 +954,30 @@ export default function AdminPedidos() {
                             : "Normal"}
                         </button>
                       )}
+                      {!["facturado", "despachado", "cancelado"].includes(
+                        pedido.estado,
+                      ) && (
+                        <button
+                          onClick={() => {
+                            setMotivoCancelacion("");
+                            setModalCancelar(pedido);
+                          }}
+                          style={{
+                            background: "#FFFFFF",
+                            color: "#B91C1C",
+                            border: "1px solid #E2E4E8",
+                            borderRadius: "6px",
+                            padding: "5px 10px",
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            fontFamily: "Outfit, sans-serif",
+                            flexShrink: 0,
+                          }}
+                        >
+                          Cancelar
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -1527,7 +1551,8 @@ export default function AdminPedidos() {
             <p
               style={{ fontSize: "13px", color: "#4B5160", margin: "0 0 16px 0" }}
             >
-              Pedido {modalCancelar.numero} — Estado: {modalCancelar.estado}
+              Pedido {modalCancelar.numero} — Estado:{" "}
+              {estadoColor[modalCancelar.estado]?.label || modalCancelar.estado}
             </p>
             <label
               style={{
@@ -1538,12 +1563,12 @@ export default function AdminPedidos() {
                 marginBottom: "4px",
               }}
             >
-              Motivo de cancelacion *
+              Motivo de cancelación *
             </label>
             <input
               value={motivoCancelacion}
               onChange={(e) => setMotivoCancelacion(e.target.value)}
-              placeholder="Ej: Cliente cancelo el pedido"
+              placeholder="Ej: el cliente canceló el pedido"
               style={{
                 width: "100%",
                 padding: "10px 12px",
@@ -1588,7 +1613,7 @@ export default function AdminPedidos() {
                   cursor: "pointer",
                 }}
               >
-                Confirmar cancelacion
+                Confirmar cancelación
               </button>
             </div>
           </div>
