@@ -1,18 +1,29 @@
 import { useState } from "react";
 import Layout from "../components/Layout";
 import api from "../services/api";
+import {
+  Pagina,
+  Boton,
+  Tarjeta,
+  FilaKpis,
+  Kpi,
+  Filtros,
+  Campo,
+  Mensaje,
+  Tabla,
+  Pastilla,
+} from "../components/oficina";
+import { estiloCampo, COLOR, movimiento, cantidadesMovimiento as cantidades } from "../components/oficinaDatos";
+import { num } from "../components/panel/formato";
 
-const accionLabel = {
-  RECEPCION_CONFIRMADA: {
-    label: "Recepción",
-    color: "#007A40",
-    bg: "rgba(0,255,135,0.1)",
-  },
-  PICKING: { label: "Picking", color: "#1E40AF", bg: "#DBEAFE" },
-  AJUSTE: { label: "Ajuste", color: "#8A5A00", bg: "#FFF4D6" },
-  TRASLADO: { label: "Traslado", color: "#5B21B6", bg: "#EDE9FE" },
-  DESPACHO: { label: "Despacho", color: "#B91C1C", bg: "#FDECEC" },
-};
+const fecha = (iso) =>
+  new Date(iso).toLocaleString("es-CO", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
 export default function HistorialProducto() {
   const [referencia, setReferencia] = useState("");
@@ -27,50 +38,117 @@ export default function HistorialProducto() {
     setResultado(null);
     try {
       const { data: producto } = await api.get(
-        `/api/productos/buscar?referencia=${referencia.trim()}`,
+        `/api/productos/buscar?referencia=${encodeURIComponent(referencia.trim())}`,
       );
       if (!producto) {
         setError(`Referencia ${referencia} no encontrada`);
-        setCargando(false);
         return;
       }
       const { data } = await api.get(`/api/productos/${producto.id}/historial`);
-      setResultado(data);
-    } catch {
-      setError("Error al buscar el producto");
+      setResultado({ ...data, producto: data.producto || producto });
+    } catch (err) {
+      setError(
+        err.response?.status === 404
+          ? `Referencia ${referencia} no encontrada`
+          : "Error al buscar el producto",
+      );
     } finally {
       setCargando(false);
     }
   };
 
+  const inventario = resultado?.inventario || [];
+  const movimientos = resultado?.movimientos || [];
+  const bodegaPorId = Object.fromEntries(
+    inventario.filter((i) => i.bodegas).map((i) => [i.bodega_id, i.bodegas.nombre]),
+  );
+  const disponible = inventario.reduce((a, i) => a + (i.cantidad_disponible || 0), 0);
+  const comprometido = inventario.reduce((a, i) => a + (i.cantidad_comprometida || 0), 0);
+
+  const columnasStock = [
+    { titulo: "Bodega", celda: (i) => i.bodegas?.nombre || "—" },
+    {
+      titulo: "Ubicación",
+      celda: (i) => (
+        <span style={{ fontFamily: "DM Mono, monospace" }}>{i.ubicaciones?.codigo || "Sin ubicación"}</span>
+      ),
+    },
+    { titulo: "Disponible", num: true, celda: (i) => num(i.cantidad_disponible) },
+    { titulo: "Comprometido", num: true, celda: (i) => num(i.cantidad_comprometida) },
+  ];
+
+  const columnasMov = [
+    {
+      titulo: "Fecha",
+      celda: (m) => (
+        <span style={{ fontFamily: "DM Mono, monospace", fontSize: "13px", color: COLOR.gris, whiteSpace: "nowrap" }}>
+          {fecha(m.created_at)}
+        </span>
+      ),
+    },
+    {
+      titulo: "Movimiento",
+      celda: (m) => {
+        const t = movimiento(m.accion);
+        return <Pastilla texto={t.label} bg={t.bg} fg={t.color} />;
+      },
+    },
+    {
+      titulo: "Detalle",
+      celda: (m) => {
+        const v = m.valores_despues || {};
+        const partes = [
+          v.proveedor,
+          v.factura && `Fact. ${v.factura}`,
+          bodegaPorId[v.bodega_id],
+          v.tipo,
+        ].filter(Boolean);
+        return <span style={{ color: COLOR.gris }}>{partes.join(" · ") || "—"}</span>;
+      },
+    },
+    { titulo: "Usuario", celda: (m) => m.usuarios?.nombre || "—" },
+    {
+      titulo: "Antes",
+      num: true,
+      celda: (m) => num(cantidades(m).antes),
+    },
+    {
+      titulo: "Después",
+      num: true,
+      celda: (m) => {
+        const c = cantidades(m);
+        return (
+          <span>
+            {num(c.despues)}
+            {c.comprometida && (
+              <span style={{ fontSize: "11px", color: COLOR.gris, marginLeft: "4px" }}>compr.</span>
+            )}
+          </span>
+        );
+      },
+    },
+    {
+      titulo: "Cambio",
+      num: true,
+      celda: (m) => {
+        const { antes, despues } = cantidades(m);
+        if (antes == null || despues == null) return "—";
+        const d = Number(despues) - Number(antes);
+        return (
+          <span style={{ fontWeight: 600, color: d > 0 ? COLOR.verdeTexto : d < 0 ? COLOR.rojo : COLOR.gris }}>
+            {d > 0 ? "+" : ""}
+            {num(d)}
+          </span>
+        );
+      },
+    },
+  ];
+
   return (
-    <Layout
-      titulo="Historial de producto"
-      subtitulo="Trazabilidad completa por referencia"
-    >
-      <div style={{ maxWidth: "720px" }}>
-        <div
-          style={{
-            background: "#FFFFFF",
-            border: "1px solid #E2E4E8",
-            borderRadius: "12px",
-            padding: "1.5rem",
-            marginBottom: "1.25rem",
-          }}
-        >
-          <p
-            style={{
-              fontSize: "11px",
-              fontWeight: 600,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              color: "#4B5160",
-              marginBottom: "8px",
-            }}
-          >
-            Referencia del producto
-          </p>
-          <div style={{ display: "flex", gap: "8px" }}>
+    <Layout titulo="Historial de producto" subtitulo="Trazabilidad completa por referencia">
+      <Pagina>
+        <Filtros>
+          <Campo etiqueta="Referencia del producto" ancho="260px">
             <input
               value={referencia}
               onChange={(e) => setReferencia(e.target.value)}
@@ -78,320 +156,42 @@ export default function HistorialProducto() {
                 if (e.key === "Enter") buscar();
               }}
               placeholder="Ej: 120212"
-              style={{
-                fontFamily: "DM Mono, monospace",
-                fontSize: "16px",
-                flex: 1,
-              }}
+              style={{ ...estiloCampo, fontFamily: "DM Mono, monospace", fontSize: "16px" }}
               autoFocus
             />
-            <button
-              onClick={buscar}
-              disabled={cargando}
-              style={{
-                background: "#00FF87",
-                color: "#0A0A0A",
-                border: "none",
-                borderRadius: "8px",
-                padding: "10px 20px",
-                fontSize: "14px",
-                fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: "Outfit, sans-serif",
-                flexShrink: 0,
-              }}
-            >
-              {cargando ? "..." : "Buscar"}
-            </button>
-          </div>
-          {error && (
-            <p
-              style={{
-                fontSize: "13px",
-                color: "#B91C1C",
-                marginTop: "8px",
-                background: "#FDECEC",
-                padding: "8px 12px",
-                borderRadius: "6px",
-              }}
-            >
-              {error}
-            </p>
-          )}
-        </div>
+          </Campo>
+          <Boton variante="principal" onClick={buscar} disabled={cargando}>
+            {cargando ? "Buscando..." : "Buscar"}
+          </Boton>
+        </Filtros>
+
+        <Mensaje tipo="error">{error}</Mensaje>
 
         {resultado && (
           <>
-            {/* Info del producto */}
-            <div
-              style={{
-                background: "#FFFFFF",
-                border: "1px solid #E2E4E8",
-                borderRadius: "12px",
-                padding: "1.25rem",
-                marginBottom: "1rem",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-start",
-                  flexWrap: "wrap",
-                  gap: "8px",
-                }}
-              >
-                <div>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontWeight: 700,
-                      fontSize: "15px",
-                      color: "#0A0A0A",
-                    }}
-                  >
-                    {resultado.producto.descripcion_corta}
-                  </p>
-                  <p
-                    style={{
-                      margin: "4px 0 0",
-                      fontSize: "12px",
-                      color: "#4B5160",
-                      fontFamily: "DM Mono, monospace",
-                    }}
-                  >
-                    Ref: {resultado.producto.codigo_interno} · Unidad de
-                    empaque:{" "}
-                    {resultado.producto.unidad_empaque || "No definida"}
-                  </p>
-                </div>
-              </div>
+            <Tarjeta
+              titulo={resultado.producto.descripcion_corta}
+              subtitulo={`Ref. ${resultado.producto.codigo_interno} · Unidad de empaque: ${resultado.producto.unidad_empaque || "no definida"}`}
+              style={{ paddingBottom: "8px" }}
+            />
 
-              {resultado.inventario?.length > 0 && (
-                <div
-                  style={{
-                    marginTop: "1rem",
-                    paddingTop: "1rem",
-                    borderTop: "1px solid #F0F1F3",
-                  }}
-                >
-                  <p
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      letterSpacing: "0.1em",
-                      textTransform: "uppercase",
-                      color: "#4B5160",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    Stock actual por bodega
-                  </p>
-                  <div
-                    style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}
-                  >
-                    {resultado.inventario.map((inv) => (
-                      <div
-                        key={inv.id}
-                        style={{
-                          background: "#F7F8F9",
-                          borderRadius: "8px",
-                          padding: "8px 14px",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: "13px",
-                            fontWeight: 700,
-                            color: "#0A0A0A",
-                            fontFamily: "DM Mono, monospace",
-                          }}
-                        >
-                          {inv.cantidad_disponible} und
-                        </div>
-                        <div
-                          style={{
-                            fontSize: "11px",
-                            color: "#4B5160",
-                            marginTop: "2px",
-                          }}
-                        >
-                          {inv.bodegas?.nombre} ·{" "}
-                          {inv.ubicaciones?.codigo || "Sin ubicación"}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            <FilaKpis etiqueta="Resumen del producto">
+              <Kpi etiqueta="Disponible" valor={num(disponible)} pie="unidades en todas las bodegas" />
+              <Kpi etiqueta="Comprometido" valor={num(comprometido)} pie="reservado para pedidos" />
+              <Kpi etiqueta="Ubicaciones" valor={inventario.length} />
+              <Kpi etiqueta="Movimientos" valor={movimientos.length} pie={movimientos.length >= 100 ? "últimos 100" : undefined} />
+            </FilaKpis>
 
-            {/* Historial de movimientos */}
-            <div
-              style={{
-                background: "#FFFFFF",
-                border: "1px solid #E2E4E8",
-                borderRadius: "12px",
-                padding: "1.25rem",
-              }}
-            >
-              <p
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  color: "#4B5160",
-                  marginBottom: "1rem",
-                }}
-              >
-                Historial de movimientos ({resultado.movimientos?.length || 0})
-              </p>
+            <Tarjeta titulo="Stock actual por bodega">
+              <Tabla columnas={columnasStock} filas={inventario} vacio="Este producto no tiene inventario registrado" />
+            </Tarjeta>
 
-              {!resultado.movimientos || resultado.movimientos.length === 0 ? (
-                <p
-                  style={{
-                    fontSize: "13px",
-                    color: "#8A909C",
-                    textAlign: "center",
-                    padding: "2rem 0",
-                  }}
-                >
-                  No hay movimientos registrados para este producto
-                </p>
-              ) : (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "8px",
-                  }}
-                >
-                  {resultado.movimientos.map((mov) => {
-                    const tipo = accionLabel[mov.accion] || {
-                      label: mov.accion,
-                      color: "#3A3F4B",
-                      bg: "#EEF0F2",
-                    };
-                    return (
-                      <div
-                        key={mov.id}
-                        style={{
-                          border: "1px solid #F0F1F3",
-                          borderRadius: "8px",
-                          padding: "1rem",
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "flex-start",
-                            marginBottom: "8px",
-                          }}
-                        >
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "8px",
-                            }}
-                          >
-                            <span
-                              style={{
-                                background: tipo.bg,
-                                color: tipo.color,
-                                padding: "2px 10px",
-                                borderRadius: "20px",
-                                fontSize: "10px",
-                                fontWeight: 700,
-                                letterSpacing: "0.06em",
-                                textTransform: "uppercase",
-                              }}
-                            >
-                              {tipo.label}
-                            </span>
-                            {mov.valores_despues?.proveedor && (
-                              <span style={{ fontSize: "12px", color: "#4B5160" }}>
-                                {mov.valores_despues.proveedor}
-                              </span>
-                            )}
-                            {mov.valores_despues?.factura && (
-                              <span style={{ fontSize: "12px", color: "#4B5160" }}>
-                                Fact: {mov.valores_despues.factura}
-                              </span>
-                            )}
-                          </div>
-                          <span
-                            style={{
-                              fontSize: "11px",
-                              color: "#8A909C",
-                              fontFamily: "DM Mono, monospace",
-                              flexShrink: 0,
-                            }}
-                          >
-                            {new Date(mov.created_at).toLocaleString("es-CO", {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                        </div>
-
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: "1.5rem",
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          {mov.valores_antes?.cantidad_disponible !==
-                            undefined && (
-                            <div style={{ fontSize: "12px" }}>
-                              <span style={{ color: "#4B5160" }}>Antes: </span>
-                              <span
-                                style={{
-                                  fontFamily: "DM Mono, monospace",
-                                  fontWeight: 600,
-                                }}
-                              >
-                                {mov.valores_antes.cantidad_disponible} und
-                              </span>
-                            </div>
-                          )}
-                          {mov.valores_despues?.cantidad_disponible !==
-                            undefined && (
-                            <div style={{ fontSize: "12px" }}>
-                              <span style={{ color: "#4B5160" }}>Después: </span>
-                              <span
-                                style={{
-                                  fontFamily: "DM Mono, monospace",
-                                  fontWeight: 600,
-                                  color: "#007A40",
-                                }}
-                              >
-                                {mov.valores_despues.cantidad_disponible} und
-                              </span>
-                            </div>
-                          )}
-                          {mov.valores_despues?.recepcion_id && (
-                            <div style={{ fontSize: "12px", color: "#4B5160" }}>
-                              Bodega:{" "}
-                              {mov.valores_despues.bodega_id?.slice(0, 8)}...
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            <Tarjeta titulo="Historial de movimientos" subtitulo="Del más reciente al más antiguo">
+              <Tabla columnas={columnasMov} filas={movimientos} vacio="No hay movimientos registrados para este producto" />
+            </Tarjeta>
           </>
         )}
-      </div>
+      </Pagina>
     </Layout>
   );
 }

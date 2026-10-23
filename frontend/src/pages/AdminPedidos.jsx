@@ -2,24 +2,44 @@ import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import Layout from "../components/Layout";
 import api from "../services/api";
+import {
+  Pagina,
+  Acciones,
+  Boton,
+  Tarjeta,
+  FilaKpis,
+  Kpi,
+  Filtros,
+  Campo,
+  Mensaje,
+  Tabla,
+  Vacio,
+  Pastilla,
+  Pestanas,
+  Modal,
+} from "../components/oficina";
+import { estiloCampo, COLOR } from "../components/oficinaDatos";
+import { num } from "../components/panel/formato";
 
 const estadoColor = {
   pendiente: { bg: "#EEF0F2", color: "#3A3F4B", label: "Pendiente" },
   asignado: { bg: "#DBEAFE", color: "#1E40AF", label: "Asignado" },
+  en_proceso: { bg: "#FFF4D6", color: "#8A5A00", label: "En proceso" },
   en_picking: { bg: "#FFF4D6", color: "#8A5A00", label: "En picking" },
   en_saldos: { bg: "#EDE9FE", color: "#5B21B6", label: "En saldos" },
-  en_verificacion: {
-    bg: "rgba(0,255,135,0.1)",
-    color: "#007A40",
-    label: "Verificando",
-  },
-  despachado: {
-    bg: "rgba(0,255,135,0.15)",
-    color: "#005A30",
-    label: "Despachado",
-  },
+  cerrado: { bg: "#E0F2FE", color: "#0369A1", label: "Por verificar" },
+  con_diferencia: { bg: "#FDECEC", color: "#B91C1C", label: "Con diferencia" },
+  verificado: { bg: "#E3F7EC", color: "#007A40", label: "Verificado" },
+  facturado: { bg: "#E3F7EC", color: "#005A30", label: "Facturado" },
+  despachado: { bg: "#E3F7EC", color: "#005A30", label: "Despachado" },
   cancelado: { bg: "#FDECEC", color: "#B91C1C", label: "Cancelado" },
 };
+const estadoDe = (estado) =>
+  estadoColor[estado] || { bg: "#EEF0F2", color: "#3A3F4B", label: estado || "—" };
+// Estados en los que ya no se reasigna ni se cancela (igual que el backend).
+const ESTADOS_FINALES = ["cerrado", "verificado", "facturado", "despachado", "cancelado"];
+const NO_CANCELABLES = ["facturado", "despachado", "cancelado"];
+const mono = { fontFamily: "DM Mono, monospace" };
 
 const prioridadColor = {
   normal: { bg: "#EEF0F2", color: "#3A3F4B", label: "Normal" },
@@ -37,10 +57,9 @@ function PanelAdvertencias({ advertencias, onCerrar }) {
     <div
       style={{
         background: "#FFFBEB",
-        border: "1px solid #FCD34D",
+        border: "1px solid #F2DFA6",
         borderRadius: "12px",
-        padding: "1.25rem",
-        marginBottom: "1.25rem",
+        padding: "16px 20px",
       }}
     >
       <div
@@ -59,7 +78,7 @@ function PanelAdvertencias({ advertencias, onCerrar }) {
           <p
             style={{ fontSize: "12px", color: "#8A5A00", margin: "2px 0 0 0" }}
           >
-            Se alistara lo que haya disponible. Las unidades faltantes quedaran
+            Se alistará lo que haya disponible. Las unidades faltantes quedarán
             pendientes en SALDOS.
           </p>
         </div>
@@ -168,6 +187,7 @@ export default function AdminPedidos() {
   const [motivoCancelacion, setMotivoCancelacion] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("");
   const [advertencias, setAdvertencias] = useState([]);
+  const [busqueda, setBusqueda] = useState("");
 
   const cargarDatos = async () => {
     try {
@@ -536,33 +556,125 @@ export default function AdminPedidos() {
     (p) => p.estado === "pendiente",
   );
 
-  const selectStyle = {
-    width: "100%",
-    fontFamily: "Outfit, sans-serif",
-    fontSize: "13px",
-    border: "1px solid #E2E4E8",
-    borderRadius: "8px",
-    padding: "8px 12px",
-    outline: "none",
-    background: "#FFFFFF",
-    color: "#0A0A0A",
+  const unidades = (p) =>
+    p.pedido_items?.reduce((a, i) => a + (i.cantidad_pedida || 0), 0) || 0;
+  const cuenta = (estados) => pedidos.filter((p) => estados.includes(p.estado)).length;
+  const listasPendientes = listas.filter((l) => l.estado === "pendiente").length;
+  const textoBusqueda = busqueda.trim().toLowerCase();
+  const pedidosVisibles = textoBusqueda
+    ? pedidosFiltrados.filter((p) => String(p.numero).toLowerCase().includes(textoBusqueda))
+    : pedidosFiltrados;
+
+  const volverALista = () => {
+    setVista("lista");
+    setSeleccionados([]);
+    setOperarioTanda("");
   };
-  const labelStyle = {
-    fontSize: "11px",
-    fontWeight: 600,
-    letterSpacing: "0.1em",
-    textTransform: "uppercase",
-    color: "#4B5160",
-    display: "block",
-    marginBottom: "6px",
-  };
+
+  const columnasPedidos = [
+    {
+      titulo: "",
+      ancho: "36px",
+      celda: (p) =>
+        p.estado === "pendiente" ? (
+          <input
+            type="checkbox"
+            aria-label={`Seleccionar ${p.numero}`}
+            checked={seleccionados.includes(p.id)}
+            onChange={() => toggleSeleccion(p.id)}
+            style={{ width: "18px", height: "18px", cursor: "pointer" }}
+          />
+        ) : null,
+    },
+    {
+      titulo: "Pedido",
+      celda: (p) => <span style={{ ...mono, fontWeight: 600 }}>{p.numero}</span>,
+    },
+    {
+      titulo: "Estado",
+      celda: (p) => {
+        const e = estadoDe(p.estado);
+        return <Pastilla texto={e.label} bg={e.bg} fg={e.color} />;
+      },
+    },
+    {
+      titulo: "Prioridad",
+      celda: (p) => {
+        const pr = prioridadColor[p.prioridad] || prioridadColor.normal;
+        return p.estado === "pendiente" ? (
+          <button
+            type="button"
+            title="Cambiar prioridad"
+            onClick={() => cambiarPrioridad(p.id, p.prioridad === "urgente" ? "normal" : "urgente")}
+            style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+          >
+            <Pastilla texto={`${pr.label} ⇄`} bg={pr.bg} fg={pr.color} />
+          </button>
+        ) : (
+          <Pastilla texto={pr.label} bg={pr.bg} fg={pr.color} />
+        );
+      },
+    },
+    { titulo: "Ref.", num: true, celda: (p) => num(p.pedido_items?.length || 0) },
+    { titulo: "Unidades", num: true, celda: (p) => num(unidades(p)) },
+    {
+      titulo: "Operario",
+      celda: (p) =>
+        !p.operario ? (
+          <span style={{ color: COLOR.gris }}>—</span>
+        ) : (
+          <span style={{ display: "inline-flex", flexDirection: "column", gap: "4px" }}>
+            <span>
+              {p.operario.nombre}
+              {p.montacarguista && <span style={{ color: COLOR.gris }}> · {p.montacarguista.nombre}</span>}
+            </span>
+            {!ESTADOS_FINALES.includes(p.estado) && (
+              <select
+                value=""
+                aria-label={`Reasignar ${p.numero}`}
+                onChange={(e) => {
+                  reasignar(p.id, e.target.value);
+                  e.target.value = "";
+                }}
+                style={{ ...estiloCampo, minHeight: "32px", padding: "4px 8px", fontSize: "12px", width: "auto" }}
+              >
+                <option value="">↪ Reasignar a…</option>
+                {operarios
+                  .filter((o) => o.id !== p.operario_id)
+                  .map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.nombre}
+                    </option>
+                  ))}
+              </select>
+            )}
+          </span>
+        ),
+    },
+    {
+      titulo: "",
+      celda: (p) =>
+        NO_CANCELABLES.includes(p.estado) ? null : (
+          <Boton
+            pequeno
+            variante="peligro"
+            onClick={() => {
+              setMotivoCancelacion("");
+              setModalCancelar(p);
+            }}
+          >
+            Cancelar
+          </Boton>
+        ),
+    },
+  ];
 
   return (
     <Layout
       titulo="Pedidos"
       subtitulo={
         vista === "lista"
-          ? `${pedidos.length} pedidos · ${listas.filter((l) => l.estado === "pendiente").length} listas pendientes`
+          ? `${pedidos.length} pedidos · ${listasPendientes} listas pendientes`
           : vista === "preview"
             ? `${previaCsv.length} pedidos detectados`
             : vista === "asignar"
@@ -572,546 +684,159 @@ export default function AdminPedidos() {
                 : ""
       }
     >
-      <div
-        style={{
-          display: "flex",
-          gap: "4px",
-          marginBottom: "1.25rem",
-          background: "#F0F1F3",
-          padding: "4px",
-          borderRadius: "10px",
-          width: "fit-content",
-        }}
-      >
-        {[
-          { id: "lista", label: "Pedidos" },
-          { id: "listas", label: "Listas picking" },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setVista(tab.id)}
-            style={{
-              background: vista === tab.id ? "#FFFFFF" : "transparent",
-              color: "#0A0A0A",
-              border: "none",
-              borderRadius: "7px",
-              padding: "8px 16px",
-              fontSize: "13px",
-              fontWeight: vista === tab.id ? 700 : 400,
-              cursor: "pointer",
-              fontFamily: "Outfit, sans-serif",
-              boxShadow:
-                vista === tab.id ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          gap: "8px",
-          marginBottom: "1.25rem",
-          flexWrap: "wrap",
-          alignItems: "center",
-        }}
-      >
-        {(vista === "preview" || vista === "asignar") && (
-          <button
-            onClick={() => {
-              setVista("lista");
-              setSeleccionados([]);
-              setOperarioTanda("");
-            }}
-            style={{
-              background: "transparent",
-              color: "#0A0A0A",
-              border: "1px solid #E2E4E8",
-              borderRadius: "8px",
-              padding: "9px 18px",
-              fontSize: "14px",
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: "Outfit, sans-serif",
-            }}
-          >
-            ← Volver
-          </button>
+      <Pagina>
+        {(vista === "lista" || vista === "listas") && (
+          <Pestanas
+            valor={vista}
+            onChange={setVista}
+            opciones={[
+              { valor: "lista", texto: "Pedidos", cuenta: pedidos.length },
+              { valor: "listas", texto: "Listas de picking", cuenta: listas.length },
+            ]}
+          />
         )}
-        {vista === "lista" && (
-          <>
-            <label
-              style={{
-                background: "#00FF87",
-                color: "#0A0A0A",
-                border: "none",
-                borderRadius: "8px",
-                padding: "9px 20px",
-                fontSize: "14px",
-                fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: "Outfit, sans-serif",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-              }}
-            >
-              Cargar CSV
-              <input
-                type="file"
-                accept=".csv,.xls,.xlsx"
-                onChange={leerCSV}
-                style={{ display: "none" }}
-              />
-            </label>
-            {seleccionados.length > 0 && (
-              <button
-                onClick={() => setVista("asignar")}
+
+        <Acciones>
+          {(vista === "preview" || vista === "asignar") && <Boton onClick={volverALista}>← Volver</Boton>}
+          {vista === "lista" && (
+            <>
+              <label
                 style={{
-                  background: "#0A0A0A",
-                  color: "#00FF87",
-                  border: "none",
-                  borderRadius: "8px",
-                  padding: "9px 20px",
+                  font: "inherit",
                   fontSize: "14px",
-                  fontWeight: 700,
+                  fontWeight: 600,
+                  padding: "10px 16px",
+                  minHeight: "44px",
+                  boxSizing: "border-box",
+                  borderRadius: "8px",
+                  background: COLOR.negro,
+                  color: "#FFFFFF",
+                  display: "inline-flex",
+                  alignItems: "center",
                   cursor: "pointer",
-                  fontFamily: "Outfit, sans-serif",
                 }}
               >
-                Asignar {seleccionados.length} pedido
-                {seleccionados.length > 1 ? "s" : ""} →
-              </button>
-            )}
-            <select
-              value={filtroEstado}
-              onChange={(e) => setFiltroEstado(e.target.value)}
-              style={{ ...selectStyle, width: "auto", padding: "9px 14px" }}
+                Cargar CSV o Excel
+                <input type="file" accept=".csv,.xls,.xlsx" onChange={leerCSV} style={{ display: "none" }} />
+              </label>
+              {seleccionados.length > 0 && (
+                <Boton variante="verde" onClick={() => setVista("asignar")}>
+                  Asignar {seleccionados.length} pedido{seleccionados.length > 1 ? "s" : ""} →
+                </Boton>
+              )}
+            </>
+          )}
+          {vista === "listas" && (
+            <Boton variante="principal" onClick={generarListasManual} disabled={cargando}>
+              {cargando ? "Generando..." : "Generar listas desde pedidos activos"}
+            </Boton>
+          )}
+        </Acciones>
+
+        <Mensaje tipo={mensaje.tipo}>{mensaje.texto}</Mensaje>
+
+        <PanelAdvertencias advertencias={advertencias} onCerrar={() => setAdvertencias([])} />
+
+        {vista === "lista" && (
+          <>
+            <FilaKpis etiqueta="Resumen de pedidos">
+              <Kpi etiqueta="Pendientes" valor={cuenta(["pendiente"])} pie="sin asignar" />
+              <Kpi etiqueta="En curso" valor={cuenta(["asignado", "en_proceso", "en_picking", "en_saldos"])} pie="asignados o en alistamiento" />
+              <Kpi
+                etiqueta="Por verificar"
+                valor={cuenta(["cerrado"])}
+                colorValor={cuenta(["cerrado"]) > 0 ? COLOR.ambar : undefined}
+                pie="cerrados por el operario"
+              />
+              <Kpi etiqueta="Listas pendientes" valor={listasPendientes} pie="sin montacarguista" />
+            </FilaKpis>
+
+            <Filtros>
+              <Campo etiqueta="Buscar pedido" ancho="200px">
+                <input
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  placeholder="Número de pedido"
+                  style={{ ...estiloCampo, ...mono }}
+                />
+              </Campo>
+              <Campo etiqueta="Estado" ancho="180px">
+                <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} style={estiloCampo}>
+                  <option value="">Todos los estados</option>
+                  {Object.entries(estadoColor).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v.label}
+                    </option>
+                  ))}
+                </select>
+              </Campo>
+            </Filtros>
+
+            <Tarjeta
+              titulo="Pedidos"
+              subtitulo={
+                pedidosVisibles.length === pedidos.length
+                  ? `${pedidos.length} en total`
+                  : `${pedidosVisibles.length} de ${pedidos.length}`
+              }
+              extra={
+                pedidosPendientes.length > 0 && (
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: "8px", fontSize: "14px", color: COLOR.gris, cursor: "pointer", minHeight: "36px" }}>
+                    <input
+                      type="checkbox"
+                      checked={seleccionados.length === pedidosPendientes.length && pedidosPendientes.length > 0}
+                      onChange={toggleTodos}
+                      style={{ width: "18px", height: "18px", cursor: "pointer" }}
+                    />
+                    {seleccionados.length > 0
+                      ? `${seleccionados.length} seleccionados`
+                      : "Seleccionar todos los pendientes"}
+                  </label>
+                )
+              }
             >
-              <option value="">Todos los estados</option>
-              {Object.entries(estadoColor).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v.label}
-                </option>
-              ))}
-            </select>
+              <Tabla
+                columnas={columnasPedidos}
+                filas={pedidosVisibles}
+                seleccionada={(p) => seleccionados.includes(p.id)}
+                vacio={pedidos.length === 0 ? "No hay pedidos cargados" : "Ningún pedido coincide con los filtros"}
+              />
+            </Tarjeta>
           </>
         )}
-      </div>
 
-      {mensaje.texto && (
-        <div
-          style={{
-            padding: "12px 16px",
-            borderRadius: "8px",
-            marginBottom: "1.25rem",
-            fontSize: "13px",
-            fontWeight: 500,
-            background:
-              mensaje.tipo === "error" ? "#FDECEC" : "rgba(0,255,135,0.1)",
-            color: mensaje.tipo === "error" ? "#B91C1C" : "#007A40",
-            border: `1px solid ${mensaje.tipo === "error" ? "#FECACA" : "rgba(0,255,135,0.2)"}`,
-          }}
-        >
-          {mensaje.texto}
-        </div>
-      )}
-
-      {/* Panel de advertencias de stock insuficiente */}
-      <PanelAdvertencias
-        advertencias={advertencias}
-        onCerrar={() => setAdvertencias([])}
-      />
-
-      {vista === "lista" && (
-        <div>
-          {pedidosPendientes.length > 0 && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                marginBottom: "0.75rem",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={
-                  seleccionados.length === pedidosPendientes.length &&
-                  pedidosPendientes.length > 0
-                }
-                onChange={toggleTodos}
-                style={{ width: "18px", height: "18px", cursor: "pointer" }}
-              />
-              <span style={{ fontSize: "13px", color: "#4B5160" }}>
-                {seleccionados.length > 0
-                  ? `${seleccionados.length} seleccionados`
-                  : "Seleccionar todos los pendientes"}
-              </span>
-            </div>
-          )}
-          {pedidosFiltrados.length === 0 ? (
-            <div
-              style={{
-                background: "#FFFFFF",
-                border: "1px solid #E2E4E8",
-                borderRadius: "12px",
-                padding: "3rem",
-                textAlign: "center",
-              }}
-            >
-              <p style={{ fontSize: "15px", fontWeight: 500, color: "#4B5160" }}>
-                No hay pedidos cargados
-              </p>
-            </div>
+        {vista === "listas" &&
+          (listas.length === 0 ? (
+            <Tarjeta>
+              <Vacio>No hay listas de picking generadas</Vacio>
+            </Tarjeta>
           ) : (
-            <div
-              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
-            >
-              {pedidosFiltrados.map((pedido) => {
-                const badge =
-                  estadoColor[pedido.estado] || estadoColor.pendiente;
-                const pBadge =
-                  prioridadColor[pedido.prioridad] || prioridadColor.normal;
-                const esPendiente = pedido.estado === "pendiente";
-                const estaSeleccionado = seleccionados.includes(pedido.id);
-                return (
-                  <div
-                    key={pedido.id}
-                    style={{
-                      background: "#FFFFFF",
-                      border: estaSeleccionado
-                        ? "1px solid #00FF87"
-                        : "1px solid #E2E4E8",
-                      borderRadius: "12px",
-                      padding: "1rem 1.25rem",
-                      boxShadow: estaSeleccionado
-                        ? "0 0 0 3px rgba(0,255,135,0.08)"
-                        : "none",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        gap: "12px",
-                      }}
-                    >
-                      {esPendiente && (
-                        <input
-                          type="checkbox"
-                          checked={estaSeleccionado}
-                          onChange={() => toggleSeleccion(pedido.id)}
-                          style={{
-                            width: "18px",
-                            height: "18px",
-                            cursor: "pointer",
-                            marginTop: "2px",
-                            flexShrink: 0,
-                          }}
-                        />
-                      )}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "8px",
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontFamily: "DM Mono, monospace",
-                              fontSize: "14px",
-                              fontWeight: 700,
-                            }}
-                          >
-                            {pedido.numero}
-                          </span>
-                          <span
-                            style={{
-                              background: badge.bg,
-                              color: badge.color,
-                              padding: "2px 10px",
-                              borderRadius: "20px",
-                              fontSize: "10px",
-                              fontWeight: 700,
-                              letterSpacing: "0.06em",
-                              textTransform: "uppercase",
-                            }}
-                          >
-                            {badge.label}
-                          </span>
-                          <span
-                            style={{
-                              background: pBadge.bg,
-                              color: pBadge.color,
-                              padding: "2px 10px",
-                              borderRadius: "20px",
-                              fontSize: "10px",
-                              fontWeight: 700,
-                              letterSpacing: "0.06em",
-                              textTransform: "uppercase",
-                            }}
-                          >
-                            {pBadge.label}
-                          </span>
-                        </div>
-                        <div
-                          style={{
-                            fontSize: "12px",
-                            color: "#4B5160",
-                            marginTop: "4px",
-                          }}
-                        >
-                          {pedido.pedido_items?.length || 0} ref ·{" "}
-                          {pedido.pedido_items?.reduce(
-                            (a, i) => a + (i.cantidad_pedida || 0),
-                            0,
-                          ) || 0}{" "}
-                          und
-                        </div>
-                        {pedido.operario && (
-                          <div
-                            style={{
-                              fontSize: "12px",
-                              color: "#4B5160",
-                              marginTop: "4px",
-                            }}
-                          >
-                            {pedido.operario.nombre}
-                            {pedido.montacarguista &&
-                              ` · ${pedido.montacarguista.nombre}`}
-                          </div>
-                        )}
-                        {pedido.operario &&
-                          !["cerrado", "despachado"].includes(
-                            pedido.estado,
-                          ) && (
-                            <select
-                              value=""
-                              onClick={(e) => e.stopPropagation()}
-                              onChange={(e) => {
-                                reasignar(pedido.id, e.target.value);
-                                e.target.value = "";
-                              }}
-                              style={{
-                                marginTop: "6px",
-                                padding: "4px 8px",
-                                border: "1px solid #E2E4E8",
-                                borderRadius: "6px",
-                                fontSize: "11px",
-                                color: "#4B5160",
-                                background: "#FAFAFA",
-                                cursor: "pointer",
-                              }}
-                            >
-                              <option value="">↪ Reasignar a…</option>
-                              {operarios
-                                .filter((o) => o.id !== pedido.operario_id)
-                                .map((o) => (
-                                  <option key={o.id} value={o.id}>
-                                    {o.nombre}
-                                  </option>
-                                ))}
-                            </select>
-                          )}
-                      </div>
-                      {esPendiente && (
-                        <button
-                          onClick={() =>
-                            cambiarPrioridad(
-                              pedido.id,
-                              pedido.prioridad === "urgente"
-                                ? "normal"
-                                : "urgente",
-                            )
-                          }
-                          style={{
-                            background:
-                              pedido.prioridad === "urgente"
-                                ? "#FDECEC"
-                                : "#EEF0F2",
-                            color:
-                              pedido.prioridad === "urgente"
-                                ? "#B91C1C"
-                                : "#3A3F4B",
-                            border: "none",
-                            borderRadius: "6px",
-                            padding: "5px 10px",
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            cursor: "pointer",
-                            fontFamily: "Outfit, sans-serif",
-                            flexShrink: 0,
-                          }}
-                        >
-                          {pedido.prioridad === "urgente"
-                            ? "Urgente"
-                            : "Normal"}
-                        </button>
-                      )}
-                      {!["facturado", "despachado", "cancelado"].includes(
-                        pedido.estado,
-                      ) && (
-                        <button
-                          onClick={() => {
-                            setMotivoCancelacion("");
-                            setModalCancelar(pedido);
-                          }}
-                          style={{
-                            background: "#FFFFFF",
-                            color: "#B91C1C",
-                            border: "1px solid #E2E4E8",
-                            borderRadius: "6px",
-                            padding: "5px 10px",
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            cursor: "pointer",
-                            fontFamily: "Outfit, sans-serif",
-                            flexShrink: 0,
-                          }}
-                        >
-                          Cancelar
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {vista === "listas" && (
-        <div>
-          <div style={{ display: "flex", gap: "8px", marginBottom: "1rem" }}>
-            <button
-              onClick={generarListasManual}
-              disabled={cargando}
-              style={{
-                background: "#0A0A0A",
-                color: "#00FF87",
-                border: "none",
-                borderRadius: "8px",
-                padding: "9px 20px",
-                fontSize: "14px",
-                fontWeight: 700,
-                cursor: cargando ? "not-allowed" : "pointer",
-                fontFamily: "Outfit, sans-serif",
-                opacity: cargando ? 0.6 : 1,
-              }}
-            >
-              {cargando
-                ? "Generando..."
-                : "Generar listas desde pedidos pendientes"}
-            </button>
-          </div>
-          {listas.length === 0 ? (
-            <div
-              style={{
-                background: "#FFFFFF",
-                border: "1px solid #E2E4E8",
-                borderRadius: "12px",
-                padding: "3rem",
-                textAlign: "center",
-              }}
-            >
-              <p style={{ fontSize: "15px", fontWeight: 500, color: "#4B5160" }}>
-                No hay listas de picking generadas
-              </p>
-            </div>
-          ) : (
-            <div
-              style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
-            >
-              {listas.map((lista) => (
-                <div
+            listas.map((lista) => {
+              const itemsLista = [...(lista.lista_picking_items || [])].sort((a, b) =>
+                (a.ubicacion_codigo || "").localeCompare(b.ubicacion_codigo || ""),
+              );
+              const cajas = itemsLista.reduce((a, i) => a + (i.cantidad_cajas || 0), 0);
+              return (
+                <Tarjeta
                   key={lista.id}
-                  style={{
-                    background: "#FFFFFF",
-                    border: "1px solid #E2E4E8",
-                    borderRadius: "12px",
-                    padding: "1.5rem",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      marginBottom: "1rem",
-                      flexWrap: "wrap",
-                      gap: "8px",
-                    }}
-                  >
-                    <div>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "10px",
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontFamily: "Outfit, sans-serif",
-                            fontWeight: 700,
-                            fontSize: "18px",
-                          }}
-                        >
-                          {lista.bodegas?.nombre || "Bodega"}
-                        </span>
-                        <span
-                          style={{
-                            background:
-                              lista.estado === "asignada"
-                                ? "rgba(0,255,135,0.1)"
-                                : "#EEF0F2",
-                            color:
-                              lista.estado === "asignada"
-                                ? "#007A40"
-                                : "#3A3F4B",
-                            padding: "2px 10px",
-                            borderRadius: "20px",
-                            fontSize: "10px",
-                            fontWeight: 700,
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          {lista.estado === "asignada"
-                            ? "Asignada"
-                            : "Pendiente"}
-                        </span>
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "12px",
-                          color: "#4B5160",
-                          marginTop: "4px",
-                        }}
-                      >
-                        {lista.lista_picking_items?.length || 0} items ·{" "}
-                        {lista.lista_picking_items?.reduce(
-                          (a, i) => a + (i.cantidad_cajas || 0),
-                          0,
-                        ) || 0}{" "}
-                        cajas
-                        {lista.usuarios && ` · ${lista.usuarios.nombre}`}
-                      </div>
-                    </div>
-                    {lista.estado === "pendiente" && (
+                  titulo={
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                      {lista.bodegas?.nombre || "Bodega"}
+                      {lista.estado === "asignada" ? (
+                        <Pastilla texto="Asignada" bg="#E3F7EC" fg={COLOR.verdeTexto} />
+                      ) : (
+                        <Pastilla texto="Pendiente" bg="#EEF0F2" fg="#3A3F4B" />
+                      )}
+                    </span>
+                  }
+                  subtitulo={`${itemsLista.length} ítems · ${num(cajas)} cajas${lista.usuarios ? ` · ${lista.usuarios.nombre}` : ""}`}
+                  extra={
+                    lista.estado === "pendiente" && (
                       <select
-                        onChange={(e) =>
-                          e.target.value &&
-                          asignarMontacarguistaLista(lista.id, e.target.value)
-                        }
+                        onChange={(e) => e.target.value && asignarMontacarguistaLista(lista.id, e.target.value)}
                         defaultValue=""
-                        style={{ ...selectStyle, width: "auto" }}
+                        aria-label="Asignar montacarguista"
+                        style={{ ...estiloCampo, width: "auto" }}
                       >
                         <option value="">Asignar montacarguista</option>
                         {montacarguistas.map((m) => (
@@ -1120,504 +845,209 @@ export default function AdminPedidos() {
                           </option>
                         ))}
                       </select>
-                    )}
-                  </div>
-                  <div
-                    style={{
-                      borderTop: "1px solid #F0F1F3",
-                      paddingTop: "1rem",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns:
-                          "repeat(auto-fill, minmax(280px, 1fr))",
-                        gap: "8px",
-                      }}
-                    >
-                      {(lista.lista_picking_items || [])
-                        .sort((a, b) =>
-                          (a.ubicacion_codigo || "").localeCompare(
-                            b.ubicacion_codigo || "",
-                          ),
-                        )
-                        .map((item) => (
-                          <div
-                            key={item.id}
-                            style={{
-                              background: item.destino_saldos
-                                ? "#FFF4D6"
-                                : "#F7F8F9",
-                              borderRadius: "8px",
-                              padding: "10px 12px",
-                              border: item.destino_saldos
-                                ? "1px solid #FDE68A"
-                                : "1px solid transparent",
-                            }}
-                          >
-                            <div
+                    )
+                  }
+                >
+                  <Tabla
+                    columnas={[
+                      {
+                        titulo: "Ubicación",
+                        celda: (it) => (
+                          <span style={{ display: "inline-flex", gap: "6px", alignItems: "center" }}>
+                            <span
                               style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "flex-start",
+                                background: COLOR.negro,
+                                color: COLOR.verde,
+                                padding: "2px 8px",
+                                borderRadius: "4px",
+                                fontSize: "12px",
+                                ...mono,
+                                fontWeight: 600,
                               }}
                             >
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "6px",
-                                    marginBottom: "4px",
-                                  }}
-                                >
-                                  <span
-                                    style={{
-                                      background: "#0A0A0A",
-                                      color: "#00FF87",
-                                      padding: "1px 8px",
-                                      borderRadius: "4px",
-                                      fontSize: "11px",
-                                      fontFamily: "DM Mono, monospace",
-                                      fontWeight: 700,
-                                    }}
-                                  >
-                                    {item.ubicacion_codigo || "Sin ubic."}
-                                  </span>
-                                  {item.destino_saldos && (
-                                    <span
-                                      style={{
-                                        fontSize: "10px",
-                                        color: "#8A5A00",
-                                        fontWeight: 700,
-                                      }}
-                                    >
-                                      SALDOS
-                                    </span>
-                                  )}
-                                </div>
-                                <div
-                                  style={{
-                                    fontSize: "12px",
-                                    fontWeight: 600,
-                                    color: "#0A0A0A",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  {item.descripcion}
-                                </div>
-                                <div
-                                  style={{
-                                    fontSize: "11px",
-                                    color: "#4B5160",
-                                    fontFamily: "DM Mono, monospace",
-                                    marginTop: "2px",
-                                  }}
-                                >
-                                  {item.referencia} · {item.pedidos?.numero}
-                                </div>
-                              </div>
-                              <div
-                                style={{
-                                  textAlign: "right",
-                                  flexShrink: 0,
-                                  marginLeft: "8px",
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    fontSize: "14px",
-                                    fontWeight: 700,
-                                    fontFamily: "DM Mono, monospace",
-                                  }}
-                                >
-                                  {item.cantidad_cajas}{" "}
-                                  {item.cantidad_cajas === 1 ? "caja" : "cajas"}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+                              {it.ubicacion_codigo || "Sin ubic."}
+                            </span>
+                            {it.destino_saldos && <Pastilla texto="Saldos" bg="#FFF4D6" fg={COLOR.ambar} />}
+                          </span>
+                        ),
+                      },
+                      { titulo: "Referencia", celda: (it) => <span style={mono}>{it.referencia}</span> },
+                      {
+                        titulo: "Descripción",
+                        celda: (it) => (
+                          <span
+                            title={it.descripcion}
+                            style={{
+                              display: "inline-block",
+                              maxWidth: "320px",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                              verticalAlign: "bottom",
+                            }}
+                          >
+                            {it.descripcion}
+                          </span>
+                        ),
+                      },
+                      { titulo: "Pedido", celda: (it) => <span style={{ ...mono, color: COLOR.gris }}>{it.pedidos?.numero}</span> },
+                      { titulo: "Cajas", num: true, celda: (it) => num(it.cantidad_cajas) },
+                    ]}
+                    filas={itemsLista}
+                    vacio="Lista sin ítems"
+                  />
+                </Tarjeta>
+              );
+            })
+          ))}
 
-      {vista === "preview" && (
-        <div>
-          <div
-            style={{
-              background: "#FFFFFF",
-              border: "1px solid #E2E4E8",
-              borderRadius: "12px",
-              padding: "1.5rem",
-            }}
+        {vista === "preview" && (
+          <Tarjeta
+            titulo="Revisa los pedidos antes de importar"
+            subtitulo="Al importar, el sistema genera automáticamente las listas de picking por bodega."
           >
-            <p
-              style={{ fontSize: "13px", color: "#4B5160", marginBottom: "1rem" }}
-            >
-              Al importar el sistema generara automaticamente las listas de
-              picking por bodega
-            </p>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "8px",
-                marginBottom: "1.5rem",
-              }}
-            >
-              {previaCsv.map((pedido) => (
-                <div
-                  key={pedido.numero}
-                  style={{
-                    border: "1px solid #E2E4E8",
-                    borderRadius: "8px",
-                    padding: "1rem",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontFamily: "DM Mono, monospace",
-                        fontSize: "14px",
-                        fontWeight: 700,
-                      }}
-                    >
-                      {pedido.numero}
-                    </span>
-                    <span style={{ fontSize: "12px", color: "#4B5160" }}>
-                      {pedido.items.length} ref ·{" "}
-                      {pedido.items.reduce((a, i) => a + i.cantidad, 0)} und
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      marginTop: "8px",
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: "4px",
-                    }}
-                  >
-                    {pedido.items.slice(0, 5).map((item, i) => (
-                      <span
-                        key={i}
-                        style={{
-                          background: "#F0F1F3",
-                          color: "#4B5160",
-                          padding: "2px 8px",
-                          borderRadius: "4px",
-                          fontSize: "11px",
-                          fontFamily: "DM Mono, monospace",
-                        }}
-                      >
-                        {item.referencia}
-                      </span>
-                    ))}
-                    {pedido.items.length > 5 && (
-                      <span style={{ fontSize: "11px", color: "#8A909C" }}>
-                        +{pedido.items.length - 5} mas
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <button
-              onClick={importarPedidos}
-              disabled={cargando}
-              style={{
-                width: "100%",
-                background: "#00FF87",
-                color: "#0A0A0A",
-                border: "none",
-                borderRadius: "8px",
-                padding: "12px",
-                fontSize: "15px",
-                fontWeight: 700,
-                cursor: cargando ? "not-allowed" : "pointer",
-                fontFamily: "Outfit, sans-serif",
-                opacity: cargando ? 0.6 : 1,
-              }}
-            >
-              {cargando
-                ? "Importando y generando listas..."
-                : `Importar ${previaCsv.length} pedidos y generar listas →`}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {vista === "asignar" && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 300px",
-            gap: "1.5rem",
-            alignItems: "start",
-          }}
-        >
-          <div>
-            <p
-              style={{ fontSize: "13px", color: "#4B5160", marginBottom: "1rem" }}
-            >
-              Los siguientes pedidos se asignaran al mismo operario:
-            </p>
-            <div
-              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
-            >
-              {seleccionados.map((pedidoId) => {
-                const pedido = pedidos.find((p) => p.id === pedidoId);
-                if (!pedido) return null;
-                const pBadge =
-                  prioridadColor[pedido.prioridad] || prioridadColor.normal;
-                return (
-                  <div
-                    key={pedidoId}
-                    style={{
-                      background: "#FFFFFF",
-                      border: "1px solid #E2E4E8",
-                      borderRadius: "12px",
-                      padding: "1rem 1.25rem",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontFamily: "DM Mono, monospace",
-                          fontSize: "14px",
-                          fontWeight: 700,
-                        }}
-                      >
-                        {pedido.numero}
-                      </span>
-                      <span
-                        style={{
-                          background: pBadge.bg,
-                          color: pBadge.color,
-                          padding: "2px 8px",
-                          borderRadius: "20px",
-                          fontSize: "10px",
-                          fontWeight: 700,
-                          textTransform: "uppercase",
-                        }}
-                      >
-                        {pBadge.label}
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "12px",
-                        color: "#4B5160",
-                        marginTop: "3px",
-                      }}
-                    >
-                      {pedido.pedido_items?.length} ref ·{" "}
-                      {pedido.pedido_items?.reduce(
-                        (a, i) => a + (i.cantidad_pedida || 0),
-                        0,
-                      )}{" "}
-                      und
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          <div style={{ position: "sticky", top: "1rem" }}>
-            <div
-              style={{
-                background: "#FFFFFF",
-                border: "1px solid #E2E4E8",
-                borderRadius: "12px",
-                padding: "1.25rem",
-                marginBottom: "1rem",
-              }}
-            >
-              <div style={{ marginBottom: "1.5rem" }}>
-                <label style={labelStyle}>
-                  Operario para todos los pedidos *
-                </label>
-                <select
-                  value={operarioTanda}
-                  onChange={(e) => setOperarioTanda(e.target.value)}
-                  style={selectStyle}
-                >
-                  <option value="">Selecciona un operario</option>
-                  {operarios.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <p style={labelStyle}>Montacarguistas por bodega</p>
-              {bodegas
-                .filter((b) => b.codigo !== "SALDOS")
-                .map((bodega) => (
-                  <div key={bodega.id} style={{ marginBottom: "1rem" }}>
-                    <label style={{ ...labelStyle, color: "#4B5160" }}>
-                      {bodega.nombre}
-                    </label>
-                    <select
-                      value={montacarguistasPorBodega[bodega.id] || ""}
-                      onChange={(e) =>
-                        setMontacarguistasPorBodega((prev) => ({
-                          ...prev,
-                          [bodega.id]: e.target.value,
-                        }))
-                      }
-                      style={selectStyle}
-                    >
-                      <option value="">Sin asignar</option>
-                      {montacarguistas.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.nombre}
-                        </option>
+            <Tabla
+              clave="numero"
+              columnas={[
+                { titulo: "Pedido", celda: (p) => <span style={{ ...mono, fontWeight: 600 }}>{p.numero}</span> },
+                { titulo: "Ref.", num: true, celda: (p) => num(p.items.length) },
+                { titulo: "Unidades", num: true, celda: (p) => num(p.items.reduce((a, i) => a + i.cantidad, 0)) },
+                {
+                  titulo: "Referencias",
+                  celda: (p) => (
+                    <span style={{ display: "inline-flex", flexWrap: "wrap", gap: "4px", justifyContent: "flex-end" }}>
+                      {p.items.slice(0, 5).map((it, i) => (
+                        <span
+                          key={i}
+                          style={{
+                            background: COLOR.bordeSuave,
+                            color: COLOR.gris,
+                            padding: "2px 8px",
+                            borderRadius: "4px",
+                            fontSize: "12px",
+                            ...mono,
+                          }}
+                        >
+                          {it.referencia}
+                        </span>
                       ))}
-                    </select>
-                  </div>
-                ))}
+                      {p.items.length > 5 && (
+                        <span style={{ fontSize: "12px", color: COLOR.gris }}>+{p.items.length - 5} más</span>
+                      )}
+                    </span>
+                  ),
+                },
+              ]}
+              filas={previaCsv}
+            />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "20px", flexWrap: "wrap" }}>
+              <Boton onClick={volverALista}>Cancelar</Boton>
+              <Boton variante="verde" onClick={importarPedidos} disabled={cargando}>
+                {cargando ? "Importando y generando listas..." : `Importar ${previaCsv.length} pedidos y generar listas →`}
+              </Boton>
             </div>
-            <button
-              onClick={asignarTanda}
-              disabled={cargando}
-              style={{
-                width: "100%",
-                background: "#00FF87",
-                color: "#0A0A0A",
-                border: "none",
-                borderRadius: "10px",
-                padding: "14px",
-                fontSize: "15px",
-                fontWeight: 700,
-                cursor: cargando ? "not-allowed" : "pointer",
-                fontFamily: "Outfit, sans-serif",
-                opacity: cargando ? 0.6 : 1,
-              }}
-            >
-              {cargando ? "Asignando..." : "Confirmar asignacion →"}
-            </button>
+          </Tarjeta>
+        )}
+
+        {vista === "asignar" && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "16px", alignItems: "start" }}>
+            <Tarjeta titulo="Pedidos a asignar" subtitulo="Todos se asignan al mismo operario.">
+              <Tabla
+                columnas={[
+                  { titulo: "Pedido", celda: (p) => <span style={{ ...mono, fontWeight: 600 }}>{p.numero}</span> },
+                  {
+                    titulo: "Prioridad",
+                    celda: (p) => {
+                      const pr = prioridadColor[p.prioridad] || prioridadColor.normal;
+                      return <Pastilla texto={pr.label} bg={pr.bg} fg={pr.color} />;
+                    },
+                  },
+                  { titulo: "Ref.", num: true, celda: (p) => num(p.pedido_items?.length || 0) },
+                  { titulo: "Unidades", num: true, celda: (p) => num(unidades(p)) },
+                ]}
+                filas={seleccionados.map((id) => pedidos.find((p) => p.id === id)).filter(Boolean)}
+              />
+            </Tarjeta>
+
+            <Tarjeta titulo="Asignación" style={{ position: "sticky", top: "16px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                <Campo etiqueta="Operario para todos los pedidos *">
+                  <select value={operarioTanda} onChange={(e) => setOperarioTanda(e.target.value)} style={estiloCampo}>
+                    <option value="">Selecciona un operario</option>
+                    {operarios.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </Campo>
+                <div style={{ fontSize: "13px", fontWeight: 600, marginTop: "4px" }}>Montacarguistas por bodega</div>
+                {bodegas
+                  .filter((b) => b.codigo !== "SALDOS")
+                  .map((bodega) => (
+                    <Campo key={bodega.id} etiqueta={bodega.nombre}>
+                      <select
+                        value={montacarguistasPorBodega[bodega.id] || ""}
+                        onChange={(e) =>
+                          setMontacarguistasPorBodega((prev) => ({
+                            ...prev,
+                            [bodega.id]: e.target.value,
+                          }))
+                        }
+                        style={estiloCampo}
+                      >
+                        <option value="">Sin asignar</option>
+                        {montacarguistas.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </Campo>
+                  ))}
+                <Boton variante="verde" onClick={asignarTanda} disabled={cargando} style={{ width: "100%", marginTop: "6px" }}>
+                  {cargando ? "Asignando..." : "Confirmar asignación →"}
+                </Boton>
+              </div>
+            </Tarjeta>
           </div>
-        </div>
-      )}
+        )}
+      </Pagina>
 
       {modalCancelar && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.5)",
-            zIndex: 500,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "1rem",
+        <Modal
+          titulo="Cancelar pedido"
+          subtitulo={`Pedido ${modalCancelar.numero} — estado: ${estadoDe(modalCancelar.estado).label}`}
+          onCerrar={() => {
+            setModalCancelar(null);
+            setMotivoCancelacion("");
           }}
-        >
-          <div
-            style={{
-              background: "#FFFFFF",
-              borderRadius: "16px",
-              padding: "1.5rem",
-              width: "100%",
-              maxWidth: "400px",
-            }}
-          >
-            <h3
-              style={{ fontSize: "16px", fontWeight: 700, margin: "0 0 4px 0" }}
-            >
-              Cancelar pedido
-            </h3>
-            <p
-              style={{ fontSize: "13px", color: "#4B5160", margin: "0 0 16px 0" }}
-            >
-              Pedido {modalCancelar.numero} — Estado:{" "}
-              {estadoColor[modalCancelar.estado]?.label || modalCancelar.estado}
-            </p>
-            <label
-              style={{
-                fontSize: "12px",
-                fontWeight: 600,
-                color: "#4B5160",
-                display: "block",
-                marginBottom: "4px",
-              }}
-            >
-              Motivo de cancelación *
-            </label>
-            <input
-              value={motivoCancelacion}
-              onChange={(e) => setMotivoCancelacion(e.target.value)}
-              placeholder="Ej: el cliente canceló el pedido"
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                border: "1px solid #E2E4E8",
-                borderRadius: "8px",
-                fontSize: "14px",
-                marginBottom: "16px",
-                boxSizing: "border-box",
-              }}
-            />
-            <div style={{ display: "flex", gap: "8px" }}>
-              <button
+          acciones={
+            <>
+              <Boton
                 onClick={() => {
                   setModalCancelar(null);
                   setMotivoCancelacion("");
                 }}
-                style={{
-                  flex: 1,
-                  padding: "12px",
-                  border: "1px solid #E2E4E8",
-                  borderRadius: "8px",
-                  background: "transparent",
-                  fontSize: "14px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
               >
                 Volver
-              </button>
-              <button
-                onClick={cancelarPedido}
-                disabled={cargando || !motivoCancelacion.trim()}
-                style={{
-                  flex: 2,
-                  padding: "12px",
-                  border: "none",
-                  borderRadius: "8px",
-                  background: "#B91C1C",
-                  color: "#FFFFFF",
-                  fontSize: "14px",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
+              </Boton>
+              <Boton variante="peligroLleno" onClick={cancelarPedido} disabled={cargando || !motivoCancelacion.trim()}>
                 Confirmar cancelación
-              </button>
-            </div>
-          </div>
-        </div>
+              </Boton>
+            </>
+          }
+        >
+          <Campo etiqueta="Motivo de cancelación *">
+            <input
+              value={motivoCancelacion}
+              onChange={(e) => setMotivoCancelacion(e.target.value)}
+              placeholder="Ej: el cliente canceló el pedido"
+              style={estiloCampo}
+              autoFocus
+            />
+          </Campo>
+        </Modal>
       )}
     </Layout>
   );

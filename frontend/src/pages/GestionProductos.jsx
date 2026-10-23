@@ -2,10 +2,51 @@ import { useState, useEffect, useCallback } from "react";
 import Layout from "../components/Layout";
 import ScanInput from "../components/ScanInput";
 import api from "../services/api";
+import {
+  Pagina,
+  Acciones,
+  Boton,
+  Tarjeta,
+  FilaKpis,
+  Kpi,
+  Filtros,
+  Campo,
+  Mensaje,
+  Tabla,
+  Pastilla,
+  Nota,
+} from "../components/oficina";
+import { estiloCampo, COLOR } from "../components/oficinaDatos";
+import { num } from "../components/panel/formato";
+
+const FILAS_POR_PAGINA = 100;
+const mono = { fontFamily: "DM Mono, monospace" };
+
+const ABC = {
+  A: { bg: "#FDECEC", fg: "#B91C1C" },
+  B: { bg: "#FFF4D6", fg: "#8A5A00" },
+  C: { bg: "#F0F1F3", fg: "#3A3F4B" },
+};
+const insigniaAbc = (abc) => {
+  const c = ABC[abc] || ABC.C;
+  return <Pastilla texto={abc || "—"} bg={c.bg} fg={c.fg} />;
+};
+
+// Estado del código de barras de la caja master.
+const estadoCodigo = (p) => (p.ean14 ? "ean14" : p.sin_codigo_barras ? "sin" : "pendiente");
+const insigniaCodigo = (p) => {
+  const e = estadoCodigo(p);
+  if (e === "ean14") return <Pastilla texto="EAN14" bg="#E3F7EC" fg={COLOR.verdeTexto} />;
+  if (e === "sin") return <Pastilla texto="Se baja manual" bg="#EEF0F2" fg="#3A3F4B" />;
+  return <Pastilla texto="Pendiente" bg="#FFF4D6" fg={COLOR.ambar} />;
+};
 
 export default function GestionProductos() {
   const [productos, setProductos] = useState([]);
   const [filtro, setFiltro] = useState("");
+  const [filtroAbc, setFiltroAbc] = useState("");
+  const [filtroCodigo, setFiltroCodigo] = useState("");
+  const [limite, setLimite] = useState(FILAS_POR_PAGINA);
   const [seleccionado, setSeleccionado] = useState(null);
   const [modo, setModo] = useState("lista");
   const [editando, setEditando] = useState({
@@ -57,7 +98,7 @@ export default function GestionProductos() {
       editando.ean14 &&
       editando.ean14.length !== 14
     ) {
-      aviso("El EAN14 debe tener exactamente 14 digitos", "error");
+      aviso("El EAN14 debe tener exactamente 14 dígitos", "error");
       return;
     }
     setCargando(true);
@@ -66,7 +107,7 @@ export default function GestionProductos() {
         ean14: editando.ean14 || null,
         sin_codigo_barras: editando.sin_codigo_barras,
       });
-      aviso("Codigo de barras actualizado correctamente");
+      aviso("Código de barras actualizado correctamente");
       await cargar();
       setModo("lista");
     } catch (err) {
@@ -78,11 +119,11 @@ export default function GestionProductos() {
 
   const crearProducto = async () => {
     if (!nuevoProducto.codigo_interno.trim()) {
-      aviso("El codigo interno es obligatorio", "error");
+      aviso("El código interno es obligatorio", "error");
       return;
     }
     if (!nuevoProducto.descripcion_corta.trim()) {
-      aviso("La descripcion es obligatoria", "error");
+      aviso("La descripción es obligatoria", "error");
       return;
     }
     if (
@@ -121,50 +162,63 @@ export default function GestionProductos() {
       .replace(/^01(\d{14})$/, "$1");
     setEditando((e) => ({ ...e, ean14: cb, sin_codigo_barras: false }));
     setEscaneando(false);
-    aviso(`Codigo capturado: ${cb}`);
+    aviso(`Código capturado: ${cb}`);
   };
 
   const filtrado = productos.filter((p) => {
     const f = filtro.toLowerCase();
     return (
-      !f ||
-      (p.codigo_interno || "").toLowerCase().includes(f) ||
-      (p.descripcion_corta || "").toLowerCase().includes(f)
+      (!f ||
+        (p.codigo_interno || "").toLowerCase().includes(f) ||
+        (p.descripcion_corta || "").toLowerCase().includes(f)) &&
+      (!filtroAbc || (p.clasificacion_abc || "C") === filtroAbc) &&
+      (!filtroCodigo || estadoCodigo(p) === filtroCodigo)
     );
   });
 
-  const clsAbc = (abc) => {
-    const m = {
-      A: { bg: "#FDECEC", fg: "#B91C1C" },
-      B: { bg: "#FFF4D6", fg: "#8A5A00" },
-      C: { bg: "#F0F1F3", fg: "#3A3F4B" },
-    };
-    const c = m[abc] || m.C;
-    return (
-      <span
-        style={{
-          background: c.bg,
-          color: c.fg,
-          padding: "2px 8px",
-          borderRadius: "20px",
-          fontSize: "10px",
-          fontWeight: 700,
-        }}
-      >
-        {abc || "—"}
-      </span>
-    );
+  const conEan = productos.filter((p) => p.ean14).length;
+  const sinCodigo = productos.filter((p) => !p.ean14 && p.sin_codigo_barras).length;
+  const pendientes = productos.length - conEan - sinCodigo;
+
+  const conFiltro = (fn) => (e) => {
+    fn(e.target.value);
+    setLimite(FILAS_POR_PAGINA);
   };
 
-  const inputStyle = {
-    width: "100%",
-    padding: "10px 12px",
-    border: "1px solid #E2E4E8",
-    borderRadius: "8px",
-    fontSize: "14px",
-    boxSizing: "border-box",
-    fontFamily: "Outfit, sans-serif",
-  };
+  const columnas = [
+    {
+      titulo: "Referencia",
+      celda: (p) => <span style={{ ...mono, fontWeight: 600, whiteSpace: "nowrap" }}>{p.codigo_interno}</span>,
+    },
+    {
+      titulo: "Descripción",
+      celda: (p) => (
+        <span
+          title={p.descripcion_corta}
+          style={{
+            display: "inline-block",
+            maxWidth: "360px",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            verticalAlign: "bottom",
+          }}
+        >
+          {p.descripcion_corta}
+        </span>
+      ),
+    },
+    { titulo: "ABC", celda: (p) => insigniaAbc(p.clasificacion_abc) },
+    { titulo: "Und. por caja", num: true, celda: (p) => num(p.unidad_empaque) },
+    {
+      titulo: "EAN14",
+      celda: (p) => <span style={{ ...mono, fontSize: "13px", color: COLOR.gris }}>{p.ean14 || "—"}</span>,
+    },
+    { titulo: "Código de barras", celda: insigniaCodigo },
+  ];
+
+  const ean = editando.ean14;
+  const eanInvalido = !editando.sin_codigo_barras && ean.length > 0 && ean.length !== 14;
 
   return (
     <Layout
@@ -175,504 +229,186 @@ export default function GestionProductos() {
           : seleccionado?.codigo_interno
       }
     >
-      {modo === "detalle" && (
-        <button
-          onClick={() => setModo("lista")}
-          style={{
-            background: "transparent",
-            border: "1px solid #E2E4E8",
-            borderRadius: "8px",
-            padding: "9px 18px",
-            fontSize: "13px",
-            fontWeight: 600,
-            cursor: "pointer",
-            marginBottom: "1.25rem",
-          }}
-        >
-          Volver
-        </button>
-      )}
-
-      {mensaje.texto && (
-        <div
-          style={{
-            padding: "12px 16px",
-            borderRadius: "8px",
-            marginBottom: "1.25rem",
-            fontSize: "13px",
-            fontWeight: 500,
-            background:
-              mensaje.tipo === "error" ? "#FDECEC" : "rgba(0,200,100,0.08)",
-            color: mensaje.tipo === "error" ? "#B91C1C" : "#007A40",
-            border: `1px solid ${mensaje.tipo === "error" ? "#FECACA" : "rgba(0,200,100,0.2)"}`,
-          }}
-        >
-          {mensaje.texto}
-        </div>
-      )}
-
-      {modo === "lista" && (
-        <div>
-          <div style={{ display: "flex", gap: "8px", marginBottom: "1rem" }}>
-            <input
-              value={filtro}
-              onChange={(e) => setFiltro(e.target.value)}
-              placeholder="Buscar por referencia o descripcion..."
-              style={{ ...inputStyle, flex: 1 }}
-            />
-            <button
-              onClick={() => setVistaCrear((v) => !v)}
-              style={{
-                background: "#0A0A0A",
-                color: "#00FF87",
-                border: "none",
-                borderRadius: "8px",
-                padding: "10px 16px",
-                fontSize: "13px",
-                fontWeight: 700,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {vistaCrear ? "Cancelar" : "Nuevo producto"}
-            </button>
-          </div>
-
-          {vistaCrear && (
-            <div
-              style={{
-                background: "#FFFFFF",
-                border: "1px solid #E2E4E8",
-                borderRadius: "12px",
-                padding: "1.5rem",
-                marginBottom: "1rem",
-              }}
-            >
-              <h3
-                style={{
-                  fontSize: "15px",
-                  fontWeight: 700,
-                  margin: "0 0 16px 0",
-                }}
-              >
-                Crear producto nuevo
-              </h3>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "10px",
-                }}
-              >
-                <div>
-                  <label
-                    style={{
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      color: "#4B5160",
-                      display: "block",
-                      marginBottom: "4px",
-                    }}
-                  >
-                    Codigo interno SIESA *
-                  </label>
-                  <input
-                    value={nuevoProducto.codigo_interno}
-                    onChange={(e) =>
-                      setNuevoProducto((p) => ({
-                        ...p,
-                        codigo_interno: e.target.value,
-                      }))
-                    }
-                    placeholder="Ej: 120390"
-                    style={inputStyle}
-                  />
-                </div>
-                <div>
-                  <label
-                    style={{
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      color: "#4B5160",
-                      display: "block",
-                      marginBottom: "4px",
-                    }}
-                  >
-                    Descripcion *
-                  </label>
-                  <input
-                    value={nuevoProducto.descripcion_corta}
-                    onChange={(e) =>
-                      setNuevoProducto((p) => ({
-                        ...p,
-                        descripcion_corta: e.target.value,
-                      }))
-                    }
-                    placeholder="Ej: ROD F 4 PVNA NARANJA MACHO"
-                    style={inputStyle}
-                  />
-                </div>
-                <div>
-                  <label
-                    style={{
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      color: "#4B5160",
-                      display: "block",
-                      marginBottom: "4px",
-                    }}
-                  >
-                    Unidad de empaque (unidades por caja) *
-                  </label>
-                  <input
-                    type="number"
-                    value={nuevoProducto.unidad_empaque}
-                    onChange={(e) =>
-                      setNuevoProducto((p) => ({
-                        ...p,
-                        unidad_empaque: e.target.value,
-                      }))
-                    }
-                    placeholder="Ej: 24"
-                    style={inputStyle}
-                  />
-                </div>
-                <button
-                  onClick={crearProducto}
-                  disabled={cargando}
-                  style={{
-                    background: "#00FF87",
-                    color: "#0A0A0A",
-                    border: "none",
-                    borderRadius: "8px",
-                    padding: "12px",
-                    fontSize: "14px",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                  }}
-                >
-                  {cargando ? "Creando..." : "Crear producto"}
-                </button>
-              </div>
-            </div>
+      <Pagina>
+        <Acciones>
+          {modo === "lista" ? (
+            <Boton variante={vistaCrear ? "secundario" : "principal"} onClick={() => setVistaCrear((v) => !v)}>
+              {vistaCrear ? "Cancelar" : "+ Nuevo producto"}
+            </Boton>
+          ) : (
+            <Boton onClick={() => setModo("lista")}>← Volver</Boton>
           )}
+        </Acciones>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            {filtrado.slice(0, 100).map((p) => (
-              <div
-                key={p.id}
-                onClick={() => abrirProducto(p)}
-                style={{
-                  background: "#FFFFFF",
-                  border: "1px solid #E2E4E8",
-                  borderRadius: "10px",
-                  padding: "10px 14px",
-                  cursor: "pointer",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: "12px",
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.borderColor = "#0A0A0A")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.borderColor = "#E2E4E8")
-                }
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      marginBottom: "3px",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontFamily: "DM Mono, monospace",
-                        fontWeight: 700,
-                        fontSize: "13px",
-                      }}
-                    >
-                      {p.codigo_interno}
-                    </span>
-                    {clsAbc(p.clasificacion_abc)}
-                    {p.sin_codigo_barras && (
-                      <span
-                        style={{
-                          background: "#FDECEC",
-                          color: "#B91C1C",
-                          padding: "2px 8px",
-                          borderRadius: "20px",
-                          fontSize: "10px",
-                          fontWeight: 700,
-                        }}
-                      >
-                        Sin codigo
-                      </span>
-                    )}
-                    {p.ean14 && (
-                      <span
-                        style={{
-                          background: "rgba(0,200,100,0.1)",
-                          color: "#007A40",
-                          padding: "2px 8px",
-                          borderRadius: "20px",
-                          fontSize: "10px",
-                          fontWeight: 700,
-                        }}
-                      >
-                        EAN14
-                      </span>
-                    )}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "13px",
-                      color: "#3A3F4B",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {p.descripcion_corta}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "11px",
-                      color: "#4B5160",
-                      marginTop: "2px",
-                      fontFamily: "DM Mono, monospace",
-                    }}
-                  >
-                    UE: {p.unidad_empaque || "—"}{" "}
-                    {p.ean14 ? `· EAN14: ${p.ean14}` : ""}
-                  </div>
+        <Mensaje tipo={mensaje.tipo}>{mensaje.texto}</Mensaje>
+
+        {modo === "lista" && (
+          <>
+            {vistaCrear && (
+              <Tarjeta titulo="Crear producto nuevo" subtitulo="Los campos con * son obligatorios." style={{ maxWidth: "760px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
+                  <Campo etiqueta="Código interno SIESA *">
+                    <input
+                      value={nuevoProducto.codigo_interno}
+                      onChange={(e) => setNuevoProducto((p) => ({ ...p, codigo_interno: e.target.value }))}
+                      placeholder="Ej: 120390"
+                      style={{ ...estiloCampo, ...mono }}
+                    />
+                  </Campo>
+                  <Campo etiqueta="Unidad de empaque (unidades por caja) *">
+                    <input
+                      type="number"
+                      value={nuevoProducto.unidad_empaque}
+                      onChange={(e) => setNuevoProducto((p) => ({ ...p, unidad_empaque: e.target.value }))}
+                      placeholder="Ej: 24"
+                      style={estiloCampo}
+                    />
+                  </Campo>
+                  <Campo etiqueta="Descripción *" style={{ gridColumn: "1 / -1" }}>
+                    <input
+                      value={nuevoProducto.descripcion_corta}
+                      onChange={(e) => setNuevoProducto((p) => ({ ...p, descripcion_corta: e.target.value }))}
+                      placeholder="Ej: ROD F 4 PVNA NARANJA MACHO"
+                      style={estiloCampo}
+                    />
+                  </Campo>
                 </div>
-                <span style={{ color: "#C9CDD4", fontSize: "18px" }}>›</span>
-              </div>
-            ))}
-            {filtrado.length > 100 && (
-              <p
-                style={{ textAlign: "center", color: "#4B5160", fontSize: "13px" }}
-              >
-                Mostrando 100 de {filtrado.length} — use el filtro para buscar
-              </p>
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "20px" }}>
+                  <Boton variante="principal" onClick={crearProducto} disabled={cargando}>
+                    {cargando ? "Creando..." : "Crear producto"}
+                  </Boton>
+                </div>
+              </Tarjeta>
             )}
-          </div>
-        </div>
-      )}
 
-      {modo === "detalle" && seleccionado && (
-        <div style={{ maxWidth: "560px" }}>
-          <div
-            style={{
-              background: "#FFFFFF",
-              border: "1px solid #E2E4E8",
-              borderRadius: "12px",
-              padding: "1.5rem",
-              marginBottom: "1rem",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                marginBottom: "12px",
-                flexWrap: "wrap",
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: "DM Mono, monospace",
-                  fontWeight: 700,
-                  fontSize: "18px",
-                }}
-              >
-                {seleccionado.codigo_interno}
-              </span>
-              {clsAbc(seleccionado.clasificacion_abc)}
-            </div>
-            <div
-              style={{
-                fontSize: "15px",
-                fontWeight: 600,
-                color: "#0A0A0A",
-                marginBottom: "4px",
-              }}
-            >
-              {seleccionado.descripcion_corta}
-            </div>
-            <div style={{ fontSize: "13px", color: "#4B5160" }}>
-              Unidad de empaque: {seleccionado.unidad_empaque || "—"} unidades
-              por caja
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: "#FFFFFF",
-              border: "1px solid #E2E4E8",
-              borderRadius: "12px",
-              padding: "1.5rem",
-            }}
-          >
-            <h3
-              style={{
-                fontSize: "14px",
-                fontWeight: 700,
-                color: "#0A0A0A",
-                margin: "0 0 16px 0",
-              }}
-            >
-              Codigo de barras caja master (EAN14)
-            </h3>
-
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                marginBottom: "16px",
-                cursor: "pointer",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={editando.sin_codigo_barras}
-                onChange={(e) =>
-                  setEditando((ed) => ({
-                    ...ed,
-                    sin_codigo_barras: e.target.checked,
-                    ean14: e.target.checked ? "" : ed.ean14,
-                  }))
-                }
-                style={{ width: "18px", height: "18px" }}
+            <FilaKpis etiqueta="Resumen de productos">
+              <Kpi etiqueta="Referencias" valor={num(productos.length)} />
+              <Kpi etiqueta="Con EAN14" valor={num(conEan)} colorValor={COLOR.verdeTexto} />
+              <Kpi etiqueta="Se bajan manual" valor={num(sinCodigo)} pie="sin código de barras" />
+              <Kpi
+                etiqueta="Pendientes de código"
+                valor={num(pendientes)}
+                colorValor={pendientes > 0 ? COLOR.ambar : undefined}
+                pie={pendientes > 0 ? "falta registrar su EAN14" : undefined}
+                colorPie={COLOR.ambar}
               />
-              <span style={{ fontSize: "14px", color: "#3A3F4B" }}>
-                No aplica — se baja manual
-              </span>
-            </label>
+            </FilaKpis>
 
-            {!editando.sin_codigo_barras && (
-              <>
-                <label
-                  style={{
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    color: "#4B5160",
-                    display: "block",
-                    marginBottom: "6px",
-                  }}
-                >
-                  EAN14 (14 digitos)
-                </label>
-                <div
-                  style={{ display: "flex", gap: "8px", marginBottom: "12px" }}
-                >
-                  <input
-                    value={editando.ean14}
-                    onChange={(e) =>
-                      setEditando((ed) => ({
-                        ...ed,
-                        ean14: e.target.value.replace(/\D/g, ""),
-                      }))
-                    }
-                    placeholder="Ej: 17709898161151"
-                    maxLength={14}
-                    style={{
-                      ...inputStyle,
-                      flex: 1,
-                      fontFamily: "DM Mono, monospace",
-                    }}
-                  />
-                  <button
-                    onClick={() => setEscaneando((v) => !v)}
-                    style={{
-                      background: "#0A0A0A",
-                      color: "#00FF87",
-                      border: "none",
-                      borderRadius: "8px",
-                      padding: "10px 16px",
-                      fontSize: "13px",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                    }}
-                  >
-                    {escaneando ? "Cancelar" : "Escanear"}
-                  </button>
+            <Filtros>
+              <Campo etiqueta="Buscar" ancho="260px">
+                <input
+                  value={filtro}
+                  onChange={conFiltro(setFiltro)}
+                  placeholder="Referencia o descripción"
+                  style={estiloCampo}
+                />
+              </Campo>
+              <Campo etiqueta="Clasificación ABC" ancho="150px">
+                <select value={filtroAbc} onChange={conFiltro(setFiltroAbc)} style={estiloCampo}>
+                  <option value="">Todas</option>
+                  <option value="A">A</option>
+                  <option value="B">B</option>
+                  <option value="C">C</option>
+                </select>
+              </Campo>
+              <Campo etiqueta="Código de barras" ancho="180px">
+                <select value={filtroCodigo} onChange={conFiltro(setFiltroCodigo)} style={estiloCampo}>
+                  <option value="">Todos</option>
+                  <option value="ean14">Con EAN14</option>
+                  <option value="sin">Se baja manual</option>
+                  <option value="pendiente">Pendiente</option>
+                </select>
+              </Campo>
+            </Filtros>
+
+            <Tarjeta titulo="Referencias" subtitulo="Toca una referencia para registrar o cambiar su código de barras.">
+              <Tabla columnas={columnas} filas={filtrado.slice(0, limite)} alClic={abrirProducto} vacio="No se encontraron productos" />
+              {filtrado.length > limite && (
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "12px", flexWrap: "wrap" }}>
+                  <Nota style={{ margin: 0 }}>
+                    Se muestran {num(limite)} de {num(filtrado.length)}. Usa los filtros para acotar.
+                  </Nota>
+                  <Boton pequeno onClick={() => setLimite((l) => l + FILAS_POR_PAGINA)}>
+                    Mostrar más
+                  </Boton>
                 </div>
+              )}
+            </Tarjeta>
+          </>
+        )}
 
-                {escaneando && (
-                  <ScanInput
-                    onScan={onEscanear}
-                    label="Escanea el codigo de barras de la caja"
-                    hint="El sistema elimina automaticamente el prefijo GS1 (01)"
-                  />
-                )}
+        {modo === "detalle" && seleccionado && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "16px", alignItems: "start" }}>
+            <Tarjeta titulo={seleccionado.descripcion_corta}>
+              <dl style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "10px 16px", margin: 0, fontSize: "14px" }}>
+                <dt style={{ color: COLOR.gris }}>Referencia</dt>
+                <dd style={{ margin: 0, ...mono, fontWeight: 600 }}>{seleccionado.codigo_interno}</dd>
+                <dt style={{ color: COLOR.gris }}>Clasificación</dt>
+                <dd style={{ margin: 0 }}>{insigniaAbc(seleccionado.clasificacion_abc)}</dd>
+                <dt style={{ color: COLOR.gris }}>Unidad de empaque</dt>
+                <dd style={{ margin: 0 }}>{seleccionado.unidad_empaque || "—"} unidades por caja</dd>
+                <dt style={{ color: COLOR.gris }}>Código de barras</dt>
+                <dd style={{ margin: 0 }}>{insigniaCodigo(seleccionado)}</dd>
+              </dl>
+            </Tarjeta>
 
-                {editando.ean14.length === 14 && (
-                  <div
-                    style={{
-                      background: "rgba(0,200,100,0.08)",
-                      border: "1px solid rgba(0,200,100,0.2)",
-                      borderRadius: "8px",
-                      padding: "10px 14px",
-                      fontSize: "13px",
-                      color: "#007A40",
-                    }}
-                  >
-                    EAN14 valido — 14 digitos
-                  </div>
-                )}
-                {editando.ean14.length > 0 && editando.ean14.length !== 14 && (
-                  <div
-                    style={{
-                      background: "#FDECEC",
-                      border: "1px solid #FECACA",
-                      borderRadius: "8px",
-                      padding: "10px 14px",
-                      fontSize: "13px",
-                      color: "#B91C1C",
-                    }}
-                  >
-                    El EAN14 debe tener 14 digitos — actualmente tiene{" "}
-                    {editando.ean14.length}
-                  </div>
-                )}
-              </>
-            )}
+            <Tarjeta titulo="Código de barras caja master (EAN14)">
+              <label style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px", cursor: "pointer", minHeight: "44px" }}>
+                <input
+                  type="checkbox"
+                  checked={editando.sin_codigo_barras}
+                  onChange={(e) =>
+                    setEditando((ed) => ({
+                      ...ed,
+                      sin_codigo_barras: e.target.checked,
+                      ean14: e.target.checked ? "" : ed.ean14,
+                    }))
+                  }
+                  style={{ width: "18px", height: "18px" }}
+                />
+                <span style={{ fontSize: "14px" }}>No aplica — se baja manual</span>
+              </label>
 
-            <button
-              onClick={guardar}
-              disabled={
-                cargando ||
-                (!editando.sin_codigo_barras &&
-                  editando.ean14.length > 0 &&
-                  editando.ean14.length !== 14)
-              }
-              style={{
-                width: "100%",
-                marginTop: "16px",
-                background: "#0A0A0A",
-                color: "#FFFFFF",
-                border: "none",
-                borderRadius: "8px",
-                padding: "12px",
-                fontSize: "14px",
-                fontWeight: 700,
-                cursor: "pointer",
-                opacity: cargando ? 0.6 : 1,
-              }}
-            >
-              {cargando ? "Guardando..." : "Guardar"}
-            </button>
+              {!editando.sin_codigo_barras && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <Campo etiqueta="EAN14 (14 dígitos)">
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <input
+                        value={ean}
+                        onChange={(e) => setEditando((ed) => ({ ...ed, ean14: e.target.value.replace(/\D/g, "") }))}
+                        placeholder="Ej: 17709898161151"
+                        maxLength={14}
+                        style={{ ...estiloCampo, ...mono, flex: 1 }}
+                      />
+                      <Boton onClick={() => setEscaneando((v) => !v)}>{escaneando ? "Cancelar" : "Escanear"}</Boton>
+                    </div>
+                  </Campo>
+
+                  {escaneando && (
+                    <ScanInput
+                      onScan={onEscanear}
+                      label="Escanea el código de barras de la caja"
+                      hint="El sistema elimina automáticamente el prefijo GS1 (01)"
+                    />
+                  )}
+
+                  {ean.length === 14 && <Mensaje>EAN14 válido — 14 dígitos</Mensaje>}
+                  {eanInvalido && (
+                    <Mensaje tipo="error">El EAN14 debe tener 14 dígitos — actualmente tiene {ean.length}</Mensaje>
+                  )}
+                </div>
+              )}
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "20px" }}>
+                <Boton onClick={() => setModo("lista")}>Cancelar</Boton>
+                <Boton variante="principal" onClick={guardar} disabled={cargando || eanInvalido}>
+                  {cargando ? "Guardando..." : "Guardar"}
+                </Boton>
+              </div>
+            </Tarjeta>
           </div>
-        </div>
-      )}
+        )}
+      </Pagina>
     </Layout>
   );
 }

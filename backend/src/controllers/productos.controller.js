@@ -64,26 +64,43 @@ const listarProductos = async (req, res) => {
 const historialProducto = async (req, res) => {
   const { id } = req.params;
 
-  const [invRes, bitacoraRes] = await Promise.all([
+  const [prodRes, invRes] = await Promise.all([
+    supabase
+      .from("productos")
+      .select("id, codigo_interno, descripcion_corta, unidad_empaque")
+      .eq("id", id)
+      .maybeSingle(),
     supabase
       .from("inventario")
       .select(
         "id, cantidad_disponible, cantidad_comprometida, ubicacion_id, bodega_id, ubicaciones(codigo), bodegas(codigo, nombre)",
       )
       .eq("producto_id", id),
-    supabase
-      .from("bitacora")
-      .select(
-        "id, accion, valores_antes, valores_despues, created_at, usuarios(nombre)",
-      )
-      .eq("tabla", "inventario")
-      .order("created_at", { ascending: false })
-      .limit(50),
   ]);
+  if (prodRes.error) return sendServerError(res, prodRes.error, req);
+  if (invRes.error) return sendServerError(res, invRes.error, req);
+  if (!prodRes.data)
+    return res.status(404).json({ error: "Producto no encontrado" });
+
+  // En la bitácora de inventario, registro_id es el producto (recepción,
+  // picking, saldos) o la fila de inventario (ajustes, entregas de saldos).
+  const inventario = invRes.data || [];
+  const registros = [id, ...inventario.map((i) => i.id)];
+  const { data: movimientos, error } = await supabase
+    .from("bitacora")
+    .select(
+      "id, accion, valores_antes, valores_despues, created_at, usuarios(nombre)",
+    )
+    .eq("tabla", "inventario")
+    .in("registro_id", registros)
+    .order("created_at", { ascending: false })
+    .limit(100);
+  if (error) return sendServerError(res, error, req);
 
   return res.json({
-    inventario: invRes.data || [],
-    movimientos: bitacoraRes.data || [],
+    producto: prodRes.data,
+    inventario,
+    movimientos: movimientos || [],
   });
 };
 

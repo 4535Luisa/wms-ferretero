@@ -73,7 +73,7 @@ export default function Layout({ children, titulo, subtitulo }) {
         .wms-layout { min-height:100vh; display:grid; grid-template-columns:220px 1fr; grid-template-rows:64px 1fr; background:#F2F3F5; font-family:'Outfit',sans-serif; }
         .wms-sidebar { grid-row:1/3; background:#0A0A0A; display:flex; flex-direction:column; position:relative; overflow:hidden; }
         .wms-header { background:#FFFFFF; border-bottom:1px solid #E2E4E8; padding:1rem 1.5rem; display:flex; align-items:center; justify-content:space-between; }
-        .wms-content { padding:1.5rem; overflow-y:auto; }
+        .wms-content { padding:1.5rem; overflow-y:auto; min-width:0; }
         .wms-mobile-title { display:none; margin-bottom:1rem; }
         .wms-topbar { display:none; background:#0A0A0A; padding:0 1rem; height:56px; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
         .wms-bottomnav { display:none; position:fixed; bottom:0; left:0; right:0; background:#0A0A0A; border-top:1px solid rgba(255,255,255,0.08); z-index:100; padding-bottom:env(safe-area-inset-bottom); }

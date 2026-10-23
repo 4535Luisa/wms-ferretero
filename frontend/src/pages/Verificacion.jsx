@@ -2,16 +2,25 @@ import { useState, useEffect } from "react";
 import Layout from "../components/Layout";
 import ScanInput, { bip } from "../components/ScanInput";
 import api from "../services/api";
+import {
+  Pagina,
+  Acciones,
+  Boton,
+  Tarjeta,
+  FilaKpis,
+  Kpi,
+  Campo,
+  Mensaje,
+  Tabla,
+  Vacio,
+  Pastilla,
+  Modal,
+  Progreso,
+} from "../components/oficina";
+import { estiloCampo, COLOR } from "../components/oficinaDatos";
+import { num, haceTiempo } from "../components/panel/formato";
 
-const C = {
-  card: {
-    background: "#FFFFFF",
-    border: "1px solid #E2E4E8",
-    borderRadius: "12px",
-    padding: "1.25rem 1.5rem",
-  },
-  mono: { fontFamily: "DM Mono, monospace" },
-};
+const mono = { fontFamily: "DM Mono, monospace" };
 
 export default function Verificacion() {
   const [pedidos, setPedidos] = useState([]);
@@ -132,8 +141,8 @@ export default function Verificacion() {
       bip("error");
       aviso(
         yaCompleto
-          ? `Las cajas de ${yaCompleto.productos?.codigo_interno} ya estan verificadas`
-          : `Codigo no reconocido: ${refEscaneada}`,
+          ? `Las cajas de ${yaCompleto.productos?.codigo_interno} ya están verificadas`
+          : `Código no reconocido: ${refEscaneada}`,
         "error",
       );
       return;
@@ -146,7 +155,6 @@ export default function Verificacion() {
         { referencia_escaneada: refEscaneada },
       );
       bip("ok");
-      const info = itemVerifInfo(objetivo);
       aviso(
         data.cajasListas
           ? `Cajas de ${objetivo.productos?.codigo_interno} completadas`
@@ -213,7 +221,7 @@ export default function Verificacion() {
     setCargando(true);
     try {
       await api.patch(`/api/verificacion/${activo.id}/confirmar`);
-      aviso("Pedido verificado y enviado a facturacion");
+      aviso("Pedido verificado y enviado a facturación");
       setVista("lista");
       setActivo(null);
       await cargarLista();
@@ -229,7 +237,7 @@ export default function Verificacion() {
     setCargando(true);
     try {
       await api.post(`/api/verificacion/${activo.id}/confirmar-diferencias`);
-      aviso("Pedido aprobado con diferencias — enviado a facturacion");
+      aviso("Pedido aprobado con diferencias — enviado a facturación");
       setVista("lista");
       setActivo(null);
       await cargarLista();
@@ -251,640 +259,339 @@ export default function Verificacion() {
       ({ item, info }) => info.completo || item.motivo_diferencia,
     );
 
+  const cajasTotal = itemsInfo.reduce((a, { info }) => a + info.cajasCompletas, 0);
+  const cajasHechas = itemsInfo.reduce(
+    (a, { info }) => a + Math.min(info.cajasVerificadas, info.cajasCompletas),
+    0,
+  );
+  const saldosPendientes = itemsInfo.filter(
+    ({ info }) => info.tieneSaldos && !info.saldoVerificado,
+  ).length;
+  const completas = itemsInfo.filter(({ info }) => info.completo).length;
+
+  const volver = () => {
+    setVista("lista");
+    setActivo(null);
+    cargarLista();
+  };
+
+  const columnasLista = [
+    {
+      titulo: "Pedido",
+      celda: (p) => <span style={{ ...mono, fontWeight: 600 }}>{p.numero}</span>,
+    },
+    { titulo: "Referencias", num: true, celda: (p) => num(p.pedido_items?.length || 0) },
+    {
+      titulo: "Unidades",
+      num: true,
+      celda: (p) =>
+        num(
+          (p.pedido_items || []).reduce(
+            (a, i) => a + (i.cantidad_picking ?? i.cantidad_pedida ?? 0),
+            0,
+          ),
+        ),
+    },
+    {
+      titulo: "Cerrado",
+      celda: (p) => (
+        <span style={{ color: COLOR.gris }}>{p.hora_cierre ? haceTiempo(p.hora_cierre) : "—"}</span>
+      ),
+    },
+    {
+      titulo: "",
+      celda: (p) => (
+        <Boton pequeno variante="principal" onClick={(e) => { e.stopPropagation(); abrir(p.id); }}>
+          Verificar
+        </Boton>
+      ),
+    },
+  ];
+
   return (
     <Layout
-      titulo="Verificacion"
+      titulo="Verificación"
       subtitulo={
         vista === "lista"
           ? `${pedidos.length} pedido${pedidos.length !== 1 ? "s" : ""} por verificar`
           : `Pedido ${activo?.numero}`
       }
     >
-      {vista === "detalle" && (
-        <button
-          onClick={() => {
-            setVista("lista");
-            setActivo(null);
-            cargarLista();
-          }}
-          style={{
-            background: "transparent",
-            color: "#0A0A0A",
-            border: "1px solid #E2E4E8",
-            borderRadius: "8px",
-            padding: "9px 18px",
-            fontSize: "14px",
-            fontWeight: 600,
-            cursor: "pointer",
-            fontFamily: "Outfit, sans-serif",
-            marginBottom: "1.25rem",
-          }}
-        >
-          Volver
-        </button>
-      )}
+      <Pagina>
+        {vista === "detalle" && (
+          <Acciones>
+            <Boton onClick={volver}>← Volver</Boton>
+          </Acciones>
+        )}
 
-      {mensaje.texto && (
-        <div
-          style={{
-            padding: "12px 16px",
-            borderRadius: "8px",
-            marginBottom: "1.25rem",
-            fontSize: "13px",
-            fontWeight: 500,
-            background:
-              mensaje.tipo === "error" ? "#FDECEC" : "rgba(0,255,135,0.1)",
-            color: mensaje.tipo === "error" ? "#B91C1C" : "#007A40",
-            border: `1px solid ${mensaje.tipo === "error" ? "#FECACA" : "rgba(0,255,135,0.2)"}`,
-          }}
-        >
-          {mensaje.texto}
-        </div>
-      )}
+        <Mensaje tipo={mensaje.tipo}>{mensaje.texto}</Mensaje>
 
-      {/* LISTA DE PEDIDOS */}
-      {vista === "lista" &&
-        (pedidos.length === 0 ? (
-          <div style={{ ...C.card, padding: "3rem", textAlign: "center" }}>
-            <p style={{ fontSize: "15px", fontWeight: 500, color: "#4B5160" }}>
-              No hay pedidos por verificar
-            </p>
-            <p style={{ fontSize: "13px", color: "#8A909C", marginTop: "4px" }}>
-              Cuando un operario cierre un pedido aparecera aqui
-            </p>
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            {pedidos.map((p) => (
-              <div
-                key={p.id}
-                onClick={() => abrir(p.id)}
-                style={{
-                  ...C.card,
-                  cursor: "pointer",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <div>
-                  <span
-                    style={{ ...C.mono, fontSize: "14px", fontWeight: 700 }}
-                  >
-                    {p.numero}
-                  </span>
+        {/* LISTA DE PEDIDOS */}
+        {vista === "lista" && (
+          <Tarjeta
+            titulo="Pedidos por verificar"
+            subtitulo="Pedidos cerrados por el operario, del más antiguo al más reciente."
+          >
+            {pedidos.length === 0 ? (
+              <Vacio>
+                No hay pedidos por verificar.
+                <br />
+                Cuando un operario cierre un pedido aparecerá aquí.
+              </Vacio>
+            ) : (
+              <Tabla columnas={columnasLista} filas={pedidos} alClic={(p) => abrir(p.id)} />
+            )}
+          </Tarjeta>
+        )}
+
+        {/* DETALLE DEL PEDIDO */}
+        {vista === "detalle" && activo && (
+          <>
+            <FilaKpis etiqueta="Avance de la verificación">
+              <Kpi
+                etiqueta="Referencias listas"
+                valor={`${completas}/${items.length}`}
+                colorValor={todosCompletos ? COLOR.verdeTexto : undefined}
+              />
+              <Kpi
+                etiqueta="Cajas escaneadas"
+                valor={`${cajasHechas}/${cajasTotal}`}
+                colorValor={cajasTotal > 0 && cajasHechas >= cajasTotal ? COLOR.verdeTexto : undefined}
+              />
+              <Kpi
+                etiqueta="Saldos por confirmar"
+                valor={saldosPendientes}
+                colorValor={saldosPendientes > 0 ? COLOR.ambar : undefined}
+              />
+              <Kpi
+                etiqueta="Diferencias"
+                valor={items.filter((i) => i.motivo_diferencia).length}
+                colorValor={hayDiferencias ? COLOR.rojo : undefined}
+              />
+            </FilaKpis>
+
+            <Tarjeta titulo="Escanear cajas">
+              <ScanInput
+                onScan={onEscanear}
+                disabled={cargando || todosCompletos}
+                label="Escanea cada caja física para verificar"
+                hint="Cada escaneo cuenta 1 caja — escanea tantas cajas como haya físicamente"
+                autoFocus
+              />
+            </Tarjeta>
+
+            <Tarjeta titulo="Referencias del pedido" style={{ padding: "20px 20px 8px" }}>
+              {itemsInfo.map(({ item, info }, idx) => {
+                const faltan = info.cajasCompletas - info.cajasVerificadas;
+                return (
                   <div
+                    key={item.id}
                     style={{
-                      fontSize: "12px",
-                      color: "#4B5160",
-                      marginTop: "4px",
+                      padding: "14px 0",
+                      borderTop: idx > 0 ? `1px solid ${COLOR.bordeSuave}` : "none",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      gap: "16px",
+                      flexWrap: "wrap",
                     }}
                   >
-                    {p.pedido_items?.length || 0} referencias
-                  </div>
-                </div>
-                <span
-                  style={{
-                    fontSize: "13px",
-                    color: "#00CC6A",
-                    fontWeight: 600,
-                  }}
-                >
-                  Verificar
-                </span>
-              </div>
-            ))}
-          </div>
-        ))}
+                    <div style={{ flex: "1 1 260px", minWidth: 0 }}>
+                      <div style={{ fontSize: "14px", fontWeight: 600 }}>
+                        {item.productos?.descripcion_corta || item.descripcion}
+                      </div>
+                      <div style={{ ...mono, fontSize: "12px", color: COLOR.gris, marginTop: "4px" }}>
+                        {item.productos?.codigo_interno} · Pedido: {info.cantPicking} u
+                      </div>
 
-      {/* DETALLE DEL PEDIDO */}
-      {vista === "detalle" && activo && (
-        <div style={{ maxWidth: "720px" }}>
-          <ScanInput
-            onScan={onEscanear}
-            disabled={cargando || todosCompletos}
-            label="Escanea cada caja fisica para verificar"
-            hint="Cada escaneo cuenta 1 caja — escanea tantas cajas como haya fisicamente"
-            autoFocus
-          />
-
-          <div style={{ ...C.card, marginTop: "1rem", padding: "0.5rem 1rem" }}>
-            {itemsInfo.map(({ item, info }, idx) => (
-              <div
-                key={item.id}
-                style={{
-                  padding: "0.875rem 0.5rem",
-                  borderBottom:
-                    idx < items.length - 1 ? "1px solid #F7F8F9" : "none",
-                  background: info.completo
-                    ? "rgba(0,255,135,0.04)"
-                    : "#FFFFFF",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    gap: "12px",
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: "13px", fontWeight: 600 }}>
-                      {item.productos?.descripcion_corta || item.descripcion}
-                    </div>
-                    <div
-                      style={{
-                        ...C.mono,
-                        fontSize: "11px",
-                        color: "#4B5160",
-                        marginTop: "2px",
-                      }}
-                    >
-                      {item.productos?.codigo_interno} · Pedido:{" "}
-                      {info.cantPicking} u
-                    </div>
-
-                    {/* Progreso cajas */}
-                    {info.cajasCompletas > 0 && (
-                      <div style={{ marginTop: "8px" }}>
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            fontSize: "11px",
-                            color: "#4B5160",
-                            marginBottom: "3px",
-                          }}
-                        >
-                          <span>
-                            Cajas: {info.cajasVerificadas}/{info.cajasCompletas}{" "}
-                            ({info.ue} u/caja)
-                          </span>
-                          <span
-                            style={{
-                              color: info.cajasListas ? "#007A40" : "#4B5160",
-                            }}
-                          >
-                            {info.cajasListas
-                              ? "Completo"
-                              : `Faltan ${info.cajasCompletas - info.cajasVerificadas}`}
-                          </span>
-                        </div>
-                        <div
-                          style={{
-                            background: "#F0F1F3",
-                            borderRadius: "4px",
-                            height: "5px",
-                            overflow: "hidden",
-                          }}
-                        >
+                      {info.cajasCompletas > 0 && (
+                        <div style={{ marginTop: "10px", maxWidth: "420px" }}>
                           <div
                             style={{
-                              background: info.cajasListas
-                                ? "#00FF87"
-                                : "#3B82F6",
-                              height: "100%",
-                              width: `${info.cajasCompletas > 0 ? Math.min(100, Math.round((info.cajasVerificadas / info.cajasCompletas) * 100)) : 0}%`,
-                              transition: "width 0.3s",
+                              display: "flex",
+                              justifyContent: "space-between",
+                              fontSize: "12px",
+                              color: COLOR.gris,
+                              marginBottom: "4px",
                             }}
+                          >
+                            <span>
+                              Cajas: {info.cajasVerificadas}/{info.cajasCompletas} ({info.ue} u/caja)
+                            </span>
+                            <span style={{ color: info.cajasListas ? COLOR.verdeTexto : COLOR.gris, fontWeight: 600 }}>
+                              {info.cajasListas ? "Completo" : `Faltan ${faltan}`}
+                            </span>
+                          </div>
+                          <Progreso
+                            valor={info.cajasVerificadas}
+                            total={info.cajasCompletas}
+                            color={info.cajasListas ? COLOR.verdeBarra : COLOR.negro}
                           />
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* Saldos */}
-                    {info.tieneSaldos && (
-                      <div
-                        style={{
-                          marginTop: "8px",
-                          display: "flex",
-                          gap: "8px",
-                          alignItems: "center",
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        <span
-                          style={{
-                            background: info.saldoVerificado
-                              ? "rgba(0,255,135,0.1)"
-                              : "#FFF4D6",
-                            color: info.saldoVerificado ? "#007A40" : "#8A5A00",
-                            padding: "3px 9px",
-                            borderRadius: "6px",
-                            fontSize: "11px",
-                            fontWeight: 600,
-                          }}
-                        >
-                          Saldos: {info.cantSaldos} u —{" "}
-                          {info.saldoVerificado
-                            ? `Recibido: ${item.cantidad_saldo_recibida ?? info.cantSaldos} u`
-                            : "pendiente confirmar"}
-                        </span>
-                        {info.cajasListas && !info.saldoVerificado && (
-                          <button
-                            onClick={() => {
-                              setModalSaldo({ item, info });
-                              setCantidadSaldoRecibida(String(info.cantSaldos));
-                            }}
-                            style={{
-                              background: "#0A0A0A",
-                              color: "#00FF87",
-                              border: "none",
-                              borderRadius: "6px",
-                              padding: "4px 10px",
-                              fontSize: "11px",
-                              fontWeight: 600,
-                              cursor: "pointer",
-                            }}
-                          >
-                            Confirmar saldo
-                          </button>
-                        )}
-                      </div>
-                    )}
+                      {info.tieneSaldos && (
+                        <div style={{ marginTop: "10px", display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                          <Pastilla
+                            texto={`Saldos: ${info.cantSaldos} u — ${
+                              info.saldoVerificado
+                                ? `recibido ${item.cantidad_saldo_recibida ?? info.cantSaldos} u`
+                                : "pendiente confirmar"
+                            }`}
+                            bg={info.saldoVerificado ? "#E3F7EC" : "#FFF4D6"}
+                            fg={info.saldoVerificado ? COLOR.verdeTexto : COLOR.ambar}
+                          />
+                          {info.cajasListas && !info.saldoVerificado && (
+                            <Boton
+                              pequeno
+                              variante="principal"
+                              onClick={() => {
+                                setModalSaldo({ item, info });
+                                setCantidadSaldoRecibida(String(info.cantSaldos));
+                              }}
+                            >
+                              Confirmar saldo
+                            </Boton>
+                          )}
+                        </div>
+                      )}
 
-                    {item.motivo_diferencia && (
-                      <div
-                        style={{
-                          marginTop: "6px",
-                          fontSize: "11px",
-                          color: "#B91C1C",
-                          fontWeight: 500,
-                        }}
-                      >
-                        Diferencia: {item.motivo_diferencia}
-                      </div>
-                    )}
+                      {item.motivo_diferencia && (
+                        <div style={{ marginTop: "8px", fontSize: "13px", color: COLOR.rojo, fontWeight: 500 }}>
+                          Diferencia: {item.motivo_diferencia}
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-end" }}>
+                      {info.completo ? (
+                        <Pastilla texto="Verificado" bg="#E3F7EC" fg={COLOR.verdeTexto} />
+                      ) : (
+                        <>
+                          <Pastilla
+                            texto={
+                              info.cajasListas
+                                ? "Falta saldo"
+                                : `Escanea ${faltan} caja${faltan !== 1 ? "s" : ""}`
+                            }
+                            bg={info.cajasListas ? "#EEF2FF" : "#FFF4D6"}
+                            fg={info.cajasListas ? "#3730A3" : COLOR.ambar}
+                          />
+                          {!item.motivo_diferencia && (
+                            <Boton
+                              pequeno
+                              variante="peligro"
+                              onClick={() => {
+                                setModalDiferencia({ item });
+                                setCantidadReal(String(info.cantPicking));
+                                setMotivo("");
+                              }}
+                            >
+                              Registrar diferencia
+                            </Boton>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
+                );
+              })}
+            </Tarjeta>
 
-                  <div
-                    style={{
-                      flexShrink: 0,
-                      textAlign: "right",
-                      minWidth: "80px",
-                    }}
-                  >
-                    {info.completo ? (
-                      <span
-                        style={{
-                          color: "#00CC6A",
-                          fontWeight: 700,
-                          fontSize: "22px",
-                        }}
-                      >
-                        OK
-                      </span>
-                    ) : (
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "6px",
-                          alignItems: "flex-end",
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            color: info.cajasListas ? "#3730A3" : "#8A5A00",
-                            background: info.cajasListas
-                              ? "#EEF2FF"
-                              : "#FFF4D6",
-                            borderRadius: "8px",
-                            padding: "6px 10px",
-                          }}
-                        >
-                          {info.cajasListas
-                            ? "Falta saldo"
-                            : `Escanea ${info.cajasCompletas - info.cajasVerificadas} caja${info.cajasCompletas - info.cajasVerificadas !== 1 ? "s" : ""}`}
-                        </span>
-                        {!item.motivo_diferencia && (
-                          <button
-                            onClick={() => {
-                              setModalDiferencia({ item });
-                              setCantidadReal(String(info.cantPicking));
-                              setMotivo("");
-                            }}
-                            style={{
-                              background: "#FFF4D6",
-                              color: "#8A5A00",
-                              border: "1px solid #FDE68A",
-                              borderRadius: "6px",
-                              padding: "4px 10px",
-                              fontSize: "11px",
-                              fontWeight: 600,
-                              cursor: "pointer",
-                            }}
-                          >
-                            Registrar diferencia
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Modal confirmar saldo */}
-          {modalSaldo && (
-            <div
-              style={{
-                position: "fixed",
-                inset: 0,
-                background: "rgba(0,0,0,0.5)",
-                zIndex: 500,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "1rem",
-              }}
-            >
-              <div
-                style={{
-                  background: "#FFFFFF",
-                  borderRadius: "16px",
-                  padding: "1.5rem",
-                  width: "100%",
-                  maxWidth: "380px",
-                }}
-              >
-                <h3
-                  style={{
-                    fontSize: "16px",
-                    fontWeight: 700,
-                    margin: "0 0 4px 0",
-                  }}
-                >
-                  Confirmar saldo recibido
-                </h3>
-                <p
-                  style={{
-                    fontSize: "13px",
-                    color: "#4B5160",
-                    margin: "0 0 16px 0",
-                  }}
-                >
-                  {modalSaldo.item.productos?.descripcion_corta} — Esperado:{" "}
-                  {modalSaldo.info.cantSaldos} u
-                </p>
-                <label
-                  style={{
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    color: "#4B5160",
-                    display: "block",
-                    marginBottom: "4px",
-                  }}
-                >
-                  Cantidad realmente recibida
-                </label>
-                <input
-                  type="number"
-                  value={cantidadSaldoRecibida}
-                  onChange={(e) => setCantidadSaldoRecibida(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    border: "1px solid #E2E4E8",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                    marginBottom: "16px",
-                    boxSizing: "border-box",
-                  }}
-                />
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button
-                    onClick={() => setModalSaldo(null)}
-                    style={{
-                      flex: 1,
-                      padding: "12px",
-                      border: "1px solid #E2E4E8",
-                      borderRadius: "8px",
-                      background: "transparent",
-                      fontSize: "14px",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={confirmarSaldo}
-                    disabled={cargando || cantidadSaldoRecibida === ""}
-                    style={{
-                      flex: 2,
-                      padding: "12px",
-                      border: "none",
-                      borderRadius: "8px",
-                      background: "#0A0A0A",
-                      color: "#00FF87",
-                      fontSize: "14px",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Confirmar
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Modal diferencia */}
-          {modalDiferencia && (
-            <div
-              style={{
-                position: "fixed",
-                inset: 0,
-                background: "rgba(0,0,0,0.5)",
-                zIndex: 500,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "1rem",
-              }}
-            >
-              <div
-                style={{
-                  background: "#FFFFFF",
-                  borderRadius: "16px",
-                  padding: "1.5rem",
-                  width: "100%",
-                  maxWidth: "400px",
-                }}
-              >
-                <h3
-                  style={{
-                    fontSize: "16px",
-                    fontWeight: 700,
-                    margin: "0 0 4px 0",
-                  }}
-                >
-                  Registrar diferencia
-                </h3>
-                <p
-                  style={{
-                    fontSize: "13px",
-                    color: "#4B5160",
-                    margin: "0 0 16px 0",
-                  }}
-                >
-                  {modalDiferencia.item.productos?.descripcion_corta}
-                </p>
-                <label
-                  style={{
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    color: "#4B5160",
-                    display: "block",
-                    marginBottom: "4px",
-                  }}
-                >
-                  Cantidad real despachada
-                </label>
-                <input
-                  type="number"
-                  value={cantidadReal}
-                  onChange={(e) => setCantidadReal(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    border: "1px solid #E2E4E8",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                    marginBottom: "12px",
-                    boxSizing: "border-box",
-                  }}
-                />
-                <label
-                  style={{
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    color: "#4B5160",
-                    display: "block",
-                    marginBottom: "4px",
-                  }}
-                >
-                  Motivo de la diferencia *
-                </label>
-                <input
-                  value={motivo}
-                  onChange={(e) => setMotivo(e.target.value)}
-                  placeholder="Ej: Caja no encontrada en bodega"
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    border: "1px solid #E2E4E8",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                    marginBottom: "16px",
-                    boxSizing: "border-box",
-                  }}
-                />
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button
-                    onClick={() => setModalDiferencia(null)}
-                    style={{
-                      flex: 1,
-                      padding: "12px",
-                      border: "1px solid #E2E4E8",
-                      borderRadius: "8px",
-                      background: "transparent",
-                      fontSize: "14px",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={registrarDiferencia}
-                    disabled={cargando || !motivo.trim() || !cantidadReal}
-                    style={{
-                      flex: 2,
-                      padding: "12px",
-                      border: "none",
-                      borderRadius: "8px",
-                      background: "#0A0A0A",
-                      color: "#FFFFFF",
-                      fontSize: "14px",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Registrar
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Botones de confirmacion */}
-          <div style={{ marginTop: "1rem" }}>
+            {/* Botones de confirmación */}
             {todosCompletos ? (
-              <button
-                onClick={confirmar}
-                disabled={cargando}
-                style={{
-                  width: "100%",
-                  background: "#00FF87",
-                  color: "#0A0A0A",
-                  border: "none",
-                  borderRadius: "10px",
-                  padding: "14px",
-                  fontSize: "16px",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  fontFamily: "Outfit, sans-serif",
-                }}
-              >
-                Confirmar verificacion — enviar a facturacion
-              </button>
+              <Boton variante="verde" onClick={confirmar} disabled={cargando} style={{ width: "100%", minHeight: "52px", fontSize: "16px" }}>
+                Confirmar verificación — enviar a facturación
+              </Boton>
             ) : todosVerificadosODiferencia && hayDiferencias ? (
-              <button
+              <Boton
                 onClick={confirmarConDiferencias}
                 disabled={cargando}
                 style={{
                   width: "100%",
-                  background: "#FFF4D6",
-                  color: "#8A5A00",
-                  border: "1px solid #FDE68A",
-                  borderRadius: "10px",
-                  padding: "14px",
+                  minHeight: "52px",
                   fontSize: "16px",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  fontFamily: "Outfit, sans-serif",
+                  background: "#FFF4D6",
+                  color: COLOR.ambar,
+                  border: "1px solid #F2DFA6",
                 }}
               >
                 Aprobar despacho con diferencias
-              </button>
+              </Boton>
             ) : (
               <div
                 style={{
-                  width: "100%",
-                  background: "#E2E4E8",
-                  color: "#8A909C",
+                  background: COLOR.bordeSuave,
+                  color: COLOR.gris,
                   borderRadius: "10px",
-                  padding: "14px",
+                  padding: "16px",
                   fontSize: "14px",
                   fontWeight: 600,
                   textAlign: "center",
                 }}
               >
-                {itemsInfo.filter(
-                  ({ info }) => !info.completo && !info.cajasListas,
-                ).length > 0
-                  ? `Faltan cajas por escanear`
-                  : `Faltan saldos por confirmar`}
+                {itemsInfo.some(({ info }) => !info.completo && !info.cajasListas)
+                  ? "Faltan cajas por escanear"
+                  : "Faltan saldos por confirmar"}
               </div>
             )}
-          </div>
-        </div>
+          </>
+        )}
+      </Pagina>
+
+      {modalSaldo && (
+        <Modal
+          titulo="Confirmar saldo recibido"
+          subtitulo={`${modalSaldo.item.productos?.descripcion_corta || ""} — esperado: ${modalSaldo.info.cantSaldos} u`}
+          onCerrar={() => setModalSaldo(null)}
+          ancho="380px"
+          acciones={
+            <>
+              <Boton onClick={() => setModalSaldo(null)}>Cancelar</Boton>
+              <Boton variante="principal" onClick={confirmarSaldo} disabled={cargando || cantidadSaldoRecibida === ""}>
+                Confirmar
+              </Boton>
+            </>
+          }
+        >
+          <Campo etiqueta="Cantidad realmente recibida">
+            <input
+              type="number"
+              value={cantidadSaldoRecibida}
+              onChange={(e) => setCantidadSaldoRecibida(e.target.value)}
+              style={estiloCampo}
+              autoFocus
+            />
+          </Campo>
+        </Modal>
+      )}
+
+      {modalDiferencia && (
+        <Modal
+          titulo="Registrar diferencia"
+          subtitulo={modalDiferencia.item.productos?.descripcion_corta}
+          onCerrar={() => setModalDiferencia(null)}
+          acciones={
+            <>
+              <Boton onClick={() => setModalDiferencia(null)}>Cancelar</Boton>
+              <Boton variante="principal" onClick={registrarDiferencia} disabled={cargando || !motivo.trim() || !cantidadReal}>
+                Registrar
+              </Boton>
+            </>
+          }
+        >
+          <Campo etiqueta="Cantidad real despachada">
+            <input type="number" value={cantidadReal} onChange={(e) => setCantidadReal(e.target.value)} style={estiloCampo} />
+          </Campo>
+          <Campo etiqueta="Motivo de la diferencia *">
+            <input
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              placeholder="Ej: caja no encontrada en bodega"
+              style={estiloCampo}
+            />
+          </Campo>
+        </Modal>
       )}
     </Layout>
   );
