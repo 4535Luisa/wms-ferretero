@@ -165,35 +165,35 @@ export default function Mercancia({ fijo, onCargado }) {
               <div
                 role="img"
                 aria-label={`Unidades en stock por bodega: ${d.stock_bodegas.map((b) => `${b.codigo} ${num(b.unidades)}`).join(", ")}`}
-                style={{ display: "grid", gridTemplateColumns: `repeat(${d.stock_bodegas.length}, minmax(0, 1fr))`, gap: "16px", alignItems: "end", height: "220px", borderBottom: "1px solid #C9CDD4" }}
+                style={{ display: "grid", gridTemplateColumns: `repeat(${d.stock_bodegas.length}, minmax(0, 1fr))`, gap: "20px", alignItems: "end", height: "220px", borderBottom: "1px solid #C9CDD4" }}
               >
                 {d.stock_bodegas.map((b) => (
-                  <div key={b.codigo} {...tipProps(`${b.codigo}: ${num(b.unidades)} unidades`)} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: "4px", height: "100%", outline: "none" }}>
-                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: "13px", color: COLOR.gris }}>{num(b.unidades)}</span>
+                  <div key={b.codigo} {...tipProps(`${b.codigo}: ${num(b.unidades)} unidades`)} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: "6px", height: "100%", outline: "none" }}>
+                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: "13px" }}>{num(b.unidades)}</span>
                     <div style={{ width: "100%", maxWidth: "72px", height: `${(b.unidades / maxBodega) * 88}%`, minHeight: b.unidades > 0 ? "2px" : 0, background: COLOR.negro, borderRadius: "4px 4px 0 0" }} />
                   </div>
                 ))}
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: `repeat(${d.stock_bodegas.length}, minmax(0, 1fr))`, gap: "16px", marginTop: "6px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(${d.stock_bodegas.length}, minmax(0, 1fr))`, gap: "20px", marginTop: "8px" }}>
                 {d.stock_bodegas.map((b) => (
-                  <span key={b.codigo} style={{ textAlign: "center", fontSize: "13px", fontWeight: 600 }}>{b.codigo}</span>
+                  <span key={b.codigo} style={{ textAlign: "center", fontSize: "14px", fontWeight: 600 }}>{b.codigo}</span>
                 ))}
               </div>
             </>
           )}
         </Tarjeta>
 
-        <Tarjeta id="top" titulo="Referencias más despachadas" style={{ flex: "1 1 520px" }} extra={<span style={{ fontSize: "13px", color: COLOR.gris }}>Unidades de pedidos facturados en el periodo</span>}>
+        <Tarjeta id="top" titulo="Referencias más despachadas" style={{ flex: "999 1 560px" }} extra={<span style={{ fontSize: "13px", color: COLOR.gris }}>Unidades de pedidos facturados en el periodo</span>}>
           {(d.top || []).length === 0 ? (
             <Nota style={{ margin: 0 }}>Sin pedidos facturados en el periodo.</Nota>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
               {d.top.map((t, i) => (
                 <div key={t.referencia} {...tipProps(`${t.referencia} · ${t.descripcion || ""}\n${num(t.unidades)} unidades`)} style={{ display: "grid", gridTemplateColumns: "24px minmax(80px, 120px) minmax(0, 1fr) 64px", alignItems: "center", gap: "10px", fontSize: "14px", outline: "none" }}>
                   <span style={{ fontFamily: "'DM Mono', monospace", color: COLOR.gris }}>{i + 1}</span>
-                  <span style={{ fontFamily: "'DM Mono', monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={t.descripcion}>{t.referencia}</span>
-                  <div style={{ height: "14px", background: COLOR.bordeSuave, borderRadius: "4px", overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${(t.unidades / maxTop) * 100}%`, background: COLOR.verdeBarra, borderRadius: "0 4px 4px 0" }} />
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={t.descripcion}>{t.referencia}</span>
+                  <div style={{ height: "16px", background: COLOR.bordeSuave, borderRadius: "4px", overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${(t.unidades / maxTop) * 100}%`, background: COLOR.verdeBarra, borderRadius: "4px" }} />
                   </div>
                   <span style={{ fontFamily: "'DM Mono', monospace", textAlign: "right" }}>{num(t.unidades)}</span>
                 </div>
@@ -204,27 +204,27 @@ export default function Mercancia({ fijo, onCargado }) {
       </div>
 
       <Tarjeta id="abc" titulo="Clasificación ABC por despacho" extra={<span style={{ fontSize: "13px", color: COLOR.gris }}>Para ubicar las referencias A en las posiciones más cercanas</span>}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px" }}>
           {[
             { c: "A", desc: "Alta rotación", bg: COLOR.verde, fg: COLOR.negro },
             { c: "B", desc: "Rotación media", bg: COLOR.negro, fg: "#FFFFFF" },
             { c: "C", desc: "Baja rotación o sin despacho", bg: COLOR.borde, fg: COLOR.negro },
           ].map(({ c, desc, bg, fg }) => (
-            <div key={c} style={{ border: `1px solid ${COLOR.borde}`, borderRadius: "10px", padding: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div key={c} style={{ border: `1px solid ${COLOR.borde}`, borderRadius: "10px", padding: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "28px", width: "40px", height: "40px", display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: "8px", background: bg, color: fg }}>{c}</span>
-                <span style={{ fontWeight: 600 }}>{desc}</span>
+                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "30px", width: "40px", height: "40px", display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: "8px", background: bg, color: fg }}>{c}</span>
+                <span style={{ fontSize: "14px", color: COLOR.gris }}>{desc}</span>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                 <div>
                   <div style={{ fontSize: "12px", color: COLOR.gris }}>Referencias</div>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: "18px" }}>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: "22px" }}>
                     {num(d.abc?.[c]?.refs)} ({num(pctDe(d.abc?.[c]?.refs || 0, totalRefs))} %)
                   </div>
                 </div>
                 <div>
                   <div style={{ fontSize: "12px", color: COLOR.gris }}>Del despacho</div>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: "18px" }}>{num(pctDe(d.abc?.[c]?.unidades || 0, desp))} %</div>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: "22px" }}>{num(pctDe(d.abc?.[c]?.unidades || 0, desp))} %</div>
                 </div>
               </div>
             </div>
@@ -237,7 +237,7 @@ export default function Mercancia({ fijo, onCargado }) {
         <Tarjeta
           id="sinmov"
           titulo="Agotadas y sin movimiento"
-          style={{ flex: "999 1 560px" }}
+          style={{ flex: "1 1 520px" }}
           extra={<BotonPequeno onClick={() => descargarExcel(`agotadas_sin_movimiento_${sufijo}.xlsx`, [{ nombre: "Referencias", filas: filasSituacion() }])}>Descargar</BotonPequeno>}
         >
           {situaciones.length === 0 ? (
@@ -257,7 +257,7 @@ export default function Mercancia({ fijo, onCargado }) {
                   {visibles.map((s) => (
                     <tr key={`${s.sit}-${s.referencia}`}>
                       <td style={td}>
-                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: "13px" }}>{s.referencia}</div>
+                        <div style={{ fontFamily: "'DM Mono', monospace" }}>{s.referencia}</div>
                         <div style={{ fontSize: "12px", color: COLOR.gris }}>{s.descripcion}</div>
                       </td>
                       <td style={td}>{s.bodega || "—"}</td>
@@ -284,14 +284,14 @@ export default function Mercancia({ fijo, onCargado }) {
           </Nota>
         </Tarjeta>
 
-        <Tarjeta id="ajustes" titulo="Ajustes y diferencias de conteo" style={{ flex: "1 1 360px" }}>
+        <Tarjeta id="ajustes" titulo="Ajustes y diferencias de conteo" style={{ flex: "1 1 520px" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "12px", marginBottom: "16px" }}>
             {[
               ["Ajustes aprobados", num(ajustes.aprobados), COLOR.negro],
               ["Unidades faltantes", ajustes.faltantes ? `−${num(ajustes.faltantes)}` : "0", COLOR.rojo],
               ["Unidades sobrantes", ajustes.sobrantes ? `+${num(ajustes.sobrantes)}` : "0", COLOR.verdeTexto],
             ].map(([t, v, c]) => (
-              <div key={t} style={{ background: COLOR.fondo, borderRadius: "10px", padding: "12px" }}>
+              <div key={t} style={{ background: "#F7F8F9", borderRadius: "10px", padding: "12px" }}>
                 <div style={{ fontSize: "12px", color: COLOR.gris }}>{t}</div>
                 <div style={{ fontFamily: "'DM Mono', monospace", fontSize: "22px", color: c }}>{v}</div>
               </div>
@@ -301,10 +301,10 @@ export default function Mercancia({ fijo, onCargado }) {
           {(ajustes.top || []).length === 0 ? (
             <Nota style={{ margin: 0 }}>Sin ajustes aprobados en el periodo.</Nota>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {ajustes.top.map((a) => (
-                <div key={a.referencia} style={{ display: "grid", gridTemplateColumns: "minmax(70px, 100px) minmax(0, 1fr) 56px", gap: "10px", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${COLOR.bordeSuave}`, fontSize: "14px" }}>
-                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: "13px" }}>{a.referencia}</span>
+                <div key={a.referencia} style={{ display: "grid", gridTemplateColumns: "minmax(70px, 100px) minmax(0, 1fr) 56px", gap: "10px", alignItems: "center", fontSize: "14px" }}>
+                  <span style={{ fontFamily: "'DM Mono', monospace" }}>{a.referencia}</span>
                   <span style={{ color: COLOR.gris }}>
                     {a.tipos} ({a.ajustes} {a.ajustes === 1 ? "vez" : "veces"})
                   </span>

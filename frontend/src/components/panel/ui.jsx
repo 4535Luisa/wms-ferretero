@@ -4,7 +4,7 @@ import { estiloBoton, estiloTarjeta } from "./herramientas";
 
 const estiloH2 = { margin: 0, fontSize: "18px", fontWeight: 700 };
 
-export function Tarjeta({ titulo, extra, children, style, id }) {
+export function Tarjeta({ titulo, subtitulo, extra, children, style, id }) {
   const idTitulo = id ? `t-${id}` : undefined;
   return (
     <section
@@ -24,9 +24,12 @@ export function Tarjeta({ titulo, extra, children, style, id }) {
           }}
         >
           {titulo && (
-            <h2 id={idTitulo} style={estiloH2}>
-              {titulo}
-            </h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <h2 id={idTitulo} style={estiloH2}>
+                {titulo}
+              </h2>
+              {subtitulo && <span style={{ fontSize: "13px", color: COLOR.gris }}>{subtitulo}</span>}
+            </div>
           )}
           {extra}
         </div>

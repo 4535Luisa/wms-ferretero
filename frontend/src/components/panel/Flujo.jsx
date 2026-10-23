@@ -103,7 +103,7 @@ export default function Flujo({ fijo, onCargado }) {
       )}
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: "24px", alignItems: "stretch" }}>
-        <Tarjeta id="embudo" titulo="Embudo de pedidos" style={{ flex: "1 1 520px" }} extra={<span style={{ fontSize: "13px", color: COLOR.gris }}>Pedidos cargados en el periodo y hasta dónde llegaron</span>}>
+        <Tarjeta id="embudo" titulo="Embudo de pedidos" style={{ flex: "999 1 600px" }} extra={<span style={{ fontSize: "13px", color: COLOR.gris }}>Pedidos cargados en el periodo y hasta dónde llegaron</span>}>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {ETAPAS.map(([k, t], i) => {
               const n = emb[k] || 0;
@@ -111,22 +111,26 @@ export default function Flujo({ fijo, onCargado }) {
               const perdida = prev != null ? prev - n : 0;
               const ultimo = i === ETAPAS.length - 1;
               return (
-                <div key={k} {...tipProps(`${t}: ${num(n)} pedidos${i ? `\n${num(perdida)} sin avanzar desde ${ETAPAS[i - 1][1].toLowerCase()}` : ""}`)} style={{ display: "grid", gridTemplateColumns: "96px minmax(0, 1fr) 120px", alignItems: "center", gap: "12px", outline: "none" }}>
-                  <span style={{ fontSize: "14px", color: COLOR.gris }}>{t}</span>
-                  <div
-                    style={{
-                      width: `${Math.max(n > 0 ? 12 : 0, (n / max) * 100)}%`,
-                      background: ultimo ? COLOR.verde : COLOR.negro,
-                      color: ultimo ? COLOR.negro : "#FFFFFF",
-                      borderRadius: "6px",
-                      padding: "8px 12px",
-                      fontFamily: "'DM Mono', monospace",
-                      fontSize: "16px",
-                      boxSizing: "border-box",
-                      minHeight: "38px",
-                    }}
-                  >
-                    {num(n)}
+                <div key={k} {...tipProps(`${t}: ${num(n)} pedidos${i ? `\n${num(perdida)} sin avanzar desde ${ETAPAS[i - 1][1].toLowerCase()}` : ""}`)} style={{ display: "grid", gridTemplateColumns: "120px minmax(0, 1fr) 150px", alignItems: "center", gap: "14px", outline: "none" }}>
+                  <span style={{ fontSize: "14px", fontWeight: 600 }}>{t}</span>
+                  <div style={{ display: "flex", justifyContent: "center" }}>
+                    <div
+                      style={{
+                        width: `${Math.max(n > 0 ? 12 : 0, (n / max) * 100)}%`,
+                        height: "40px",
+                        background: ultimo ? COLOR.verde : COLOR.negro,
+                        color: ultimo ? COLOR.negro : "#FFFFFF",
+                        borderRadius: "6px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontFamily: "'DM Mono', monospace",
+                        fontSize: "16px",
+                        fontWeight: 500,
+                      }}
+                    >
+                      {num(n)}
+                    </div>
                   </div>
                   <span style={{ fontSize: "13px", color: perdida > 0 ? COLOR.rojo : COLOR.gris, fontWeight: perdida > 0 ? 600 : 400 }}>
                     {i === 0 ? "100 %" : perdida > 0 ? `${num(perdida)} sin avanzar` : "Sin pérdidas"}
@@ -140,19 +144,24 @@ export default function Flujo({ fijo, onCargado }) {
           </Nota>
         </Tarjeta>
 
-        <Tarjeta id="etapas" titulo="Tiempo medio entre etapas" style={{ flex: "1 1 420px" }}>
-          <p style={{ margin: "0 0 16px", fontSize: "14px" }}>
-            Total de carga a factura: <strong>{duracion(d.tramos?.carga_factura)}</strong>
-          </p>
+        <Tarjeta id="etapas" titulo="Tiempo medio entre etapas"
+          subtitulo={
+            <>
+              Total de carga a factura:{" "}
+              <strong style={{ color: COLOR.negro, fontFamily: "'DM Mono', monospace" }}>{duracion(d.tramos?.carga_factura)}</strong>
+            </>
+          }
+          style={{ flex: "1 1 400px" }}
+        >
           <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
             {tramos.map((t) => (
-              <div key={t.k} {...tipProps(`${t.t}: ${duracion(t.min)}`)} style={{ display: "flex", flexDirection: "column", gap: "4px", outline: "none" }}>
+              <div key={t.k} {...tipProps(`${t.t}: ${duracion(t.min)}`)} style={{ display: "flex", flexDirection: "column", gap: "6px", outline: "none" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", gap: "8px" }}>
                   <span>{t.t}</span>
-                  <span style={{ fontFamily: "'DM Mono', monospace" }}>{duracion(t.min)}</span>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 500 }}>{duracion(t.min)}</span>
                 </div>
                 <div style={{ height: "12px", background: COLOR.bordeSuave, borderRadius: "4px", overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${((t.min || 0) / maxTramo) * 100}%`, background: t === cuello ? COLOR.rojo : COLOR.negro, borderRadius: "0 4px 4px 0" }} />
+                  <div style={{ height: "100%", width: `${((t.min || 0) / maxTramo) * 100}%`, background: t === cuello ? COLOR.rojo : COLOR.negro, borderRadius: "4px" }} />
                 </div>
               </div>
             ))}
@@ -169,8 +178,8 @@ export default function Flujo({ fijo, onCargado }) {
         extra={
           <Leyenda
             items={[
-              { texto: "A tiempo", color: COLOR.verdeBarra },
-              { texto: "Fuera de hora límite", color: COLOR.rojo },
+              { texto: "A tiempo", color: COLOR.negro },
+              { texto: "Fuera de hora límite", color: COLOR.naranjaMeta },
             ]}
           />
         }
@@ -178,15 +187,15 @@ export default function Flujo({ fijo, onCargado }) {
         <div
           role="img"
           aria-label={`Pedidos cargados por día: ${num(totalDias)} en ${dias.length} días, ${num(totalTarde)} fuera de hora límite`}
-          style={{ display: "grid", gridTemplateColumns: `repeat(${dias.length}, minmax(0, 1fr))`, gap: dias.length > 20 ? "3px" : "8px", alignItems: "end", height: "220px", borderBottom: "1px solid #C9CDD4" }}
+          style={{ display: "grid", gridTemplateColumns: `repeat(${dias.length}, minmax(0, 1fr))`, gap: dias.length > 20 ? "3px" : "8px", alignItems: "end", height: "200px", borderBottom: "1px solid #C9CDD4" }}
         >
           {dias.map((x) => (
             <div key={x.dia} {...tipProps(`${diaCorto(x.dia)}\n${num(x.total)} pedidos\n${num(x.total - x.tarde)} a tiempo · ${num(x.tarde)} fuera de hora límite`)} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: "4px", height: "100%", outline: "none" }}>
               {dias.length <= 20 && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: "12px", color: COLOR.gris }}>{x.total || ""}</span>}
-              <div style={{ width: "100%", maxWidth: "40px", display: "flex", flexDirection: "column", justifyContent: "flex-end", gap: x.tarde && x.total - x.tarde ? "2px" : 0, height: `${(x.total / maxDia) * 88}%` }}>
-                {x.tarde > 0 && <div style={{ flex: `${x.tarde} 0 0`, minHeight: "3px", background: COLOR.rojo, borderRadius: "4px 4px 0 0" }} />}
+              <div style={{ width: "100%", maxWidth: "40px", display: "flex", flexDirection: "column", justifyContent: "flex-end", height: `${(x.total / maxDia) * 88}%` }}>
+                {x.tarde > 0 && <div style={{ flex: `${x.tarde} 0 0`, minHeight: "3px", background: COLOR.naranjaMeta, borderRadius: "3px 3px 0 0" }} />}
                 {x.total - x.tarde > 0 && (
-                  <div style={{ flex: `${x.total - x.tarde} 0 0`, background: COLOR.verdeBarra, borderRadius: x.tarde ? 0 : "4px 4px 0 0" }} />
+                  <div style={{ flex: `${x.total - x.tarde} 0 0`, background: COLOR.negro, borderRadius: x.tarde ? 0 : "3px 3px 0 0" }} />
                 )}
               </div>
             </div>
@@ -207,7 +216,7 @@ export default function Flujo({ fijo, onCargado }) {
 
       <Tarjeta id="comp" titulo="Comparación entre bodegas">
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px", minWidth: "640px" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px", minWidth: "760px" }}>
             <thead>
               <tr style={{ color: COLOR.gris, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.04em" }}>
                 <th scope="col" style={{ ...th, textAlign: "left" }}>Bodega</th>
@@ -219,7 +228,7 @@ export default function Flujo({ fijo, onCargado }) {
             <tbody>
               {bodegas.map((b) => (
                 <tr key={b.codigo}>
-                  <td style={{ ...td, fontWeight: 600 }}>{b.codigo}</td>
+                  <td style={{ ...td, fontWeight: 700 }}>{b.codigo}</td>
                   <td style={tdNum}>{num(b.cajas)}</td>
                   <td style={tdNum}>{num(b.listas)}</td>
                   <td style={tdNum}>{duracion(b.tiempo_lista_min)}</td>
@@ -227,7 +236,7 @@ export default function Flujo({ fijo, onCargado }) {
                 </tr>
               ))}
               <tr>
-                <td style={{ ...td, fontWeight: 600 }}>SALDOS</td>
+                <td style={{ ...td, fontWeight: 700 }}>SALDOS</td>
                 <td style={tdNum}>{num(saldos.cajas_confirmadas)} confirmadas</td>
                 <td style={tdNum}>—</td>
                 <td style={tdNum}>—</td>
@@ -267,4 +276,4 @@ export default function Flujo({ fijo, onCargado }) {
 
 const th = { padding: "8px 10px", borderBottom: `1px solid ${COLOR.borde}` };
 const td = { padding: "10px", borderBottom: `1px solid ${COLOR.bordeSuave}` };
-const tdNum = { ...td, textAlign: "right", fontFamily: "'DM Mono', monospace", fontSize: "13px" };
+const tdNum = { ...td, textAlign: "right", fontFamily: "'DM Mono', monospace" };

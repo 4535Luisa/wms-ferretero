@@ -292,7 +292,7 @@ export default function EnVivo({ fijo, onCargado }) {
             <Nota style={{ margin: 0 }}>No hay usuarios activos con este rol.</Nota>
           ) : (
             <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px", minWidth: "720px" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px", minWidth: "760px" }}>
                 <thead>
                   <tr style={{ textAlign: "left", color: COLOR.gris, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.04em" }}>
                     {["Usuario", "Rol", "Estado", "Haciendo ahora", "Pedido / lista"].map((t) => (
@@ -361,7 +361,7 @@ export default function EnVivo({ fijo, onCargado }) {
                 >
                   <span style={{ color: COLOR.gris }}>{e.t}</span>
                   <div style={{ height: "14px", background: COLOR.bordeSuave, borderRadius: "4px", overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${(e.n / maxEstado) * 100}%`, background: COLOR.negro, borderRadius: "0 4px 4px 0" }} />
+                    <div style={{ height: "100%", width: `${(e.n / maxEstado) * 100}%`, background: COLOR.negro, borderRadius: "4px" }} />
                   </div>
                   <span style={{ fontFamily: "'DM Mono', monospace", textAlign: "right" }}>{num(e.n)}</span>
                 </div>
@@ -387,7 +387,7 @@ export default function EnVivo({ fijo, onCargado }) {
         <div
           role="img"
           aria-label={`Escaneos por hora de ${hIni} a ${hFin} h; el pico es a las ${pico.hora} h con ${pico.ok + pico.errores} escaneos`}
-          style={{ display: "grid", gridTemplateColumns: `repeat(${horas.length}, minmax(0, 1fr))`, gap: "8px", alignItems: "end", height: "220px", borderBottom: "1px solid #C9CDD4", paddingTop: "8px" }}
+          style={{ display: "grid", gridTemplateColumns: `repeat(${horas.length}, minmax(0, 1fr))`, gap: "10px", alignItems: "end", height: "220px", borderBottom: "1px solid #C9CDD4", paddingTop: "8px" }}
         >
           {horas.map((h) => {
             const total = h.ok + h.errores;
@@ -398,19 +398,19 @@ export default function EnVivo({ fijo, onCargado }) {
                 style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: "4px", height: "100%", outline: "none", cursor: "default" }}
               >
                 <span style={{ fontFamily: "'DM Mono', monospace", fontSize: "12px", color: COLOR.gris }}>{total ? num(total) : ""}</span>
-                <div style={{ width: "100%", maxWidth: "44px", display: "flex", flexDirection: "column", justifyContent: "flex-end", gap: h.ok && h.errores ? "2px" : 0, height: `${(total / maxHora) * 88}%` }}>
+                <div style={{ width: "100%", maxWidth: "44px", display: "flex", flexDirection: "column", justifyContent: "flex-end", height: `${(total / maxHora) * 88}%` }}>
                   {h.errores > 0 && (
-                    <div style={{ flex: `${h.errores} 0 0`, minHeight: "3px", background: COLOR.rojo, borderRadius: h.ok ? "4px 4px 0 0" : "4px 4px 0 0" }} />
+                    <div style={{ flex: `${h.errores} 0 0`, minHeight: "3px", background: COLOR.rojo, borderRadius: "3px 3px 0 0" }} />
                   )}
                   {h.ok > 0 && (
-                    <div style={{ flex: `${h.ok} 0 0`, background: COLOR.verdeBarra, borderRadius: h.errores ? 0 : "4px 4px 0 0" }} />
+                    <div style={{ flex: `${h.ok} 0 0`, background: COLOR.verdeBarra, borderRadius: h.errores ? 0 : "3px 3px 0 0" }} />
                   )}
                 </div>
               </div>
             );
           })}
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(${horas.length}, minmax(0, 1fr))`, gap: "8px", marginTop: "6px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${horas.length}, minmax(0, 1fr))`, gap: "10px", marginTop: "6px" }}>
           {horas.map((h) => (
             <span key={h.hora} style={{ textAlign: "center", fontSize: "12px", color: COLOR.gris, fontFamily: "'DM Mono', monospace" }}>
               {h.hora}h

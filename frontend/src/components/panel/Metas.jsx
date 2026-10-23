@@ -45,8 +45,7 @@ function Sparkline({ historial, color, nombre, unidad, tipProps }) {
       {...tipProps(`${nombre}, por semana\n${texto}`)}
       style={{ display: "block", outline: "none" }}
     >
-      <polyline fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" points={puntos.join(" ")} />
-      {historial[n - 1].valor != null && <circle cx={x(n - 1)} cy={y(historial[n - 1].valor)} r="3" fill={color} />}
+      <polyline fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" points={puntos.join(" ")} />
     </svg>
   );
 }
@@ -229,17 +228,13 @@ export default function Metas({ esAdmin, onInforme }) {
       <Tarjeta
         id="metas"
         titulo={`Metas del equipo — semana desde el ${fechaLocal(resp.semana_desde, resp.zona_horaria)}`}
+        subtitulo={esAdmin ? "Puedes editar las metas; el gerente las ve." : "Solo el administrador edita las metas."}
         extra={
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-            <span style={{ fontSize: "13px", color: COLOR.gris }}>
-              {esAdmin ? "Puedes editar las metas; el gerente las ve." : "Solo el administrador edita las metas."}
-            </span>
-            {esAdmin && (
-              <button type="button" className="panel-no-print" onClick={guardar} disabled={guardando || !cambiado} style={{ ...estiloBoton(true), opacity: guardando || !cambiado ? 0.5 : 1 }}>
-                {guardando ? "Guardando…" : "Guardar metas"}
-              </button>
-            )}
-          </div>
+          esAdmin && (
+            <button type="button" className="panel-no-print" onClick={guardar} disabled={guardando || !cambiado} style={{ ...estiloBoton(true), opacity: guardando || !cambiado ? 0.5 : 1 }}>
+              {guardando ? "Guardando…" : "Guardar metas"}
+            </button>
+          )
         }
       >
         {mensaje && (
@@ -248,11 +243,11 @@ export default function Metas({ esAdmin, onInforme }) {
           </div>
         )}
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px", minWidth: "820px" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px", minWidth: "860px" }}>
             <thead>
               <tr style={{ textAlign: "left", color: COLOR.gris, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.04em" }}>
                 {["Indicador", "Meta", "Actual", "Estado", "Últimas 8 semanas", "vs. semana anterior"].map((t) => (
-                  <th key={t} scope="col" style={th}>{t}</th>
+                  <th key={t} scope="col" style={t === "Actual" ? { ...th, textAlign: "right" } : th}>{t}</th>
                 ))}
               </tr>
             </thead>
@@ -263,8 +258,8 @@ export default function Metas({ esAdmin, onInforme }) {
                   <tr key={m.clave}>
                     <td style={{ ...td, fontWeight: 600 }}>{m.nombre}</td>
                     <td style={td}>
-                      <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", whiteSpace: "nowrap" }}>
-                        <span style={{ fontFamily: "'DM Mono', monospace", color: COLOR.gris }}>{SIGNO[m.sentido]}</span>
+                      <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", whiteSpace: "nowrap", fontSize: "13px", color: COLOR.gris }}>
+                        <span>{SIGNO[m.sentido]}</span>
                         {esAdmin ? (
                           <input
                             type="text"
@@ -272,15 +267,15 @@ export default function Metas({ esAdmin, onInforme }) {
                             value={borrador[m.clave] ?? ""}
                             aria-label={`Meta de ${m.nombre}`}
                             onChange={(e) => setBorrador((b) => ({ ...b, [m.clave]: e.target.value }))}
-                            style={{ width: "64px", font: "inherit", fontFamily: "'DM Mono', monospace", fontSize: "14px", padding: "6px 8px", border: "1px solid #C9CDD4", borderRadius: "6px", textAlign: "right" }}
+                            style={{ width: "72px", font: "inherit", fontFamily: "'DM Mono', monospace", fontSize: "14px", color: COLOR.negro, padding: "6px 8px", border: "1px solid #C9CDD4", borderRadius: "6px", textAlign: "right" }}
                           />
                         ) : (
-                          <span style={{ fontFamily: "'DM Mono', monospace" }}>{num(m.meta, 1)}</span>
+                          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: "14px", color: COLOR.negro }}>{num(m.meta, 1)}</span>
                         )}
-                        <span style={{ fontSize: "13px", color: COLOR.gris }}>{m.unidad}</span>
+                        <span>{m.unidad}</span>
                       </label>
                     </td>
-                    <td style={{ ...td, fontFamily: "'DM Mono', monospace" }}>{valorMeta(m, m.actual)}</td>
+                    <td style={{ ...td, fontFamily: "'DM Mono', monospace", fontSize: "16px", textAlign: "right", whiteSpace: "nowrap" }}>{valorMeta(m, m.actual)}</td>
                     <td style={td}><Insignia estado={m.estado} /></td>
                     <td style={td}>
                       <Sparkline historial={m.historial} color={SEMAFORO[m.estado]?.linea || COLOR.grisBarra} nombre={m.nombre} unidad={m.unidad} tipProps={tipProps} />
@@ -298,70 +293,75 @@ export default function Metas({ esAdmin, onInforme }) {
         </Nota>
       </Tarjeta>
 
-      <Tarjeta id="focos" titulo="Focos de atención">
-        <p style={{ margin: "0 0 14px", fontSize: "14px", color: COLOR.gris }}>
-          Calculados con la semana pasada completa ({fechaLocal(resp.focos_desde, resp.zona_horaria)} –{" "}
-          {fechaLocal(new Date(new Date(resp.focos_hasta).getTime() - 1).toISOString(), resp.zona_horaria)}); cambian cada
-          lunes.
-        </p>
-        {resp.focos.length === 0 ? (
-          <Nota style={{ margin: 0 }}>Sin focos: la semana pasada se cumplieron las metas y no hubo faltantes ni agotadas.</Nota>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
-            {resp.focos.map((f) => (
-              <div key={f.titulo} style={{ border: `1px solid ${COLOR.borde}`, borderRadius: "10px", padding: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                <span style={{ alignSelf: "flex-start", fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", padding: "3px 8px", borderRadius: "4px", background: TAG[f.tipo].bg, color: TAG[f.tipo].fg }}>
-                  {TAG[f.tipo].t}
-                </span>
-                <span style={{ fontWeight: 700, fontSize: "15px" }}>{f.titulo}</span>
-                <span style={{ fontSize: "14px", lineHeight: 1.45 }}>{f.detalle}</span>
-                <span style={{ fontSize: "13px", color: COLOR.gris, lineHeight: 1.45 }}>Acción sugerida: {f.accion}</span>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "24px", alignItems: "flex-start" }}>
+        <Tarjeta
+          id="focos"
+          titulo="Focos de atención"
+          subtitulo={`Calculados con la semana pasada completa (${fechaLocal(resp.focos_desde, resp.zona_horaria)} – ${fechaLocal(new Date(new Date(resp.focos_hasta).getTime() - 1).toISOString(), resp.zona_horaria)}); cambian cada lunes.`}
+          style={{ flex: "1 1 560px" }}
+        >
+          {resp.focos.length === 0 ? (
+            <Nota style={{ margin: 0 }}>Sin focos: la semana pasada se cumplieron las metas y no hubo faltantes ni agotadas.</Nota>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              {resp.focos.map((f) => (
+                <div key={f.titulo} style={{ border: `1px solid ${COLOR.borde}`, borderRadius: "10px", padding: "14px 16px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                    <span style={{ fontSize: "12px", fontWeight: 700, padding: "2px 8px", borderRadius: "4px", background: TAG[f.tipo].bg, color: TAG[f.tipo].fg }}>
+                      {TAG[f.tipo].t}
+                    </span>
+                    <span style={{ fontWeight: 700, fontSize: "15px" }}>{f.titulo}</span>
+                  </div>
+                  <span style={{ fontSize: "14px", color: "#3A3F4B", lineHeight: 1.45 }}>{f.detalle}</span>
+                  <span style={{ fontSize: "13px", color: COLOR.verdeTexto, fontWeight: 600 }}>Acción sugerida: {f.accion}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Tarjeta>
+
+        <Tarjeta
+          id="desc"
+          titulo="Descargas"
+          subtitulo="Los Excel usan el periodo elegido aquí."
+          style={{ flex: "1 1 460px", breakInside: "auto" }}
+          extra={
+            <div className="panel-no-print">
+              <Selector
+                id="desc-periodo"
+                etiqueta="Periodo de los Excel"
+                valor={periodoDesc}
+                onChange={setPeriodoDesc}
+                opciones={["semana", "mes", "7d", "30d"].map((p) => ({ valor: p, texto: PERIODOS[p].etiqueta }))}
+              />
+            </div>
+          }
+        >
+          <div className="panel-no-print" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {descargas.map((dsc) => (
+              <div key={dsc.clave} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap", border: `1px solid ${COLOR.borde}`, borderRadius: "10px", padding: "12px 14px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0 }}>
+                  <span style={{ fontWeight: 600, fontSize: "14px" }}>{dsc.nombre}</span>
+                  <span style={{ fontSize: "13px", color: COLOR.gris }}>{dsc.desc}</span>
+                </div>
+                <button
+                  type="button"
+                  aria-label={`Descargar ${dsc.nombre} en ${dsc.formato}`}
+                  disabled={descargando != null}
+                  onClick={() => descargar(dsc.clave, dsc.fn)}
+                  style={{ ...estiloBoton(dsc.formato === "PDF"), fontSize: "13px", fontWeight: 700, padding: "8px 14px", minWidth: "76px", justifyContent: "center", opacity: descargando && descargando !== dsc.clave ? 0.5 : 1 }}
+                >
+                  {descargando === dsc.clave ? "…" : dsc.formato}
+                </button>
               </div>
             ))}
           </div>
-        )}
-      </Tarjeta>
-
-      <Tarjeta
-        id="desc"
-        titulo="Descargas"
-        style={{ breakInside: "auto" }}
-        extra={
-          <div className="panel-no-print">
-            <Selector
-              id="desc-periodo"
-              etiqueta="Periodo de los Excel"
-              valor={periodoDesc}
-              onChange={setPeriodoDesc}
-              opciones={["semana", "mes", "7d", "30d"].map((p) => ({ valor: p, texto: PERIODOS[p].etiqueta }))}
-            />
-          </div>
-        }
-      >
-        <div className="panel-no-print" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "12px" }}>
-          {descargas.map((dsc) => (
-            <div key={dsc.clave} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", border: `1px solid ${COLOR.borde}`, borderRadius: "10px", padding: "14px 16px" }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0 }}>
-                <span style={{ fontWeight: 600 }}>{dsc.nombre}</span>
-                <span style={{ fontSize: "13px", color: COLOR.gris }}>{dsc.desc}</span>
-              </div>
-              <button
-                type="button"
-                aria-label={`Descargar ${dsc.nombre} en ${dsc.formato}`}
-                disabled={descargando != null}
-                onClick={() => descargar(dsc.clave, dsc.fn)}
-                style={{ ...estiloBoton(dsc.formato === "PDF"), minWidth: "84px", justifyContent: "center", opacity: descargando && descargando !== dsc.clave ? 0.5 : 1 }}
-              >
-                {descargando === dsc.clave ? "…" : dsc.formato}
-              </button>
-            </div>
-          ))}
-        </div>
-        <Nota>
-          Los PDF se generan con el diálogo de impresión: elige «Guardar como PDF». Cada pestaña tiene además sus
-          propios botones de descarga con sus filtros.
-        </Nota>
-      </Tarjeta>
+          <Nota>
+            Los PDF se generan con el diálogo de impresión: elige «Guardar como PDF». Cada pestaña tiene además sus
+            propios botones de descarga con sus filtros.
+          </Nota>
+        </Tarjeta>
+      </div>
     </div>
   );
 }

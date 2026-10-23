@@ -106,16 +106,20 @@ function Tendencia({ serie, meta, desde, hasta, tz }) {
               key={tr[0].dia}
               fill="none"
               stroke={COLOR.verdeBarra}
-              strokeWidth="2"
+              strokeWidth="3"
               strokeLinejoin="round"
               strokeLinecap="round"
               points={tr.map((p) => `${x(p.i)},${y(p.v)}`).join(" ")}
             />
           ) : null,
         )}
-        {conDato.map((p) => (
-          <circle key={p.dia} cx={x(p.i)} cy={y(p.v)} r={p === ultimo ? 5 : 3} fill={COLOR.verdeBarra} stroke="#FFFFFF" strokeWidth="2" />
-        ))}
+        {/* Punto en el último día y en los días sueltos, que no forman línea. */}
+        {tramos
+          .filter((tr) => tr.length === 1)
+          .map(([p]) => (
+            <circle key={p.dia} cx={x(p.i)} cy={y(p.v)} r="3" fill={COLOR.verdeBarra} />
+          ))}
+        <circle cx={x(ultimo.i)} cy={y(ultimo.v)} r="5" fill={COLOR.verdeBarra} />
         {/* Zonas de hover por día, más anchas que el punto. */}
         {conDato.map((p) => (
           <rect
@@ -294,11 +298,11 @@ export default function Operarios({ fijo, onCargado }) {
                     <div
                       key={o.id}
                       {...tipProps(`${o.nombre}\n${num(o.porDia, 1)} pedidos/día\n${num(o.pedidos)} pedidos en ${num(o.dias)} días`)}
-                      style={{ display: "grid", gridTemplateColumns: "minmax(90px, 140px) minmax(0, 1fr) 44px", alignItems: "center", gap: "10px", fontSize: "14px", outline: "none" }}
+                      style={{ display: "grid", gridTemplateColumns: "minmax(90px, 140px) minmax(0, 1fr) 44px", alignItems: "center", gap: "12px", fontSize: "14px", outline: "none" }}
                     >
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.nombre}</span>
-                      <div style={{ position: "relative", height: "18px" }}>
-                        <div style={{ height: "100%", width: `${(o.porDia / escala) * 100}%`, background: o.estado === "ok" ? COLOR.verdeBarra : COLOR.grisBarra, borderRadius: "0 4px 4px 0" }} />
+                      <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.nombre}</span>
+                      <div style={{ position: "relative", height: "22px", background: COLOR.bordeSuave, borderRadius: "4px" }}>
+                        <div style={{ height: "100%", width: `${(o.porDia / escala) * 100}%`, background: o.estado === "ok" ? COLOR.verdeBarra : COLOR.grisBarra, borderRadius: "4px" }} />
                         {meta != null && (
                           <div aria-hidden="true" style={{ position: "absolute", top: "-4px", bottom: "-4px", left: `${(meta / escala) * 100}%`, borderLeft: `2px dashed ${COLOR.naranjaMeta}` }} />
                         )}
@@ -338,7 +342,7 @@ export default function Operarios({ fijo, onCargado }) {
             }
           >
             <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px", minWidth: "820px" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px", minWidth: "900px" }}>
                 <thead>
                   <tr style={{ color: COLOR.gris, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.04em" }}>
                     <th scope="col" style={{ ...th, textAlign: "left" }}>Operario</th>
@@ -377,7 +381,7 @@ export default function Operarios({ fijo, onCargado }) {
           {montas.length === 0 ? (
             <Nota style={{ margin: 0 }}>Sin montacarguistas activos.</Nota>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
               {montas
                 .filter((m) => !persona || m.id === persona)
                 .map((m) => (
@@ -411,4 +415,4 @@ export default function Operarios({ fijo, onCargado }) {
 
 const th = { padding: "8px 10px", borderBottom: `1px solid ${COLOR.borde}` };
 const td = { padding: "10px", borderBottom: `1px solid ${COLOR.bordeSuave}` };
-const tdNum = { ...td, textAlign: "right", fontFamily: "'DM Mono', monospace", fontSize: "13px" };
+const tdNum = { ...td, textAlign: "right", fontFamily: "'DM Mono', monospace" };
