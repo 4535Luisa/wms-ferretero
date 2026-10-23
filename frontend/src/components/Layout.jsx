@@ -6,6 +6,7 @@ import Campana from "./Campana";
 const menuPorRol = {
   administrador: [
     { path: "/admin", label: "Dashboard", icon: "" },
+    { path: "/admin/dashboard", label: "Panel de control", icon: "" },
     { path: "/admin/usuarios", label: "Usuarios", icon: "" },
     { path: "/admin/pedidos", label: "Pedidos", icon: "" },
     { path: "/admin/recepcion", label: "Recepciones", icon: "" },
@@ -25,6 +26,7 @@ const menuPorRol = {
   ],
   gerente_logistico: [
     { path: "/gerente", label: "Dashboard", icon: "" },
+    { path: "/gerente/panel", label: "Panel de control", icon: "" },
     { path: "/gerente/reportes", label: "Indicadores", icon: "" },
     { path: "/inventario", label: "Inventario", icon: "" },
   ],

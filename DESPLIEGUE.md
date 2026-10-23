@@ -56,6 +56,9 @@ Migraciones por funcionalidad (fases 2/4/5, también obligatorias):
     corrige esas cajas. Solo si el 3a devolvió filas y tras revisarlas.
 21. `2026-10-20_fix_auditoria_4_diagnostico.sql` — solo lectura:
     diferencias de stock comprometido (para conteo).
+22. `2026-10-20_panel_control.sql` — panel de control: tabla `panel_metas`,
+    índices de bitácora y funciones de solo lectura `panel_*`. No modifica
+    datos. Sin él, el panel responde 503 indicando que falta este archivo.
 
 Las funciones RPC (archivos 2-6) son **obligatorias**: el backend las invoca
 para que las operaciones de inventario sean atómicas/idempotentes. Si no se
@@ -91,6 +94,7 @@ select reservar_inventario_picking('00000000-0000-0000-0000-000000000000', 1);
 | `NETLIFY_SITE` | — | Nombre del sitio Netlify para restringir CORS a ese sitio + previews. |
 | `SINGLE_SESSION` | — | `"true"` activa sesión única (requiere migración `sesion_unica`). |
 | `SEED_USERS` | — | Opcional, semilla de usuarios. |
+| `PANEL_TZ` | — | Zona horaria del panel de control ("hoy", días, horas). Por defecto `America/Bogota`. |
 
 > **CORS**: sin `NETLIFY_SITE` ni `CORS_ORIGINS`, el backend acepta **cualquier**
 > `*.netlify.app` (modo permisivo de respaldo, con advertencia en logs). Para

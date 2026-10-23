@@ -34,8 +34,8 @@ const modulos = [
   {
     path: "/admin/dashboard",
     icon: "",
-    titulo: "Dashboard en vivo",
-    descripcion: "Pedidos activos y operarios en tiempo real",
+    titulo: "Panel de control",
+    descripcion: "En vivo, operarios, mercancía, flujo, metas y descargas",
     activo: true,
   },
   {

@@ -59,6 +59,7 @@ El esquema vive en Supabase; el repo solo versiona las migraciones en
 | `2026-10-20_fix_auditoria_3a_vista_previa.sql` | Solo lectura: cajas de picking pendientes con unidades erróneas. |
 | `2026-10-20_fix_auditoria_3b_correccion.sql` | **Modifica datos**: corrige esas cajas (tras revisar el 3a). |
 | `2026-10-20_fix_auditoria_4_diagnostico.sql` | Solo lectura: diferencias de stock comprometido. |
+| `2026-10-20_panel_control.sql` | Panel de control: tabla `panel_metas`, índices y funciones de lectura `panel_*`. |
 
 Las funciones RPC son **obligatorias**: el backend las llama vía
 `supabase.rpc(...)` para garantizar atomicidad. Sin aplicarlas, esos endpoints
