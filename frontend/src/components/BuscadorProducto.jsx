@@ -4,7 +4,7 @@ import api from "../services/api";
 const inputStyle = {
   width: "100%",
   padding: "10px 12px",
-  border: "1.5px solid #E8E8E8",
+  border: "1px solid #E2E4E8",
   borderRadius: "8px",
   fontSize: "14px",
   fontFamily: "Outfit, sans-serif",
@@ -46,7 +46,7 @@ export default function BuscadorProducto({ onSelect, label = "Producto *" }) {
         style={{
           fontSize: "12px",
           fontWeight: 600,
-          color: "#555",
+          color: "#4B5160",
           display: "block",
           marginBottom: "4px",
         }}
@@ -67,7 +67,7 @@ export default function BuscadorProducto({ onSelect, label = "Producto *" }) {
             left: 0,
             right: 0,
             background: "#FFF",
-            border: "1px solid #E8E8E8",
+            border: "1px solid #E2E4E8",
             borderRadius: "8px",
             marginTop: "4px",
             zIndex: 20,
@@ -86,7 +86,7 @@ export default function BuscadorProducto({ onSelect, label = "Producto *" }) {
                 textAlign: "left",
                 padding: "10px 12px",
                 border: "none",
-                borderBottom: "1px solid #F5F5F5",
+                borderBottom: "1px solid #F7F8F9",
                 background: "#FFF",
                 cursor: "pointer",
                 fontFamily: "Outfit, sans-serif",
@@ -101,7 +101,7 @@ export default function BuscadorProducto({ onSelect, label = "Producto *" }) {
               >
                 {p.codigo_interno}
               </span>
-              <span style={{ fontSize: "12px", color: "#666" }}>
+              <span style={{ fontSize: "12px", color: "#4B5160" }}>
                 {" "}
                 — {p.descripcion_corta}
               </span>

@@ -8,7 +8,7 @@ const REFRESCO_MS = 15000;
 const C = {
   card: {
     background: "#FFFFFF",
-    border: "1px solid #E8E8E8",
+    border: "1px solid #E2E4E8",
     borderRadius: "12px",
     padding: "1.25rem 1.5rem",
   },
@@ -16,8 +16,8 @@ const C = {
 };
 
 const semaforoColor = {
-  rojo: { bg: "#FEE2E2", fg: "#B91C1C", label: "URGENTE" },
-  amarillo: { bg: "#FEF9C3", fg: "#854D0E", label: "PRONTO" },
+  rojo: { bg: "#FDECEC", fg: "#B91C1C", label: "URGENTE" },
+  amarillo: { bg: "#FFF4D6", fg: "#8A5A00", label: "PRONTO" },
   verde: { bg: "rgba(0,255,135,0.1)", fg: "#007A40", label: "NORMAL" },
 };
 
@@ -161,8 +161,8 @@ export default function Saldos() {
             fontSize: "13px",
             fontWeight: 500,
             background:
-              mensaje.tipo === "error" ? "#FEE2E2" : "rgba(0,255,135,0.1)",
-            color: mensaje.tipo === "error" ? "#991B1B" : "#007A40",
+              mensaje.tipo === "error" ? "#FDECEC" : "rgba(0,255,135,0.1)",
+            color: mensaje.tipo === "error" ? "#B91C1C" : "#007A40",
             border: `1px solid ${mensaje.tipo === "error" ? "#FECACA" : "rgba(0,255,135,0.2)"}`,
           }}
         >
@@ -195,8 +195,9 @@ export default function Saldos() {
           >
             <div
               style={{
-                fontFamily: "Bebas Neue, sans-serif",
-                fontSize: "22px",
+                fontFamily: "Outfit, sans-serif",
+                fontWeight: 700,
+                fontSize: "18px",
                 marginBottom: "8px",
               }}
             >
@@ -216,7 +217,7 @@ export default function Saldos() {
               style={{
                 ...C.mono,
                 fontSize: "12px",
-                color: "#888",
+                color: "#4B5160",
                 marginBottom: "16px",
               }}
             >
@@ -225,7 +226,7 @@ export default function Saldos() {
             </div>
             <div
               style={{
-                background: "#F8F8F8",
+                background: "#F7F8F9",
                 borderRadius: "10px",
                 padding: "12px 16px",
                 marginBottom: "16px",
@@ -234,7 +235,7 @@ export default function Saldos() {
               }}
             >
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: "11px", color: "#888" }}>Requerido</div>
+                <div style={{ fontSize: "11px", color: "#4B5160" }}>Requerido</div>
                 <div
                   style={{
                     ...C.mono,
@@ -247,7 +248,7 @@ export default function Saldos() {
                 </div>
               </div>
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: "11px", color: "#888" }}>En SALDOS</div>
+                <div style={{ fontSize: "11px", color: "#4B5160" }}>En SALDOS</div>
                 <div
                   style={{
                     ...C.mono,
@@ -256,7 +257,7 @@ export default function Saldos() {
                     color:
                       entregando.disponible >= entregando.requerido
                         ? "#007A40"
-                        : "#991B1B",
+                        : "#B91C1C",
                   }}
                 >
                   {entregando.disponible}
@@ -266,8 +267,8 @@ export default function Saldos() {
             {entregando.disponible < entregando.requerido && (
               <div
                 style={{
-                  background: "#FEE2E2",
-                  color: "#991B1B",
+                  background: "#FDECEC",
+                  color: "#B91C1C",
                   padding: "10px 14px",
                   borderRadius: "8px",
                   fontSize: "13px",
@@ -284,7 +285,7 @@ export default function Saldos() {
                 style={{
                   flex: 1,
                   padding: "12px",
-                  border: "1.5px solid #E8E8E8",
+                  border: "1px solid #E2E4E8",
                   borderRadius: "8px",
                   background: "transparent",
                   fontSize: "14px",
@@ -307,11 +308,11 @@ export default function Saldos() {
                   background:
                     entregando.disponible >= entregando.requerido
                       ? "#00FF87"
-                      : "#E8E8E8",
+                      : "#E2E4E8",
                   color:
                     entregando.disponible >= entregando.requerido
                       ? "#0A0A0A"
-                      : "#AAA",
+                      : "#8A909C",
                   fontSize: "14px",
                   fontWeight: 700,
                   cursor:
@@ -344,7 +345,7 @@ export default function Saldos() {
                 fontWeight: 700,
                 textTransform: "uppercase",
                 letterSpacing: "0.06em",
-                color: "#854D0E",
+                color: "#8A5A00",
                 margin: 0,
               }}
             >
@@ -388,7 +389,7 @@ export default function Saldos() {
                     style={{
                       ...C.mono,
                       fontSize: "12px",
-                      color: "#888",
+                      color: "#4B5160",
                       marginTop: "3px",
                     }}
                   >
@@ -400,8 +401,8 @@ export default function Saldos() {
                   style={{
                     fontSize: "11px",
                     fontWeight: 600,
-                    color: "#854D0E",
-                    background: "#FEF3C7",
+                    color: "#8A5A00",
+                    background: "#FFF4D6",
                     borderRadius: "8px",
                     padding: "8px 12px",
                     flexShrink: 0,
@@ -430,7 +431,7 @@ export default function Saldos() {
             fontWeight: 700,
             textTransform: "uppercase",
             letterSpacing: "0.06em",
-            color: "#666",
+            color: "#4B5160",
             margin: 0,
           }}
         >
@@ -439,8 +440,8 @@ export default function Saldos() {
         {itemsFaltantes > 0 && (
           <span
             style={{
-              background: "#FEE2E2",
-              color: "#991B1B",
+              background: "#FDECEC",
+              color: "#B91C1C",
               padding: "3px 10px",
               borderRadius: "20px",
               fontSize: "11px",
@@ -455,7 +456,7 @@ export default function Saldos() {
       {operarios.length === 0 ? (
         <div style={{ ...C.card, padding: "3rem", textAlign: "center" }}>
           <div style={{ fontSize: "48px", marginBottom: "1rem" }}></div>
-          <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
+          <p style={{ fontSize: "15px", fontWeight: 500, color: "#4B5160" }}>
             No hay solicitudes de saldos pendientes
           </p>
         </div>
@@ -490,7 +491,7 @@ export default function Saldos() {
                     <div
                       style={{
                         fontSize: "12px",
-                        color: "#888",
+                        color: "#4B5160",
                         marginTop: "2px",
                       }}
                     >
@@ -528,8 +529,8 @@ export default function Saldos() {
                           ? "rgba(0,255,135,0.04)"
                           : item.entrantes.length > 0
                             ? "#FFFBEB"
-                            : "#F8F8F8",
-                        border: `1px solid ${item.cubierto ? "rgba(0,255,135,0.2)" : item.entrantes.length > 0 ? "#FDE68A" : "#E8E8E8"}`,
+                            : "#F7F8F9",
+                        border: `1px solid ${item.cubierto ? "rgba(0,255,135,0.2)" : item.entrantes.length > 0 ? "#FDE68A" : "#E2E4E8"}`,
                         borderRadius: "10px",
                         padding: "10px 14px",
                         display: "flex",
@@ -552,7 +553,7 @@ export default function Saldos() {
                           style={{
                             ...C.mono,
                             fontSize: "11px",
-                            color: "#888",
+                            color: "#4B5160",
                             marginTop: "3px",
                           }}
                         >
@@ -568,8 +569,8 @@ export default function Saldos() {
                         >
                           <span
                             style={{
-                              background: "#F0F0F0",
-                              color: "#374151",
+                              background: "#F0F1F3",
+                              color: "#3A3F4B",
                               padding: "2px 8px",
                               borderRadius: "20px",
                               fontSize: "10px",
@@ -584,12 +585,12 @@ export default function Saldos() {
                                 item.stock_disponible >=
                                 item.unidades_requeridas
                                   ? "rgba(0,255,135,0.1)"
-                                  : "#FEE2E2",
+                                  : "#FDECEC",
                               color:
                                 item.stock_disponible >=
                                 item.unidades_requeridas
                                   ? "#007A40"
-                                  : "#991B1B",
+                                  : "#B91C1C",
                               padding: "2px 8px",
                               borderRadius: "20px",
                               fontSize: "10px",
@@ -601,8 +602,8 @@ export default function Saldos() {
                           {item.faltante > 0 && item.entrantes.length > 0 && (
                             <span
                               style={{
-                                background: "#FEF9C3",
-                                color: "#854D0E",
+                                background: "#FFF4D6",
+                                color: "#8A5A00",
                                 padding: "2px 8px",
                                 borderRadius: "20px",
                                 fontSize: "10px",
@@ -615,8 +616,8 @@ export default function Saldos() {
                           {item.faltante > 0 && item.entrantes.length === 0 && (
                             <span
                               style={{
-                                background: "#FEE2E2",
-                                color: "#991B1B",
+                                background: "#FDECEC",
+                                color: "#B91C1C",
                                 padding: "2px 8px",
                                 borderRadius: "20px",
                                 fontSize: "10px",
@@ -660,8 +661,8 @@ export default function Saldos() {
                           <span
                             style={{
                               fontSize: "11px",
-                              color: "#854D0E",
-                              background: "#FEF3C7",
+                              color: "#8A5A00",
+                              background: "#FFF4D6",
                               borderRadius: "8px",
                               padding: "8px 10px",
                               fontWeight: 600,
@@ -675,8 +676,8 @@ export default function Saldos() {
                           <span
                             style={{
                               fontSize: "11px",
-                              color: "#991B1B",
-                              background: "#FEE2E2",
+                              color: "#B91C1C",
+                              background: "#FDECEC",
                               borderRadius: "8px",
                               padding: "8px 10px",
                               fontWeight: 600,

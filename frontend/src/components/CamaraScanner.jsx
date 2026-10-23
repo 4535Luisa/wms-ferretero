@@ -109,7 +109,7 @@ export default function CamaraScanner({ onScan, onCerrar }) {
           marginTop: "10px",
           background: "transparent",
           color: "#FFFFFF",
-          border: "1.5px solid rgba(255,255,255,0.3)",
+          border: "1px solid rgba(255,255,255,0.3)",
           borderRadius: "8px",
           padding: "10px",
           fontSize: "14px",

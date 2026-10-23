@@ -183,15 +183,15 @@ export default function JefeBodegaRecepcion() {
 
   const estadoBadge = (estado) => {
     const map = {
-      en_proceso: { label: "En proceso", bg: "#FFF9E6", color: "#B45309" },
+      en_proceso: { label: "En proceso", bg: "#FFF9E6", color: "#8A5A00" },
       confirmada: {
         label: "Confirmada",
         bg: "rgba(0,255,135,0.1)",
         color: "#007A40",
       },
-      cancelada: { label: "Cancelada", bg: "#FEE2E2", color: "#991B1B" },
+      cancelada: { label: "Cancelada", bg: "#FDECEC", color: "#B91C1C" },
     };
-    return map[estado] || { label: estado, bg: "#F3F4F6", color: "#374151" };
+    return map[estado] || { label: estado, bg: "#EEF0F2", color: "#3A3F4B" };
   };
 
   const subtitulos = {
@@ -241,8 +241,8 @@ export default function JefeBodegaRecepcion() {
             fontSize: "13px",
             fontWeight: 500,
             background:
-              mensaje.tipo === "error" ? "#FEE2E2" : "rgba(0,255,135,0.1)",
-            color: mensaje.tipo === "error" ? "#991B1B" : "#007A40",
+              mensaje.tipo === "error" ? "#FDECEC" : "rgba(0,255,135,0.1)",
+            color: mensaje.tipo === "error" ? "#B91C1C" : "#007A40",
             border: `1px solid ${mensaje.tipo === "error" ? "#FECACA" : "rgba(0,255,135,0.2)"}`,
           }}
         >
@@ -256,18 +256,18 @@ export default function JefeBodegaRecepcion() {
             <div
               style={{
                 background: "#FFFFFF",
-                border: "1px solid #E8E8E8",
+                border: "1px solid #E2E4E8",
                 borderRadius: "12px",
                 padding: "3rem",
                 textAlign: "center",
-                color: "#BBB",
+                color: "#8A909C",
               }}
             >
               <div style={{ fontSize: "40px", marginBottom: "1rem" }}></div>
-              <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
+              <p style={{ fontSize: "15px", fontWeight: 500, color: "#4B5160" }}>
                 No hay recepciones registradas
               </p>
-              <p style={{ fontSize: "13px", color: "#BBB", marginTop: "4px" }}>
+              <p style={{ fontSize: "13px", color: "#8A909C", marginTop: "4px" }}>
                 Crea una nueva para empezar
               </p>
             </div>
@@ -283,7 +283,7 @@ export default function JefeBodegaRecepcion() {
                     onClick={() => abrirRecepcion(r.id)}
                     style={{
                       background: "#FFFFFF",
-                      border: "1px solid #E8E8E8",
+                      border: "1px solid #E2E4E8",
                       borderRadius: "12px",
                       padding: "1.25rem 1.5rem",
                       cursor: "pointer",
@@ -298,7 +298,7 @@ export default function JefeBodegaRecepcion() {
                         "0 0 0 3px rgba(0,255,135,0.08)";
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = "#E8E8E8";
+                      e.currentTarget.style.borderColor = "#E2E4E8";
                       e.currentTarget.style.boxShadow = "none";
                     }}
                   >
@@ -313,7 +313,7 @@ export default function JefeBodegaRecepcion() {
                         style={{
                           width: "40px",
                           height: "40px",
-                          background: "#F0F0F0",
+                          background: "#F0F1F3",
                           borderRadius: "8px",
                           display: "flex",
                           alignItems: "center",
@@ -336,7 +336,7 @@ export default function JefeBodegaRecepcion() {
                           style={{
                             margin: "2px 0 0",
                             fontSize: "12px",
-                            color: "#888",
+                            color: "#4B5160",
                           }}
                         >
                           Factura: {r.numero_oc || "Sin número"} ·{" "}
@@ -383,7 +383,7 @@ export default function JefeBodegaRecepcion() {
                   fontWeight: 600,
                   letterSpacing: "0.12em",
                   textTransform: "uppercase",
-                  color: "#888",
+                  color: "#4B5160",
                   display: "block",
                   marginBottom: "8px",
                 }}
@@ -403,7 +403,7 @@ export default function JefeBodegaRecepcion() {
                   fontWeight: 600,
                   letterSpacing: "0.12em",
                   textTransform: "uppercase",
-                  color: "#888",
+                  color: "#4B5160",
                   display: "block",
                   marginBottom: "8px",
                 }}
@@ -451,7 +451,7 @@ export default function JefeBodegaRecepcion() {
                   fontWeight: 600,
                   letterSpacing: "0.12em",
                   textTransform: "uppercase",
-                  color: "#888",
+                  color: "#4B5160",
                   marginBottom: "12px",
                 }}
               >
@@ -482,7 +482,7 @@ export default function JefeBodegaRecepcion() {
                   {buscando ? "..." : "Agregar"}
                 </button>
               </div>
-              <p style={{ fontSize: "12px", color: "#BBB", marginTop: "8px" }}>
+              <p style={{ fontSize: "12px", color: "#8A909C", marginTop: "8px" }}>
                 Presiona Enter después de escanear
               </p>
             </div>
@@ -491,13 +491,13 @@ export default function JefeBodegaRecepcion() {
               <div
                 style={{
                   background: "#FFFFFF",
-                  border: "1px dashed #E8E8E8",
+                  border: "1px dashed #E2E4E8",
                   borderRadius: "12px",
                   padding: "3rem",
                   textAlign: "center",
                 }}
               >
-                <p style={{ color: "#BBB", fontSize: "14px" }}>
+                <p style={{ color: "#8A909C", fontSize: "14px" }}>
                   Aún no hay productos escaneados
                 </p>
               </div>
@@ -516,7 +516,7 @@ export default function JefeBodegaRecepcion() {
                       style={{
                         padding: "1rem 1.25rem",
                         borderBottom:
-                          idx < items.length - 1 ? "1px solid #F0F0F0" : "none",
+                          idx < items.length - 1 ? "1px solid #F0F1F3" : "none",
                         display: "flex",
                         alignItems: "center",
                         gap: "1rem",
@@ -527,14 +527,14 @@ export default function JefeBodegaRecepcion() {
                           width: "32px",
                           height: "32px",
                           borderRadius: "6px",
-                          background: "#F0F0F0",
+                          background: "#F0F1F3",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
                           fontSize: "13px",
                           fontFamily: "DM Mono, monospace",
                           fontWeight: 500,
-                          color: "#555",
+                          color: "#4B5160",
                           flexShrink: 0,
                         }}
                       >
@@ -565,7 +565,7 @@ export default function JefeBodegaRecepcion() {
                             style={{
                               fontSize: "11px",
                               fontFamily: "DM Mono, monospace",
-                              color: "#888",
+                              color: "#4B5160",
                             }}
                           >
                             {item.referencia}
@@ -580,8 +580,8 @@ export default function JefeBodegaRecepcion() {
                                 letterSpacing: "0.04em",
                                 background: esCaja
                                   ? "rgba(0,255,135,0.1)"
-                                  : "#FEF9C3",
-                                color: esCaja ? "#007A40" : "#854D0E",
+                                  : "#FFF4D6",
+                                color: esCaja ? "#007A40" : "#8A5A00",
                               }}
                             >
                               {esCaja
@@ -611,7 +611,7 @@ export default function JefeBodegaRecepcion() {
                         style={{
                           background: "none",
                           border: "none",
-                          color: "#DDD",
+                          color: "#C9CDD4",
                           cursor: "pointer",
                           fontSize: "20px",
                           padding: "0 4px",
@@ -619,10 +619,10 @@ export default function JefeBodegaRecepcion() {
                           flexShrink: 0,
                         }}
                         onMouseEnter={(e) =>
-                          (e.currentTarget.style.color = "#FF4444")
+                          (e.currentTarget.style.color = "#B91C1C")
                         }
                         onMouseLeave={(e) =>
-                          (e.currentTarget.style.color = "#DDD")
+                          (e.currentTarget.style.color = "#C9CDD4")
                         }
                       >
                         ×
@@ -645,7 +645,7 @@ export default function JefeBodegaRecepcion() {
                   fontWeight: 600,
                   letterSpacing: "0.12em",
                   textTransform: "uppercase",
-                  color: "#888",
+                  color: "#4B5160",
                   marginBottom: "1rem",
                 }}
               >
@@ -691,10 +691,10 @@ export default function JefeBodegaRecepcion() {
                       justifyContent: "space-between",
                       fontSize: "13px",
                       paddingBottom: "8px",
-                      borderBottom: "1px solid #F5F5F5",
+                      borderBottom: "1px solid #F7F8F9",
                     }}
                   >
-                    <span style={{ color: "#888" }}>{row.label}</span>
+                    <span style={{ color: "#4B5160" }}>{row.label}</span>
                     <span style={{ fontWeight: 600, color: "#0A0A0A" }}>
                       {row.value}
                     </span>
@@ -712,7 +712,7 @@ export default function JefeBodegaRecepcion() {
               <p
                 style={{
                   fontSize: "11px",
-                  color: "#AAA",
+                  color: "#8A909C",
                   marginTop: "8px",
                   textAlign: "center",
                 }}
@@ -737,7 +737,7 @@ export default function JefeBodegaRecepcion() {
                 alignItems: "center",
                 marginBottom: "1.25rem",
                 paddingBottom: "1rem",
-                borderBottom: "1px solid #F0F0F0",
+                borderBottom: "1px solid #F0F1F3",
               }}
             >
               <div>
@@ -745,7 +745,7 @@ export default function JefeBodegaRecepcion() {
                   {recepcionActiva.proveedor}
                 </p>
                 <p
-                  style={{ margin: "4px 0 0", fontSize: "12px", color: "#888" }}
+                  style={{ margin: "4px 0 0", fontSize: "12px", color: "#4B5160" }}
                 >
                   Factura: {recepcionActiva.numero_oc || "Sin número"} ·{" "}
                   {new Date(recepcionActiva.created_at).toLocaleDateString(
@@ -780,7 +780,7 @@ export default function JefeBodegaRecepcion() {
                   padding: "0.875rem 0",
                   borderBottom:
                     idx < recepcionActiva.recepcion_items.length - 1
-                      ? "1px solid #F5F5F5"
+                      ? "1px solid #F7F8F9"
                       : "none",
                   display: "flex",
                   justifyContent: "space-between",
@@ -795,7 +795,7 @@ export default function JefeBodegaRecepcion() {
                     style={{
                       margin: "2px 0 0",
                       fontSize: "11px",
-                      color: "#888",
+                      color: "#4B5160",
                       fontFamily: "DM Mono, monospace",
                     }}
                   >
@@ -813,7 +813,7 @@ export default function JefeBodegaRecepcion() {
                   >
                     {item.cantidad_recibida}
                   </p>
-                  <p style={{ margin: 0, fontSize: "11px", color: "#888" }}>
+                  <p style={{ margin: 0, fontSize: "11px", color: "#4B5160" }}>
                     unidades
                   </p>
                 </div>

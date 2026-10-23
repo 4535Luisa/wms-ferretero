@@ -4,9 +4,9 @@ import Layout from "../components/Layout";
 import api from "../services/api";
 
 const estadoColor = {
-  pendiente: { bg: "#F3F4F6", color: "#374151", label: "Pendiente" },
+  pendiente: { bg: "#EEF0F2", color: "#3A3F4B", label: "Pendiente" },
   asignado: { bg: "#DBEAFE", color: "#1E40AF", label: "Asignado" },
-  en_picking: { bg: "#FEF9C3", color: "#854D0E", label: "En picking" },
+  en_picking: { bg: "#FFF4D6", color: "#8A5A00", label: "En picking" },
   en_saldos: { bg: "#EDE9FE", color: "#5B21B6", label: "En saldos" },
   en_verificacion: {
     bg: "rgba(0,255,135,0.1)",
@@ -18,12 +18,12 @@ const estadoColor = {
     color: "#005A30",
     label: "Despachado",
   },
-  cancelado: { bg: "#FEE2E2", color: "#991B1B", label: "Cancelado" },
+  cancelado: { bg: "#FDECEC", color: "#B91C1C", label: "Cancelado" },
 };
 
 const prioridadColor = {
-  normal: { bg: "#F3F4F6", color: "#374151", label: "Normal" },
-  urgente: { bg: "#FEE2E2", color: "#991B1B", label: "Urgente" },
+  normal: { bg: "#EEF0F2", color: "#3A3F4B", label: "Normal" },
+  urgente: { bg: "#FDECEC", color: "#B91C1C", label: "Urgente" },
 };
 
 const celdaStr = (v) => {
@@ -37,7 +37,7 @@ function PanelAdvertencias({ advertencias, onCerrar }) {
     <div
       style={{
         background: "#FFFBEB",
-        border: "1.5px solid #FCD34D",
+        border: "1px solid #FCD34D",
         borderRadius: "12px",
         padding: "1.25rem",
         marginBottom: "1.25rem",
@@ -52,12 +52,12 @@ function PanelAdvertencias({ advertencias, onCerrar }) {
         }}
       >
         <div>
-          <span style={{ fontSize: "14px", fontWeight: 700, color: "#92400E" }}>
+          <span style={{ fontSize: "14px", fontWeight: 700, color: "#8A5A00" }}>
             Stock insuficiente — {advertencias.length} referencia
             {advertencias.length > 1 ? "s" : ""} con problema
           </span>
           <p
-            style={{ fontSize: "12px", color: "#B45309", margin: "2px 0 0 0" }}
+            style={{ fontSize: "12px", color: "#8A5A00", margin: "2px 0 0 0" }}
           >
             Se alistara lo que haya disponible. Las unidades faltantes quedaran
             pendientes en SALDOS.
@@ -70,7 +70,7 @@ function PanelAdvertencias({ advertencias, onCerrar }) {
             border: "none",
             fontSize: "18px",
             cursor: "pointer",
-            color: "#92400E",
+            color: "#8A5A00",
             lineHeight: 1,
             padding: "0 4px",
           }}
@@ -107,14 +107,14 @@ function PanelAdvertencias({ advertencias, onCerrar }) {
               <div
                 style={{
                   fontSize: "11px",
-                  color: "#888",
+                  color: "#4B5160",
                   fontFamily: "DM Mono, monospace",
                 }}
               >
                 {adv.referencia} · {adv.pedido_numero}
               </div>
               <div
-                style={{ fontSize: "12px", color: "#B45309", marginTop: "4px" }}
+                style={{ fontSize: "12px", color: "#8A5A00", marginTop: "4px" }}
               >
                 {adv.motivo}
               </div>
@@ -124,7 +124,7 @@ function PanelAdvertencias({ advertencias, onCerrar }) {
                 <div
                   style={{
                     fontSize: "11px",
-                    color: "#888",
+                    color: "#4B5160",
                     fontFamily: "DM Mono, monospace",
                   }}
                 >
@@ -135,7 +135,7 @@ function PanelAdvertencias({ advertencias, onCerrar }) {
                     style={{
                       fontSize: "11px",
                       fontWeight: 700,
-                      color: "#991B1B",
+                      color: "#B91C1C",
                       fontFamily: "DM Mono, monospace",
                     }}
                   >
@@ -195,6 +195,27 @@ export default function AdminPedidos() {
   const mostrarMensaje = (texto, tipo = "ok") => {
     setMensaje({ texto, tipo });
     setTimeout(() => setMensaje({ texto: "", tipo: "" }), 6000);
+  };
+
+  const cancelarPedido = async () => {
+    if (!modalCancelar || !motivoCancelacion.trim()) return;
+    setCargando(true);
+    try {
+      await api.patch(`/api/pedidos/${modalCancelar.id}/cancelar`, {
+        motivo: motivoCancelacion.trim(),
+      });
+      mostrarMensaje(`Pedido ${modalCancelar.numero} cancelado`);
+      setModalCancelar(null);
+      setMotivoCancelacion("");
+      cargarDatos();
+    } catch (err) {
+      mostrarMensaje(
+        "Error al cancelar: " + (err.response?.data?.error || ""),
+        "error",
+      );
+    } finally {
+      setCargando(false);
+    }
   };
 
   const leerCSV = (e) => {
@@ -519,7 +540,7 @@ export default function AdminPedidos() {
     width: "100%",
     fontFamily: "Outfit, sans-serif",
     fontSize: "13px",
-    border: "1.5px solid #E8E8E8",
+    border: "1px solid #E2E4E8",
     borderRadius: "8px",
     padding: "8px 12px",
     outline: "none",
@@ -531,7 +552,7 @@ export default function AdminPedidos() {
     fontWeight: 600,
     letterSpacing: "0.1em",
     textTransform: "uppercase",
-    color: "#888",
+    color: "#4B5160",
     display: "block",
     marginBottom: "6px",
   };
@@ -556,7 +577,7 @@ export default function AdminPedidos() {
           display: "flex",
           gap: "4px",
           marginBottom: "1.25rem",
-          background: "#F0F0F0",
+          background: "#F0F1F3",
           padding: "4px",
           borderRadius: "10px",
           width: "fit-content",
@@ -607,7 +628,7 @@ export default function AdminPedidos() {
             style={{
               background: "transparent",
               color: "#0A0A0A",
-              border: "1.5px solid #E8E8E8",
+              border: "1px solid #E2E4E8",
               borderRadius: "8px",
               padding: "9px 18px",
               fontSize: "14px",
@@ -689,8 +710,8 @@ export default function AdminPedidos() {
             fontSize: "13px",
             fontWeight: 500,
             background:
-              mensaje.tipo === "error" ? "#FEE2E2" : "rgba(0,255,135,0.1)",
-            color: mensaje.tipo === "error" ? "#991B1B" : "#007A40",
+              mensaje.tipo === "error" ? "#FDECEC" : "rgba(0,255,135,0.1)",
+            color: mensaje.tipo === "error" ? "#B91C1C" : "#007A40",
             border: `1px solid ${mensaje.tipo === "error" ? "#FECACA" : "rgba(0,255,135,0.2)"}`,
           }}
         >
@@ -724,7 +745,7 @@ export default function AdminPedidos() {
                 onChange={toggleTodos}
                 style={{ width: "18px", height: "18px", cursor: "pointer" }}
               />
-              <span style={{ fontSize: "13px", color: "#888" }}>
+              <span style={{ fontSize: "13px", color: "#4B5160" }}>
                 {seleccionados.length > 0
                   ? `${seleccionados.length} seleccionados`
                   : "Seleccionar todos los pendientes"}
@@ -735,13 +756,13 @@ export default function AdminPedidos() {
             <div
               style={{
                 background: "#FFFFFF",
-                border: "1px solid #E8E8E8",
+                border: "1px solid #E2E4E8",
                 borderRadius: "12px",
                 padding: "3rem",
                 textAlign: "center",
               }}
             >
-              <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
+              <p style={{ fontSize: "15px", fontWeight: 500, color: "#4B5160" }}>
                 No hay pedidos cargados
               </p>
             </div>
@@ -762,8 +783,8 @@ export default function AdminPedidos() {
                     style={{
                       background: "#FFFFFF",
                       border: estaSeleccionado
-                        ? "1.5px solid #00FF87"
-                        : "1px solid #E8E8E8",
+                        ? "1px solid #00FF87"
+                        : "1px solid #E2E4E8",
                       borderRadius: "12px",
                       padding: "1rem 1.25rem",
                       boxShadow: estaSeleccionado
@@ -842,7 +863,7 @@ export default function AdminPedidos() {
                         <div
                           style={{
                             fontSize: "12px",
-                            color: "#888",
+                            color: "#4B5160",
                             marginTop: "4px",
                           }}
                         >
@@ -857,7 +878,7 @@ export default function AdminPedidos() {
                           <div
                             style={{
                               fontSize: "12px",
-                              color: "#555",
+                              color: "#4B5160",
                               marginTop: "4px",
                             }}
                           >
@@ -880,10 +901,10 @@ export default function AdminPedidos() {
                               style={{
                                 marginTop: "6px",
                                 padding: "4px 8px",
-                                border: "1px solid #E8E8E8",
+                                border: "1px solid #E2E4E8",
                                 borderRadius: "6px",
                                 fontSize: "11px",
-                                color: "#555",
+                                color: "#4B5160",
                                 background: "#FAFAFA",
                                 cursor: "pointer",
                               }}
@@ -912,12 +933,12 @@ export default function AdminPedidos() {
                           style={{
                             background:
                               pedido.prioridad === "urgente"
-                                ? "#FEE2E2"
-                                : "#F3F4F6",
+                                ? "#FDECEC"
+                                : "#EEF0F2",
                             color:
                               pedido.prioridad === "urgente"
-                                ? "#991B1B"
-                                : "#374151",
+                                ? "#B91C1C"
+                                : "#3A3F4B",
                             border: "none",
                             borderRadius: "6px",
                             padding: "5px 10px",
@@ -970,13 +991,13 @@ export default function AdminPedidos() {
             <div
               style={{
                 background: "#FFFFFF",
-                border: "1px solid #E8E8E8",
+                border: "1px solid #E2E4E8",
                 borderRadius: "12px",
                 padding: "3rem",
                 textAlign: "center",
               }}
             >
-              <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
+              <p style={{ fontSize: "15px", fontWeight: 500, color: "#4B5160" }}>
                 No hay listas de picking generadas
               </p>
             </div>
@@ -989,7 +1010,7 @@ export default function AdminPedidos() {
                   key={lista.id}
                   style={{
                     background: "#FFFFFF",
-                    border: "1px solid #E8E8E8",
+                    border: "1px solid #E2E4E8",
                     borderRadius: "12px",
                     padding: "1.5rem",
                   }}
@@ -1014,9 +1035,9 @@ export default function AdminPedidos() {
                       >
                         <span
                           style={{
-                            fontFamily: "Bebas Neue, sans-serif",
-                            fontSize: "20px",
-                            letterSpacing: "0.04em",
+                            fontFamily: "Outfit, sans-serif",
+                            fontWeight: 700,
+                            fontSize: "18px",
                           }}
                         >
                           {lista.bodegas?.nombre || "Bodega"}
@@ -1026,11 +1047,11 @@ export default function AdminPedidos() {
                             background:
                               lista.estado === "asignada"
                                 ? "rgba(0,255,135,0.1)"
-                                : "#F3F4F6",
+                                : "#EEF0F2",
                             color:
                               lista.estado === "asignada"
                                 ? "#007A40"
-                                : "#374151",
+                                : "#3A3F4B",
                             padding: "2px 10px",
                             borderRadius: "20px",
                             fontSize: "10px",
@@ -1046,7 +1067,7 @@ export default function AdminPedidos() {
                       <div
                         style={{
                           fontSize: "12px",
-                          color: "#888",
+                          color: "#4B5160",
                           marginTop: "4px",
                         }}
                       >
@@ -1079,7 +1100,7 @@ export default function AdminPedidos() {
                   </div>
                   <div
                     style={{
-                      borderTop: "1px solid #F0F0F0",
+                      borderTop: "1px solid #F0F1F3",
                       paddingTop: "1rem",
                     }}
                   >
@@ -1102,8 +1123,8 @@ export default function AdminPedidos() {
                             key={item.id}
                             style={{
                               background: item.destino_saldos
-                                ? "#FEF9C3"
-                                : "#F8F8F8",
+                                ? "#FFF4D6"
+                                : "#F7F8F9",
                               borderRadius: "8px",
                               padding: "10px 12px",
                               border: item.destino_saldos
@@ -1144,7 +1165,7 @@ export default function AdminPedidos() {
                                     <span
                                       style={{
                                         fontSize: "10px",
-                                        color: "#854D0E",
+                                        color: "#8A5A00",
                                         fontWeight: 700,
                                       }}
                                     >
@@ -1167,7 +1188,7 @@ export default function AdminPedidos() {
                                 <div
                                   style={{
                                     fontSize: "11px",
-                                    color: "#888",
+                                    color: "#4B5160",
                                     fontFamily: "DM Mono, monospace",
                                     marginTop: "2px",
                                   }}
@@ -1210,13 +1231,13 @@ export default function AdminPedidos() {
           <div
             style={{
               background: "#FFFFFF",
-              border: "1px solid #E8E8E8",
+              border: "1px solid #E2E4E8",
               borderRadius: "12px",
               padding: "1.5rem",
             }}
           >
             <p
-              style={{ fontSize: "13px", color: "#888", marginBottom: "1rem" }}
+              style={{ fontSize: "13px", color: "#4B5160", marginBottom: "1rem" }}
             >
               Al importar el sistema generara automaticamente las listas de
               picking por bodega
@@ -1233,7 +1254,7 @@ export default function AdminPedidos() {
                 <div
                   key={pedido.numero}
                   style={{
-                    border: "1px solid #E8E8E8",
+                    border: "1px solid #E2E4E8",
                     borderRadius: "8px",
                     padding: "1rem",
                   }}
@@ -1254,7 +1275,7 @@ export default function AdminPedidos() {
                     >
                       {pedido.numero}
                     </span>
-                    <span style={{ fontSize: "12px", color: "#888" }}>
+                    <span style={{ fontSize: "12px", color: "#4B5160" }}>
                       {pedido.items.length} ref ·{" "}
                       {pedido.items.reduce((a, i) => a + i.cantidad, 0)} und
                     </span>
@@ -1271,8 +1292,8 @@ export default function AdminPedidos() {
                       <span
                         key={i}
                         style={{
-                          background: "#F0F0F0",
-                          color: "#555",
+                          background: "#F0F1F3",
+                          color: "#4B5160",
                           padding: "2px 8px",
                           borderRadius: "4px",
                           fontSize: "11px",
@@ -1283,7 +1304,7 @@ export default function AdminPedidos() {
                       </span>
                     ))}
                     {pedido.items.length > 5 && (
-                      <span style={{ fontSize: "11px", color: "#AAA" }}>
+                      <span style={{ fontSize: "11px", color: "#8A909C" }}>
                         +{pedido.items.length - 5} mas
                       </span>
                     )}
@@ -1327,7 +1348,7 @@ export default function AdminPedidos() {
         >
           <div>
             <p
-              style={{ fontSize: "13px", color: "#888", marginBottom: "1rem" }}
+              style={{ fontSize: "13px", color: "#4B5160", marginBottom: "1rem" }}
             >
               Los siguientes pedidos se asignaran al mismo operario:
             </p>
@@ -1344,7 +1365,7 @@ export default function AdminPedidos() {
                     key={pedidoId}
                     style={{
                       background: "#FFFFFF",
-                      border: "1px solid #E8E8E8",
+                      border: "1px solid #E2E4E8",
                       borderRadius: "12px",
                       padding: "1rem 1.25rem",
                     }}
@@ -1382,7 +1403,7 @@ export default function AdminPedidos() {
                     <div
                       style={{
                         fontSize: "12px",
-                        color: "#888",
+                        color: "#4B5160",
                         marginTop: "3px",
                       }}
                     >
@@ -1402,7 +1423,7 @@ export default function AdminPedidos() {
             <div
               style={{
                 background: "#FFFFFF",
-                border: "1px solid #E8E8E8",
+                border: "1px solid #E2E4E8",
                 borderRadius: "12px",
                 padding: "1.25rem",
                 marginBottom: "1rem",
@@ -1430,7 +1451,7 @@ export default function AdminPedidos() {
                 .filter((b) => b.codigo !== "SALDOS")
                 .map((bodega) => (
                   <div key={bodega.id} style={{ marginBottom: "1rem" }}>
-                    <label style={{ ...labelStyle, color: "#555" }}>
+                    <label style={{ ...labelStyle, color: "#4B5160" }}>
                       {bodega.nombre}
                     </label>
                     <select
@@ -1504,7 +1525,7 @@ export default function AdminPedidos() {
               Cancelar pedido
             </h3>
             <p
-              style={{ fontSize: "13px", color: "#888", margin: "0 0 16px 0" }}
+              style={{ fontSize: "13px", color: "#4B5160", margin: "0 0 16px 0" }}
             >
               Pedido {modalCancelar.numero} — Estado: {modalCancelar.estado}
             </p>
@@ -1512,7 +1533,7 @@ export default function AdminPedidos() {
               style={{
                 fontSize: "12px",
                 fontWeight: 600,
-                color: "#666",
+                color: "#4B5160",
                 display: "block",
                 marginBottom: "4px",
               }}
@@ -1526,7 +1547,7 @@ export default function AdminPedidos() {
               style={{
                 width: "100%",
                 padding: "10px 12px",
-                border: "1.5px solid #E8E8E8",
+                border: "1px solid #E2E4E8",
                 borderRadius: "8px",
                 fontSize: "14px",
                 marginBottom: "16px",
@@ -1542,7 +1563,7 @@ export default function AdminPedidos() {
                 style={{
                   flex: 1,
                   padding: "12px",
-                  border: "1.5px solid #E8E8E8",
+                  border: "1px solid #E2E4E8",
                   borderRadius: "8px",
                   background: "transparent",
                   fontSize: "14px",
@@ -1560,7 +1581,7 @@ export default function AdminPedidos() {
                   padding: "12px",
                   border: "none",
                   borderRadius: "8px",
-                  background: "#991B1B",
+                  background: "#B91C1C",
                   color: "#FFFFFF",
                   fontSize: "14px",
                   fontWeight: 700,

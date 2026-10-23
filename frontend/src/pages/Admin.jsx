@@ -60,13 +60,6 @@ const modulos = [
     activo: true,
   },
   {
-    path: "/admin/reportes",
-    icon: "",
-    titulo: "Reportes",
-    descripcion: "KPIs, tiempo de alistamiento y errores de escaneo",
-    activo: true,
-  },
-  {
     path: "/admin/productos",
     icon: "",
     titulo: "Productos",
@@ -96,7 +89,7 @@ export default function Admin() {
             onClick={() => mod.activo && navigate(mod.path)}
             style={{
               background: "#FFFFFF",
-              border: "1px solid #E8E8E8",
+              border: "1px solid #E2E4E8",
               borderRadius: "12px",
               padding: "1.5rem",
               cursor: "pointer",
@@ -108,22 +101,22 @@ export default function Admin() {
                 "0 0 0 3px rgba(0,255,135,0.08)";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "#E8E8E8";
+              e.currentTarget.style.borderColor = "#E2E4E8";
               e.currentTarget.style.boxShadow = "none";
             }}
           >
             <div
               style={{
-                fontFamily: "Bebas Neue, sans-serif",
-                fontSize: "20px",
-                letterSpacing: "0.04em",
+                fontFamily: "Outfit, sans-serif",
+                fontWeight: 700,
+                fontSize: "16px",
                 color: "#0A0A0A",
                 marginBottom: "6px",
               }}
             >
               {mod.titulo}
             </div>
-            <div style={{ fontSize: "13px", color: "#888", lineHeight: 1.5 }}>
+            <div style={{ fontSize: "13px", color: "#4B5160", lineHeight: 1.5 }}>
               {mod.descripcion}
             </div>
             <div

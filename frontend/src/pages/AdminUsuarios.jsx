@@ -15,10 +15,10 @@ const ROLES = [
 const colorRol = {
   operario: { bg: "rgba(0,255,135,0.1)", color: "#007A40" },
   montacarguista: { bg: "#dbeafe", color: "#1e40af" },
-  saldos: { bg: "#fef9c3", color: "#854d0e" },
+  saldos: { bg: "#FFF4D6", color: "#8A5A00" },
   jefe_bodega: { bg: "#ede9fe", color: "#5b21b6" },
-  gerente_logistico: { bg: "#fee2e2", color: "#991b1b" },
-  inventarios: { bg: "#f3f4f6", color: "#374151" },
+  gerente_logistico: { bg: "#FDECEC", color: "#B91C1C" },
+  inventarios: { bg: "#EEF0F2", color: "#3A3F4B" },
   facturacion: { bg: "#E0F2FE", color: "#0369A1" },
 };
 
@@ -134,7 +134,7 @@ export default function AdminUsuarios() {
     boxSizing: "border-box",
     fontFamily: "Outfit, sans-serif",
     fontSize: "14px",
-    border: "1.5px solid #E8E8E8",
+    border: "1px solid #E2E4E8",
     borderRadius: "8px",
     padding: "10px 14px",
     outline: "none",
@@ -146,7 +146,7 @@ export default function AdminUsuarios() {
     fontWeight: 600,
     letterSpacing: "0.12em",
     textTransform: "uppercase",
-    color: "#888",
+    color: "#4B5160",
     display: "block",
     marginBottom: "7px",
   };
@@ -177,7 +177,7 @@ export default function AdminUsuarios() {
             style={{
               background: "transparent",
               color: "#0A0A0A",
-              border: "1.5px solid #E8E8E8",
+              border: "1px solid #E2E4E8",
               borderRadius: "8px",
               padding: "9px 18px",
               fontSize: "14px",
@@ -219,8 +219,8 @@ export default function AdminUsuarios() {
             fontSize: "13px",
             fontWeight: 500,
             background:
-              mensaje.tipo === "error" ? "#FEE2E2" : "rgba(0,255,135,0.1)",
-            color: mensaje.tipo === "error" ? "#991B1B" : "#007A40",
+              mensaje.tipo === "error" ? "#FDECEC" : "rgba(0,255,135,0.1)",
+            color: mensaje.tipo === "error" ? "#B91C1C" : "#007A40",
             border: `1px solid ${mensaje.tipo === "error" ? "#FECACA" : "rgba(0,255,135,0.2)"}`,
           }}
         >
@@ -247,14 +247,14 @@ export default function AdminUsuarios() {
                 background: "#FFFFFF",
                 borderRadius: "12px",
                 overflow: "hidden",
-                border: "1px solid #E8E8E8",
+                border: "1px solid #E2E4E8",
               }}
             >
               <thead>
                 <tr
                   style={{
-                    background: "#F8F8F8",
-                    borderBottom: "1px solid #E8E8E8",
+                    background: "#F7F8F9",
+                    borderBottom: "1px solid #E2E4E8",
                   }}
                 >
                   {[
@@ -274,7 +274,7 @@ export default function AdminUsuarios() {
                         fontWeight: 600,
                         letterSpacing: "0.08em",
                         textTransform: "uppercase",
-                        color: "#888",
+                        color: "#4B5160",
                         fontFamily: "Outfit, sans-serif",
                       }}
                     >
@@ -286,8 +286,8 @@ export default function AdminUsuarios() {
               <tbody>
                 {usuariosFiltrados.map((u, idx) => {
                   const badge = colorRol[u.rol] || {
-                    bg: "#f3f4f6",
-                    color: "#374151",
+                    bg: "#EEF0F2",
+                    color: "#3A3F4B",
                   };
                   return (
                     <tr
@@ -295,7 +295,7 @@ export default function AdminUsuarios() {
                       style={{
                         borderBottom:
                           idx < usuariosFiltrados.length - 1
-                            ? "1px solid #F5F5F5"
+                            ? "1px solid #F7F8F9"
                             : "none",
                       }}
                     >
@@ -340,7 +340,7 @@ export default function AdminUsuarios() {
                         style={{
                           padding: "14px 16px",
                           fontSize: "13px",
-                          color: "#555",
+                          color: "#4B5160",
                           fontFamily: "DM Mono, monospace",
                         }}
                       >
@@ -366,7 +366,7 @@ export default function AdminUsuarios() {
                         style={{
                           padding: "14px 16px",
                           fontSize: "13px",
-                          color: "#888",
+                          color: "#4B5160",
                         }}
                       >
                         {u.bodegas?.nombre || "—"}
@@ -376,8 +376,8 @@ export default function AdminUsuarios() {
                           style={{
                             background: u.activo
                               ? "rgba(0,255,135,0.1)"
-                              : "#FEE2E2",
-                            color: u.activo ? "#007A40" : "#991B1B",
+                              : "#FDECEC",
+                            color: u.activo ? "#007A40" : "#B91C1C",
                             padding: "3px 10px",
                             borderRadius: "20px",
                             fontSize: "11px",
@@ -393,7 +393,7 @@ export default function AdminUsuarios() {
                           <button
                             onClick={() => abrirEditar(u)}
                             style={{
-                              background: "#F0F0F0",
+                              background: "#F0F1F3",
                               color: "#0A0A0A",
                               border: "none",
                               borderRadius: "6px",
@@ -410,9 +410,9 @@ export default function AdminUsuarios() {
                             onClick={() => toggleActivo(u)}
                             style={{
                               background: u.activo
-                                ? "#FEE2E2"
+                                ? "#FDECEC"
                                 : "rgba(0,255,135,0.1)",
-                              color: u.activo ? "#991B1B" : "#007A40",
+                              color: u.activo ? "#B91C1C" : "#007A40",
                               border: "none",
                               borderRadius: "6px",
                               padding: "6px 12px",
@@ -437,15 +437,15 @@ export default function AdminUsuarios() {
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {usuariosFiltrados.map((u) => {
               const badge = colorRol[u.rol] || {
-                bg: "#f3f4f6",
-                color: "#374151",
+                bg: "#EEF0F2",
+                color: "#3A3F4B",
               };
               return (
                 <div
                   key={u.id}
                   style={{
                     background: "#FFFFFF",
-                    border: "1px solid #E8E8E8",
+                    border: "1px solid #E2E4E8",
                     borderRadius: "12px",
                     padding: "1rem 1.25rem",
                   }}
@@ -496,7 +496,7 @@ export default function AdminUsuarios() {
                         <div
                           style={{
                             fontSize: "12px",
-                            color: "#888",
+                            color: "#4B5160",
                             fontFamily: "DM Mono, monospace",
                             marginTop: "2px",
                           }}
@@ -509,8 +509,8 @@ export default function AdminUsuarios() {
                       style={{
                         background: u.activo
                           ? "rgba(0,255,135,0.1)"
-                          : "#FEE2E2",
-                        color: u.activo ? "#007A40" : "#991B1B",
+                          : "#FDECEC",
+                        color: u.activo ? "#007A40" : "#B91C1C",
                         padding: "3px 10px",
                         borderRadius: "20px",
                         fontSize: "10px",
@@ -552,7 +552,7 @@ export default function AdminUsuarios() {
                         {ROLES.find((r) => r.value === u.rol)?.label || u.rol}
                       </span>
                       {u.bodegas && (
-                        <span style={{ fontSize: "12px", color: "#888" }}>
+                        <span style={{ fontSize: "12px", color: "#4B5160" }}>
                           {u.bodegas.nombre}
                         </span>
                       )}
@@ -561,7 +561,7 @@ export default function AdminUsuarios() {
                       <button
                         onClick={() => abrirEditar(u)}
                         style={{
-                          background: "#F0F0F0",
+                          background: "#F0F1F3",
                           color: "#0A0A0A",
                           border: "none",
                           borderRadius: "6px",
@@ -579,9 +579,9 @@ export default function AdminUsuarios() {
                         onClick={() => toggleActivo(u)}
                         style={{
                           background: u.activo
-                            ? "#FEE2E2"
+                            ? "#FDECEC"
                             : "rgba(0,255,135,0.1)",
-                          color: u.activo ? "#991B1B" : "#007A40",
+                          color: u.activo ? "#B91C1C" : "#007A40",
                           border: "none",
                           borderRadius: "6px",
                           padding: "7px 12px",
@@ -603,13 +603,13 @@ export default function AdminUsuarios() {
               <div
                 style={{
                   background: "#FFFFFF",
-                  border: "1px solid #E8E8E8",
+                  border: "1px solid #E2E4E8",
                   borderRadius: "12px",
                   padding: "3rem",
                   textAlign: "center",
                 }}
               >
-                <p style={{ color: "#BBB", fontSize: "14px" }}>
+                <p style={{ color: "#8A909C", fontSize: "14px" }}>
                   No se encontraron usuarios
                 </p>
               </div>
@@ -624,7 +624,7 @@ export default function AdminUsuarios() {
           <div
             style={{
               background: "#FFFFFF",
-              border: "1px solid #E8E8E8",
+              border: "1px solid #E2E4E8",
               borderRadius: "12px",
               padding: "1.75rem",
             }}
@@ -714,7 +714,7 @@ export default function AdminUsuarios() {
                   flex: 1,
                   background: "transparent",
                   color: "#0A0A0A",
-                  border: "1.5px solid #E8E8E8",
+                  border: "1px solid #E2E4E8",
                   borderRadius: "8px",
                   padding: "12px",
                   fontSize: "14px",

@@ -270,7 +270,7 @@ export default function Login() {
           </h2>
           <p
             style={{
-              color: "#888",
+              color: "#4B5160",
               fontSize: "14px",
               fontWeight: 400,
             }}
@@ -288,7 +288,7 @@ export default function Login() {
               borderRadius: "8px",
               fontSize: "13px",
               marginBottom: "1.5rem",
-              borderLeft: "3px solid #FF4444",
+              borderLeft: "3px solid #B91C1C",
               fontWeight: 500,
             }}
           >
@@ -304,7 +304,7 @@ export default function Login() {
                 fontWeight: 600,
                 letterSpacing: "0.12em",
                 textTransform: "uppercase",
-                color: "#999",
+                color: "#8A909C",
                 display: "block",
                 marginBottom: "8px",
               }}
@@ -328,7 +328,7 @@ export default function Login() {
                 fontWeight: 600,
                 letterSpacing: "0.12em",
                 textTransform: "uppercase",
-                color: "#999",
+                color: "#8A909C",
                 display: "block",
                 marginBottom: "8px",
               }}
@@ -365,7 +365,7 @@ export default function Login() {
                   border: "none",
                   cursor: "pointer",
                   padding: "4px",
-                  color: "#888",
+                  color: "#4B5160",
                   fontSize: "16px",
                   lineHeight: 1,
                   display: "flex",
@@ -386,7 +386,7 @@ export default function Login() {
               padding: "14px",
               fontSize: "15px",
               fontWeight: 700,
-              background: cargando ? "#ccc" : "#0A0A0A",
+              background: cargando ? "#C9CDD4" : "#0A0A0A",
               color: "#FFFFFF",
               borderRadius: "8px",
               letterSpacing: "0.05em",
@@ -421,7 +421,7 @@ export default function Login() {
           <div
             style={{
               height: "1px",
-              background: "#F0F0F0",
+              background: "#F0F1F3",
               marginBottom: "1.25rem",
             }}
           />
@@ -446,7 +446,7 @@ export default function Login() {
               <div
                 style={{
                   fontSize: "11px",
-                  color: "#BBB",
+                  color: "#8A909C",
                   fontFamily: "DM Mono, monospace",
                 }}
               >

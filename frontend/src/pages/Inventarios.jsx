@@ -13,14 +13,14 @@ const TIPOS = [
 ];
 
 const estadoColor = {
-  pendiente: { bg: "#FEF9C3", fg: "#854D0E" },
+  pendiente: { bg: "#FFF4D6", fg: "#8A5A00" },
   aprobado: { bg: "rgba(0,255,135,0.12)", fg: "#007A40" },
-  rechazado: { bg: "#FEE2E2", fg: "#991B1B" },
-  en_transito: { bg: "#FEF9C3", fg: "#854D0E" },
+  rechazado: { bg: "#FDECEC", fg: "#B91C1C" },
+  en_transito: { bg: "#FFF4D6", fg: "#8A5A00" },
   completado: { bg: "rgba(0,255,135,0.12)", fg: "#007A40" },
-  cancelado: { bg: "#FEE2E2", fg: "#991B1B" },
+  cancelado: { bg: "#FDECEC", fg: "#B91C1C" },
   pendiente_conteo: { bg: "#E0E7FF", fg: "#3730A3" },
-  contado: { bg: "#FEF9C3", fg: "#854D0E" },
+  contado: { bg: "#FFF4D6", fg: "#8A5A00" },
   sin_diferencia: { bg: "rgba(0,255,135,0.12)", fg: "#007A40" },
   ajustado: { bg: "rgba(0,255,135,0.12)", fg: "#007A40" },
 };
@@ -28,7 +28,7 @@ const estadoColor = {
 const C = {
   card: {
     background: "#FFFFFF",
-    border: "1px solid #E8E8E8",
+    border: "1px solid #E2E4E8",
     borderRadius: "12px",
     padding: "1.25rem 1.5rem",
   },
@@ -36,7 +36,7 @@ const C = {
   input: {
     width: "100%",
     padding: "10px 12px",
-    border: "1.5px solid #E8E8E8",
+    border: "1px solid #E2E4E8",
     borderRadius: "8px",
     fontSize: "14px",
     fontFamily: "Outfit, sans-serif",
@@ -45,7 +45,7 @@ const C = {
   label: {
     fontSize: "12px",
     fontWeight: 600,
-    color: "#555",
+    color: "#4B5160",
     display: "block",
     marginBottom: "4px",
   },
@@ -278,7 +278,7 @@ export default function Inventarios() {
         display: "flex",
         gap: "8px",
         marginBottom: "1.25rem",
-        borderBottom: "1px solid #F0F0F0",
+        borderBottom: "1px solid #F0F1F3",
       }}
     >
       {[
@@ -293,7 +293,7 @@ export default function Inventarios() {
             background: "transparent",
             border: "none",
             borderBottom: `2px solid ${tab === t.id ? "#00CC6A" : "transparent"}`,
-            color: tab === t.id ? "#0A0A0A" : "#888",
+            color: tab === t.id ? "#0A0A0A" : "#4B5160",
             fontSize: "14px",
             fontWeight: 600,
             cursor: "pointer",
@@ -318,8 +318,8 @@ export default function Inventarios() {
             fontSize: "13px",
             fontWeight: 500,
             background:
-              mensaje.tipo === "error" ? "#FEE2E2" : "rgba(0,255,135,0.1)",
-            color: mensaje.tipo === "error" ? "#991B1B" : "#007A40",
+              mensaje.tipo === "error" ? "#FDECEC" : "rgba(0,255,135,0.1)",
+            color: mensaje.tipo === "error" ? "#B91C1C" : "#007A40",
             border: `1px solid ${mensaje.tipo === "error" ? "#FECACA" : "rgba(0,255,135,0.2)"}`,
           }}
         >
@@ -335,9 +335,9 @@ export default function Inventarios() {
           <div style={{ ...C.card, maxWidth: "640px", marginBottom: "2rem" }}>
             <h3
               style={{
-                fontFamily: "Bebas Neue, sans-serif",
-                fontSize: "20px",
-                letterSpacing: "0.04em",
+                fontFamily: "Outfit, sans-serif",
+                fontWeight: 700,
+                fontSize: "18px",
                 margin: "0 0 1rem",
               }}
             >
@@ -436,14 +436,14 @@ export default function Inventarios() {
               fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "0.06em",
-              color: "#666",
+              color: "#4B5160",
               marginBottom: "0.75rem",
             }}
           >
             Historial de ajustes
           </h3>
           {ajustes.length === 0 ? (
-            <div style={{ ...C.card, textAlign: "center", color: "#888" }}>
+            <div style={{ ...C.card, textAlign: "center", color: "#4B5160" }}>
               Aún no hay ajustes registrados
             </div>
           ) : (
@@ -469,7 +469,7 @@ export default function Inventarios() {
                         style={{
                           ...C.mono,
                           fontSize: "12px",
-                          color: "#888",
+                          color: "#4B5160",
                           marginTop: "3px",
                         }}
                       >
@@ -478,7 +478,7 @@ export default function Inventarios() {
                         {a.cantidad}
                       </div>
                       <div
-                        style={{ fontSize: "12px", color: "#666", marginTop: "3px" }}
+                        style={{ fontSize: "12px", color: "#4B5160", marginTop: "3px" }}
                       >
                         {a.motivo}
                       </div>
@@ -511,9 +511,9 @@ export default function Inventarios() {
           <div style={{ ...C.card, maxWidth: "640px", marginBottom: "2rem" }}>
             <h3
               style={{
-                fontFamily: "Bebas Neue, sans-serif",
-                fontSize: "20px",
-                letterSpacing: "0.04em",
+                fontFamily: "Outfit, sans-serif",
+                fontWeight: 700,
+                fontSize: "18px",
                 margin: "0 0 1rem",
               }}
             >
@@ -601,14 +601,14 @@ export default function Inventarios() {
               fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "0.06em",
-              color: "#666",
+              color: "#4B5160",
               marginBottom: "0.75rem",
             }}
           >
             Traslados
           </h3>
           {traslados.length === 0 ? (
-            <div style={{ ...C.card, textAlign: "center", color: "#888" }}>
+            <div style={{ ...C.card, textAlign: "center", color: "#4B5160" }}>
               Aún no hay traslados
             </div>
           ) : (
@@ -634,7 +634,7 @@ export default function Inventarios() {
                         style={{
                           ...C.mono,
                           fontSize: "12px",
-                          color: "#888",
+                          color: "#4B5160",
                           marginTop: "3px",
                         }}
                       >
@@ -674,8 +674,8 @@ export default function Inventarios() {
                             disabled={cargando}
                             style={{
                               background: "transparent",
-                              color: "#991B1B",
-                              border: "1.5px solid #FECACA",
+                              color: "#B91C1C",
+                              border: "1px solid #FECACA",
                               borderRadius: "8px",
                               padding: "8px 12px",
                               fontSize: "12px",
@@ -717,15 +717,15 @@ export default function Inventarios() {
           <div style={{ ...C.card, maxWidth: "640px", marginBottom: "1.5rem" }}>
             <h3
               style={{
-                fontFamily: "Bebas Neue, sans-serif",
-                fontSize: "20px",
-                letterSpacing: "0.04em",
+                fontFamily: "Outfit, sans-serif",
+                fontWeight: 700,
+                fontSize: "18px",
                 margin: "0 0 0.25rem",
               }}
             >
               Programar conteo por familia
             </h3>
-            <p style={{ fontSize: "12px", color: "#888", margin: "0 0 1rem" }}>
+            <p style={{ fontSize: "12px", color: "#4B5160", margin: "0 0 1rem" }}>
               Encola un conteo pendiente para cada producto de la familia con
               inventario en la bodega elegida.
             </p>
@@ -785,9 +785,9 @@ export default function Inventarios() {
           <div style={{ ...C.card, maxWidth: "640px", marginBottom: "2rem" }}>
             <h3
               style={{
-                fontFamily: "Bebas Neue, sans-serif",
-                fontSize: "20px",
-                letterSpacing: "0.04em",
+                fontFamily: "Outfit, sans-serif",
+                fontWeight: 700,
+                fontSize: "18px",
                 margin: "0 0 1rem",
               }}
             >
@@ -853,14 +853,14 @@ export default function Inventarios() {
               fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "0.06em",
-              color: "#666",
+              color: "#4B5160",
               marginBottom: "0.75rem",
             }}
           >
             Cola de conteos
           </h3>
           {conteos.length === 0 ? (
-            <div style={{ ...C.card, textAlign: "center", color: "#888" }}>
+            <div style={{ ...C.card, textAlign: "center", color: "#4B5160" }}>
               Aún no hay conteos
             </div>
           ) : (
@@ -886,7 +886,7 @@ export default function Inventarios() {
                         style={{
                           ...C.mono,
                           fontSize: "12px",
-                          color: "#888",
+                          color: "#4B5160",
                           marginTop: "3px",
                         }}
                       >

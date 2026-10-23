@@ -132,7 +132,7 @@ export default function Campana({ variant = "light" }) {
               height: "18px",
               padding: "0 4px",
               borderRadius: "9px",
-              background: "#FF4444",
+              background: "#B91C1C",
               color: "#FFFFFF",
               fontSize: "11px",
               fontWeight: 700,
@@ -159,7 +159,7 @@ export default function Campana({ variant = "light" }) {
             display: "flex",
             flexDirection: "column",
             background: "#FFFFFF",
-            border: "1px solid #E8E8E8",
+            border: "1px solid #E2E4E8",
             borderRadius: "12px",
             boxShadow: "0 12px 32px rgba(0,0,0,0.18)",
             zIndex: 300,
@@ -172,14 +172,14 @@ export default function Campana({ variant = "light" }) {
               alignItems: "center",
               justifyContent: "space-between",
               padding: "12px 14px",
-              borderBottom: "1px solid #F0F0F0",
+              borderBottom: "1px solid #F0F1F3",
             }}
           >
             <span
               style={{
-                fontFamily: "Bebas Neue,sans-serif",
-                fontSize: "18px",
-                letterSpacing: "0.04em",
+                fontFamily: "Outfit, sans-serif",
+                fontWeight: 700,
+                fontSize: "16px",
                 color: "#0A0A0A",
               }}
             >
@@ -209,7 +209,7 @@ export default function Campana({ variant = "light" }) {
                 style={{
                   padding: "24px 14px",
                   textAlign: "center",
-                  color: "#999",
+                  color: "#8A909C",
                   fontSize: "13px",
                 }}
               >
@@ -229,7 +229,7 @@ export default function Campana({ variant = "light" }) {
                     gap: "10px",
                     padding: "12px 14px",
                     border: "none",
-                    borderBottom: "1px solid #F5F5F5",
+                    borderBottom: "1px solid #F7F8F9",
                     cursor: tieneRuta
                       ? "pointer"
                       : n.leida
@@ -264,7 +264,7 @@ export default function Campana({ variant = "light" }) {
                       style={{
                         display: "block",
                         fontSize: "12px",
-                        color: "#666",
+                        color: "#4B5160",
                         marginTop: "2px",
                       }}
                     >
@@ -287,7 +287,7 @@ export default function Campana({ variant = "light" }) {
                   <span
                     style={{
                       fontSize: "11px",
-                      color: "#AAA",
+                      color: "#8A909C",
                       flexShrink: 0,
                       whiteSpace: "nowrap",
                     }}

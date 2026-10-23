@@ -7,7 +7,7 @@ import api from "../services/api";
 const C = {
   card: {
     background: "#FFFFFF",
-    border: "1px solid #E8E8E8",
+    border: "1px solid #E2E4E8",
     borderRadius: "12px",
     padding: "1.25rem 1.5rem",
   },
@@ -232,7 +232,7 @@ export default function Operario() {
           style={{
             background: "transparent",
             color: "#0A0A0A",
-            border: "1.5px solid #E8E8E8",
+            border: "1px solid #E2E4E8",
             borderRadius: "8px",
             padding: "9px 18px",
             fontSize: "14px",
@@ -254,8 +254,8 @@ export default function Operario() {
             fontSize: "13px",
             fontWeight: 500,
             background:
-              mensaje.tipo === "error" ? "#FEE2E2" : "rgba(0,255,135,0.1)",
-            color: mensaje.tipo === "error" ? "#991B1B" : "#007A40",
+              mensaje.tipo === "error" ? "#FDECEC" : "rgba(0,255,135,0.1)",
+            color: mensaje.tipo === "error" ? "#B91C1C" : "#007A40",
             border: `1px solid ${mensaje.tipo === "error" ? "#FECACA" : "rgba(0,255,135,0.2)"}`,
           }}
         >
@@ -268,7 +268,7 @@ export default function Operario() {
           {pedidos.length === 0 ? (
             <div style={{ ...C.card, padding: "3rem", textAlign: "center" }}>
               <div style={{ fontSize: "48px", marginBottom: "1rem" }}></div>
-              <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
+              <p style={{ fontSize: "15px", fontWeight: 500, color: "#4B5160" }}>
                 No tienes pedidos asignados
               </p>
             </div>
@@ -311,7 +311,7 @@ export default function Operario() {
                         {p.prioridad === "urgente" && (
                           <span
                             style={{
-                              background: "#FEE2E2",
+                              background: "#FDECEC",
                               color: "#B91C1C",
                               padding: "2px 8px",
                               borderRadius: "20px",
@@ -340,7 +340,7 @@ export default function Operario() {
                       <div
                         style={{
                           fontSize: "13px",
-                          color: "#888",
+                          color: "#4B5160",
                           marginTop: "4px",
                         }}
                       >
@@ -357,14 +357,14 @@ export default function Operario() {
                       >
                         {pr.pct}%
                       </div>
-                      <div style={{ fontSize: "12px", color: "#888" }}>
+                      <div style={{ fontSize: "12px", color: "#4B5160" }}>
                         {pr.listos}/{pr.total} alistadas
                       </div>
                     </div>
                   </div>
                   <div
                     style={{
-                      background: "#F0F0F0",
+                      background: "#F0F1F3",
                       borderRadius: "4px",
                       height: "6px",
                       overflow: "hidden",
@@ -399,7 +399,7 @@ export default function Operario() {
             }}
           >
             <div>
-              <div style={{ fontSize: "13px", color: "#888" }}>
+              <div style={{ fontSize: "13px", color: "#4B5160" }}>
                 Progreso del pedido
               </div>
               <div
@@ -419,7 +419,7 @@ export default function Operario() {
                 width: "60px",
                 height: "60px",
                 borderRadius: "50%",
-                background: "#F0F0F0",
+                background: "#F0F1F3",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -466,7 +466,7 @@ export default function Operario() {
                       ? "rgba(0,255,135,0.35)"
                       : info.cajasListas
                         ? "rgba(0,200,255,0.35)"
-                        : "#E8E8E8",
+                        : "#E2E4E8",
                     background: info.completo
                       ? "rgba(0,255,135,0.04)"
                       : "#FFFFFF",
@@ -494,7 +494,7 @@ export default function Operario() {
                         style={{
                           ...C.mono,
                           fontSize: "12px",
-                          color: "#888",
+                          color: "#4B5160",
                           marginTop: "3px",
                         }}
                       >
@@ -510,7 +510,7 @@ export default function Operario() {
                               display: "flex",
                               justifyContent: "space-between",
                               fontSize: "11px",
-                              color: "#888",
+                              color: "#4B5160",
                               marginBottom: "4px",
                             }}
                           >
@@ -522,7 +522,7 @@ export default function Operario() {
                           </div>
                           <div
                             style={{
-                              background: "#F0F0F0",
+                              background: "#F0F1F3",
                               borderRadius: "4px",
                               height: "5px",
                               overflow: "hidden",
@@ -554,8 +554,8 @@ export default function Operario() {
                         {info.cantSaldos > 0 && (
                           <span
                             style={{
-                              background: "#FEF9C3",
-                              color: "#854D0E",
+                              background: "#FFF4D6",
+                              color: "#8A5A00",
                               padding: "3px 9px",
                               borderRadius: "6px",
                               fontSize: "11px",
@@ -582,8 +582,8 @@ export default function Operario() {
                         {item.motivo_diferencia && (
                           <span
                             style={{
-                              background: "#FEE2E2",
-                              color: "#991B1B",
+                              background: "#FDECEC",
+                              color: "#B91C1C",
                               padding: "3px 9px",
                               borderRadius: "6px",
                               fontSize: "11px",
@@ -633,8 +633,8 @@ export default function Operario() {
                             style={{
                               fontSize: "11px",
                               fontWeight: 600,
-                              color: "#854D0E",
-                              background: "#FEF9C3",
+                              color: "#8A5A00",
+                              background: "#FFF4D6",
                               borderRadius: "8px",
                               padding: "8px 12px",
                             }}
@@ -655,8 +655,8 @@ export default function Operario() {
                               }}
                               style={{
                                 background: "transparent",
-                                color: "#666",
-                                border: "1px solid #E8E8E8",
+                                color: "#4B5160",
+                                border: "1px solid #E2E4E8",
                                 borderRadius: "8px",
                                 padding: "7px 14px",
                                 fontSize: "12px",
@@ -677,7 +677,7 @@ export default function Operario() {
                       style={{
                         marginTop: "12px",
                         paddingTop: "12px",
-                        borderTop: "1px solid #F0F0F0",
+                        borderTop: "1px solid #F0F1F3",
                         display: "flex",
                         flexDirection: "column",
                         gap: "8px",
@@ -686,7 +686,7 @@ export default function Operario() {
                       <label
                         style={{
                           fontSize: "12px",
-                          color: "#666",
+                          color: "#4B5160",
                           fontWeight: 600,
                         }}
                       >
@@ -698,7 +698,7 @@ export default function Operario() {
                         onChange={(e) => setCantidadEdit(e.target.value)}
                         style={{
                           padding: "9px 12px",
-                          border: "1px solid #E8E8E8",
+                          border: "1px solid #E2E4E8",
                           borderRadius: "8px",
                           fontSize: "14px",
                         }}
@@ -708,7 +708,7 @@ export default function Operario() {
                           <label
                             style={{
                               fontSize: "12px",
-                              color: "#666",
+                              color: "#4B5160",
                               fontWeight: 600,
                             }}
                           >
@@ -721,7 +721,7 @@ export default function Operario() {
                             placeholder="Ej: solo se encontraron 8 unidades en la estiba"
                             style={{
                               padding: "9px 12px",
-                              border: "1px solid #E8E8E8",
+                              border: "1px solid #E2E4E8",
                               borderRadius: "8px",
                               fontSize: "13px",
                               resize: "vertical",
@@ -760,8 +760,8 @@ export default function Operario() {
                 disabled={cargando || !todoListo}
                 style={{
                   width: "100%",
-                  background: todoListo ? "#00FF87" : "#E8E8E8",
-                  color: todoListo ? "#0A0A0A" : "#AAA",
+                  background: todoListo ? "#00FF87" : "#E2E4E8",
+                  color: todoListo ? "#0A0A0A" : "#8A909C",
                   border: "none",
                   borderRadius: "10px",
                   padding: "14px",
@@ -778,7 +778,7 @@ export default function Operario() {
               <p
                 style={{
                   fontSize: "11px",
-                  color: "#AAA",
+                  color: "#8A909C",
                   textAlign: "center",
                   marginTop: "8px",
                 }}

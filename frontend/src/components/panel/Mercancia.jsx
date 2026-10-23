@@ -37,6 +37,8 @@ export default function Mercancia({ fijo, onCargado }) {
   const [descargando, setDescargando] = useState(false);
   const params = { ...paramsPeriodo(periodo), ...(bodega && { bodega }), ...(familia && { familia }) };
   const { datos: resp, error } = useDatosPanel("/api/panel/mercancia", params, { activo: !periodo.pendiente });
+  // Foto actual del inventario (no depende del periodo ni de los filtros).
+  const { datos: kpis } = useDatosPanel("/api/reportes/kpis", {});
   const [tipProps, tip] = useTip();
 
   useEffect(() => {
@@ -232,6 +234,60 @@ export default function Mercancia({ fijo, onCargado }) {
         </div>
         <Nota>A: referencias que suman el primer 70 % de las unidades despachadas; B: el siguiente 20 %; C: el resto y las que no tuvieron despacho. Solo informativa: no cambia la clasificación guardada en productos.</Nota>
       </Tarjeta>
+
+      {kpis && (
+        <Tarjeta
+          id="actual"
+          titulo="Estado actual del inventario"
+          subtitulo="Foto de este momento: no depende del periodo ni de los filtros."
+          extra={
+            kpis.quiebres.length > 0 && (
+              <BotonPequeno
+                onClick={() =>
+                  descargarExcel("quiebres_sobrestock.xlsx", [
+                    { nombre: "Quiebres", filas: kpis.quiebres.map((q) => ({ Referencia: q.codigo, Descripción: q.descripcion, Disponible: q.disponible })) },
+                    { nombre: "Sobrestock", filas: (kpis.sobrestock || []).map((s) => ({ Referencia: s.codigo, Descripción: s.descripcion, Disponible: s.disponible })) },
+                  ])
+                }
+              >
+                Descargar
+              </BotonPequeno>
+            )
+          }
+        >
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "12px", marginBottom: "16px" }}>
+            {[
+              [`Quiebres (≤ ${num(kpis.inventario.umbral_bajo)} u.)`, kpis.inventario.quiebres_total, kpis.inventario.quiebres_total > 0 ? COLOR.rojo : COLOR.negro],
+              [`Sobrestock (≥ ${num(kpis.inventario.umbral_alto)} u.)`, kpis.inventario.sobrestock_total, COLOR.negro],
+              ["Ajustes pendientes", kpis.pendientes.ajustes, kpis.pendientes.ajustes > 0 ? COLOR.ambar : COLOR.negro],
+              ["Traslados en tránsito", kpis.pendientes.traslados_en_transito, COLOR.negro],
+              ["Conteos pendientes", kpis.pendientes.conteos, COLOR.negro],
+            ].map(([t, v, c]) => (
+              <div key={t} style={{ background: "#F7F8F9", borderRadius: "10px", padding: "12px" }}>
+                <div style={{ fontSize: "12px", color: COLOR.gris }}>{t}</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: "22px", color: c }}>{num(v)}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: "13px", fontWeight: 600, color: COLOR.gris, marginBottom: "8px" }}>Referencias en quiebre</div>
+          {kpis.quiebres.length === 0 ? (
+            <Nota style={{ margin: 0 }}>Ninguna referencia está bajo el umbral.</Nota>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", columnGap: "24px", rowGap: "8px" }}>
+              {kpis.quiebres.slice(0, fijo ? undefined : 12).map((q) => (
+                <div key={q.producto_id} style={{ display: "grid", gridTemplateColumns: "minmax(70px, 100px) minmax(0, 1fr) 56px", gap: "10px", alignItems: "center", fontSize: "14px" }}>
+                  <span style={{ fontFamily: "'DM Mono', monospace" }}>{q.codigo || "—"}</span>
+                  <span style={{ color: COLOR.gris, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={q.descripcion}>{q.descripcion}</span>
+                  <span style={{ fontFamily: "'DM Mono', monospace", textAlign: "right", color: COLOR.rojo }}>{num(q.disponible)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {!fijo && kpis.quiebres.length > 12 && (
+            <Nota>Se muestran 12 de {num(kpis.inventario.quiebres_total)}; la descarga trae hasta 50.</Nota>
+          )}
+        </Tarjeta>
+      )}
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: "24px", alignItems: "flex-start" }}>
         <Tarjeta

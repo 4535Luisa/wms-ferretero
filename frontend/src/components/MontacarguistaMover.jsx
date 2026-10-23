@@ -190,8 +190,8 @@ export default function MontacarguistaMover() {
             fontSize: "13px",
             fontWeight: 500,
             background:
-              mensaje.tipo === "error" ? "#FEE2E2" : "rgba(0,255,135,0.1)",
-            color: mensaje.tipo === "error" ? "#991B1B" : "#007A40",
+              mensaje.tipo === "error" ? "#FDECEC" : "rgba(0,255,135,0.1)",
+            color: mensaje.tipo === "error" ? "#B91C1C" : "#007A40",
             border: `1px solid ${mensaje.tipo === "error" ? "#FECACA" : "rgba(0,255,135,0.2)"}`,
           }}
         >
@@ -204,7 +204,7 @@ export default function MontacarguistaMover() {
         <div
           style={{
             background: "rgba(0,255,135,0.08)",
-            border: "1.5px solid #00FF87",
+            border: "1px solid #00FF87",
             borderRadius: "12px",
             padding: "1.25rem",
             marginBottom: "1rem",
@@ -212,26 +212,27 @@ export default function MontacarguistaMover() {
         >
           <div
             style={{
-              fontFamily: "Bebas Neue, sans-serif",
-              fontSize: "20px",
+              fontFamily: "Outfit, sans-serif",
+              fontWeight: 700,
+              fontSize: "18px",
               color: "#007A40",
               marginBottom: "8px",
             }}
           >
             Traslado completado
           </div>
-          <div style={{ fontSize: "13px", color: "#374151" }}>
+          <div style={{ fontSize: "13px", color: "#3A3F4B" }}>
             De <strong>{resumen.origen}</strong> →{" "}
             <strong>{resumen.destino}</strong>
           </div>
           {resumen.cajasMovidas !== undefined && (
-            <div style={{ fontSize: "13px", color: "#374151" }}>
+            <div style={{ fontSize: "13px", color: "#3A3F4B" }}>
               {resumen.cajasMovidas} caja(s) movidas
               {resumen.errores > 0 ? ` · ${resumen.errores} con error` : ""}
             </div>
           )}
           {resumen.itemsMovidos !== undefined && (
-            <div style={{ fontSize: "13px", color: "#374151" }}>
+            <div style={{ fontSize: "13px", color: "#3A3F4B" }}>
               {resumen.itemsMovidos} referencias movidas
             </div>
           )}
@@ -257,7 +258,7 @@ export default function MontacarguistaMover() {
       {/* Selección de modo */}
       {!modo && !resumen && (
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          <p style={{ fontSize: "13px", color: "#888" }}>¿Qué quieres mover?</p>
+          <p style={{ fontSize: "13px", color: "#4B5160" }}>¿Qué quieres mover?</p>
           {[
             {
               id: "cajas",
@@ -277,7 +278,7 @@ export default function MontacarguistaMover() {
               onClick={() => setModo(op.id)}
               style={{
                 background: "#FFFFFF",
-                border: "1px solid #E8E8E8",
+                border: "1px solid #E2E4E8",
                 borderRadius: "12px",
                 padding: "1.25rem",
                 cursor: "pointer",
@@ -288,7 +289,7 @@ export default function MontacarguistaMover() {
                   "0 0 0 3px rgba(0,255,135,0.08)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "#E8E8E8";
+                e.currentTarget.style.borderColor = "#E2E4E8";
                 e.currentTarget.style.boxShadow = "none";
               }}
             >
@@ -297,15 +298,16 @@ export default function MontacarguistaMover() {
               </div>
               <div
                 style={{
-                  fontFamily: "Bebas Neue, sans-serif",
-                  fontSize: "18px",
+                  fontFamily: "Outfit, sans-serif",
+                  fontWeight: 700,
+                  fontSize: "16px",
                   color: "#0A0A0A",
                 }}
               >
                 {op.titulo}
               </div>
               <div
-                style={{ fontSize: "13px", color: "#888", marginTop: "4px" }}
+                style={{ fontSize: "13px", color: "#4B5160", marginTop: "4px" }}
               >
                 {op.desc}
               </div>
@@ -321,7 +323,7 @@ export default function MontacarguistaMover() {
             onClick={resetear}
             style={{
               background: "transparent",
-              border: "1.5px solid #E8E8E8",
+              border: "1px solid #E2E4E8",
               borderRadius: "8px",
               padding: "8px 14px",
               fontSize: "13px",
@@ -365,13 +367,13 @@ export default function MontacarguistaMover() {
               <div
                 key={p.id}
                 style={{
-                  background: p.valor ? "rgba(0,255,135,0.1)" : "#F0F0F0",
-                  border: `1px solid ${p.valor ? "rgba(0,255,135,0.3)" : "#E8E8E8"}`,
+                  background: p.valor ? "rgba(0,255,135,0.1)" : "#F0F1F3",
+                  border: `1px solid ${p.valor ? "rgba(0,255,135,0.3)" : "#E2E4E8"}`,
                   borderRadius: "8px",
                   padding: "6px 12px",
                   fontSize: "12px",
                   fontWeight: 600,
-                  color: p.valor ? "#007A40" : "#888",
+                  color: p.valor ? "#007A40" : "#4B5160",
                 }}
               >
                 {p.label}: {p.valor || "—"}
@@ -393,7 +395,7 @@ export default function MontacarguistaMover() {
                 style={{
                   fontSize: "12px",
                   fontWeight: 700,
-                  color: "#888",
+                  color: "#4B5160",
                   textTransform: "uppercase",
                   marginBottom: "8px",
                 }}
@@ -404,7 +406,7 @@ export default function MontacarguistaMover() {
                 <div
                   key={i}
                   style={{
-                    background: "#F8F8F8",
+                    background: "#F7F8F9",
                     borderRadius: "8px",
                     padding: "8px 12px",
                     marginBottom: "6px",
@@ -419,7 +421,7 @@ export default function MontacarguistaMover() {
                   >
                     {caja.codigo_interno}
                   </span>
-                  <span style={{ color: "#888", marginLeft: "8px" }}>
+                  <span style={{ color: "#4B5160", marginLeft: "8px" }}>
                     {caja.descripcion_corta}
                   </span>
                 </div>

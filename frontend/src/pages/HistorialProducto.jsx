@@ -9,9 +9,9 @@ const accionLabel = {
     bg: "rgba(0,255,135,0.1)",
   },
   PICKING: { label: "Picking", color: "#1E40AF", bg: "#DBEAFE" },
-  AJUSTE: { label: "Ajuste", color: "#854D0E", bg: "#FEF9C3" },
+  AJUSTE: { label: "Ajuste", color: "#8A5A00", bg: "#FFF4D6" },
   TRASLADO: { label: "Traslado", color: "#5B21B6", bg: "#EDE9FE" },
-  DESPACHO: { label: "Despacho", color: "#991B1B", bg: "#FEE2E2" },
+  DESPACHO: { label: "Despacho", color: "#B91C1C", bg: "#FDECEC" },
 };
 
 export default function HistorialProducto() {
@@ -52,7 +52,7 @@ export default function HistorialProducto() {
         <div
           style={{
             background: "#FFFFFF",
-            border: "1px solid #E8E8E8",
+            border: "1px solid #E2E4E8",
             borderRadius: "12px",
             padding: "1.5rem",
             marginBottom: "1.25rem",
@@ -64,7 +64,7 @@ export default function HistorialProducto() {
               fontWeight: 600,
               letterSpacing: "0.12em",
               textTransform: "uppercase",
-              color: "#888",
+              color: "#4B5160",
               marginBottom: "8px",
             }}
           >
@@ -108,9 +108,9 @@ export default function HistorialProducto() {
             <p
               style={{
                 fontSize: "13px",
-                color: "#991B1B",
+                color: "#B91C1C",
                 marginTop: "8px",
-                background: "#FEE2E2",
+                background: "#FDECEC",
                 padding: "8px 12px",
                 borderRadius: "6px",
               }}
@@ -126,7 +126,7 @@ export default function HistorialProducto() {
             <div
               style={{
                 background: "#FFFFFF",
-                border: "1px solid #E8E8E8",
+                border: "1px solid #E2E4E8",
                 borderRadius: "12px",
                 padding: "1.25rem",
                 marginBottom: "1rem",
@@ -156,7 +156,7 @@ export default function HistorialProducto() {
                     style={{
                       margin: "4px 0 0",
                       fontSize: "12px",
-                      color: "#888",
+                      color: "#4B5160",
                       fontFamily: "DM Mono, monospace",
                     }}
                   >
@@ -172,7 +172,7 @@ export default function HistorialProducto() {
                   style={{
                     marginTop: "1rem",
                     paddingTop: "1rem",
-                    borderTop: "1px solid #F0F0F0",
+                    borderTop: "1px solid #F0F1F3",
                   }}
                 >
                   <p
@@ -181,7 +181,7 @@ export default function HistorialProducto() {
                       fontWeight: 600,
                       letterSpacing: "0.1em",
                       textTransform: "uppercase",
-                      color: "#888",
+                      color: "#4B5160",
                       marginBottom: "8px",
                     }}
                   >
@@ -194,7 +194,7 @@ export default function HistorialProducto() {
                       <div
                         key={inv.id}
                         style={{
-                          background: "#F8F8F8",
+                          background: "#F7F8F9",
                           borderRadius: "8px",
                           padding: "8px 14px",
                         }}
@@ -212,7 +212,7 @@ export default function HistorialProducto() {
                         <div
                           style={{
                             fontSize: "11px",
-                            color: "#888",
+                            color: "#4B5160",
                             marginTop: "2px",
                           }}
                         >
@@ -230,7 +230,7 @@ export default function HistorialProducto() {
             <div
               style={{
                 background: "#FFFFFF",
-                border: "1px solid #E8E8E8",
+                border: "1px solid #E2E4E8",
                 borderRadius: "12px",
                 padding: "1.25rem",
               }}
@@ -241,7 +241,7 @@ export default function HistorialProducto() {
                   fontWeight: 600,
                   letterSpacing: "0.1em",
                   textTransform: "uppercase",
-                  color: "#888",
+                  color: "#4B5160",
                   marginBottom: "1rem",
                 }}
               >
@@ -252,7 +252,7 @@ export default function HistorialProducto() {
                 <p
                   style={{
                     fontSize: "13px",
-                    color: "#BBB",
+                    color: "#8A909C",
                     textAlign: "center",
                     padding: "2rem 0",
                   }}
@@ -270,14 +270,14 @@ export default function HistorialProducto() {
                   {resultado.movimientos.map((mov) => {
                     const tipo = accionLabel[mov.accion] || {
                       label: mov.accion,
-                      color: "#374151",
-                      bg: "#F3F4F6",
+                      color: "#3A3F4B",
+                      bg: "#EEF0F2",
                     };
                     return (
                       <div
                         key={mov.id}
                         style={{
-                          border: "1px solid #F0F0F0",
+                          border: "1px solid #F0F1F3",
                           borderRadius: "8px",
                           padding: "1rem",
                         }}
@@ -312,12 +312,12 @@ export default function HistorialProducto() {
                               {tipo.label}
                             </span>
                             {mov.valores_despues?.proveedor && (
-                              <span style={{ fontSize: "12px", color: "#555" }}>
+                              <span style={{ fontSize: "12px", color: "#4B5160" }}>
                                 {mov.valores_despues.proveedor}
                               </span>
                             )}
                             {mov.valores_despues?.factura && (
-                              <span style={{ fontSize: "12px", color: "#888" }}>
+                              <span style={{ fontSize: "12px", color: "#4B5160" }}>
                                 Fact: {mov.valores_despues.factura}
                               </span>
                             )}
@@ -325,7 +325,7 @@ export default function HistorialProducto() {
                           <span
                             style={{
                               fontSize: "11px",
-                              color: "#AAA",
+                              color: "#8A909C",
                               fontFamily: "DM Mono, monospace",
                               flexShrink: 0,
                             }}
@@ -350,7 +350,7 @@ export default function HistorialProducto() {
                           {mov.valores_antes?.cantidad_disponible !==
                             undefined && (
                             <div style={{ fontSize: "12px" }}>
-                              <span style={{ color: "#888" }}>Antes: </span>
+                              <span style={{ color: "#4B5160" }}>Antes: </span>
                               <span
                                 style={{
                                   fontFamily: "DM Mono, monospace",
@@ -364,7 +364,7 @@ export default function HistorialProducto() {
                           {mov.valores_despues?.cantidad_disponible !==
                             undefined && (
                             <div style={{ fontSize: "12px" }}>
-                              <span style={{ color: "#888" }}>Después: </span>
+                              <span style={{ color: "#4B5160" }}>Después: </span>
                               <span
                                 style={{
                                   fontFamily: "DM Mono, monospace",
@@ -377,7 +377,7 @@ export default function HistorialProducto() {
                             </div>
                           )}
                           {mov.valores_despues?.recepcion_id && (
-                            <div style={{ fontSize: "12px", color: "#888" }}>
+                            <div style={{ fontSize: "12px", color: "#4B5160" }}>
                               Bodega:{" "}
                               {mov.valores_despues.bodega_id?.slice(0, 8)}...
                             </div>

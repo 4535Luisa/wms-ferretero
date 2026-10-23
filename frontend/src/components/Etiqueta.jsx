@@ -32,7 +32,7 @@ export default function Etiqueta({ producto, cantidad, ubicacion, onCerrar }) {
           .etiqueta { width: 350px; border: 1px solid #000; padding: 10px; }
           .empresa { font-size: 11px; font-weight: bold; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
           .descripcion { font-size: 12px; font-weight: bold; margin-bottom: 2px; line-height: 1.3; }
-          .referencia { font-size: 11px; color: #555; margin-bottom: 8px; font-family: monospace; }
+          .referencia { font-size: 11px; color: #4B5160; margin-bottom: 8px; font-family: monospace; }
           .barcode-wrap { text-align: center; margin: 8px 0; }
           .barcode-wrap svg { width: 100%; }
           .info { display: flex; justify-content: space-between; font-size: 11px; margin-top: 6px; border-top: 1px solid #eee; padding-top: 6px; }
@@ -93,9 +93,9 @@ export default function Etiqueta({ producto, cantidad, ubicacion, onCerrar }) {
         >
           <div
             style={{
-              fontFamily: "Bebas Neue, sans-serif",
-              fontSize: "20px",
-              letterSpacing: "0.04em",
+              fontFamily: "Outfit, sans-serif",
+              fontWeight: 700,
+              fontSize: "18px",
             }}
           >
             Vista previa etiqueta
@@ -107,7 +107,7 @@ export default function Etiqueta({ producto, cantidad, ubicacion, onCerrar }) {
               border: "none",
               fontSize: "22px",
               cursor: "pointer",
-              color: "#888",
+              color: "#4B5160",
               lineHeight: 1,
               padding: "4px",
             }}
@@ -118,7 +118,7 @@ export default function Etiqueta({ producto, cantidad, ubicacion, onCerrar }) {
 
         <div
           style={{
-            border: "1px solid #E8E8E8",
+            border: "1px solid #E2E4E8",
             borderRadius: "8px",
             padding: "12px",
             marginBottom: "1rem",
@@ -130,7 +130,7 @@ export default function Etiqueta({ producto, cantidad, ubicacion, onCerrar }) {
               fontWeight: 700,
               letterSpacing: "0.1em",
               textTransform: "uppercase",
-              color: "#888",
+              color: "#4B5160",
               marginBottom: "4px",
             }}
           >
@@ -149,7 +149,7 @@ export default function Etiqueta({ producto, cantidad, ubicacion, onCerrar }) {
           <div
             style={{
               fontSize: "11px",
-              color: "#888",
+              color: "#4B5160",
               fontFamily: "DM Mono, monospace",
               marginBottom: "10px",
             }}
@@ -165,7 +165,7 @@ export default function Etiqueta({ producto, cantidad, ubicacion, onCerrar }) {
               justifyContent: "space-between",
               fontSize: "11px",
               paddingTop: "8px",
-              borderTop: "1px solid #F0F0F0",
+              borderTop: "1px solid #F0F1F3",
             }}
           >
             <span>
@@ -187,7 +187,7 @@ export default function Etiqueta({ producto, cantidad, ubicacion, onCerrar }) {
               flex: 1,
               background: "transparent",
               color: "#0A0A0A",
-              border: "1.5px solid #E8E8E8",
+              border: "1px solid #E2E4E8",
               borderRadius: "8px",
               padding: "10px",
               fontSize: "14px",

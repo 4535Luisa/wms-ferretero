@@ -5,7 +5,7 @@ import Campana from "./Campana";
 
 const menuPorRol = {
   administrador: [
-    { path: "/admin", label: "Dashboard", icon: "" },
+    { path: "/admin", label: "Inicio", icon: "" },
     { path: "/admin/dashboard", label: "Panel de control", icon: "" },
     { path: "/admin/usuarios", label: "Usuarios", icon: "" },
     { path: "/admin/pedidos", label: "Pedidos", icon: "" },
@@ -25,9 +25,8 @@ const menuPorRol = {
     { path: "/inventario", label: "Inventario", icon: "" },
   ],
   gerente_logistico: [
-    { path: "/gerente", label: "Dashboard", icon: "" },
+    { path: "/gerente", label: "Aprobaciones", icon: "" },
     { path: "/gerente/panel", label: "Panel de control", icon: "" },
-    { path: "/gerente/reportes", label: "Indicadores", icon: "" },
     { path: "/inventario", label: "Inventario", icon: "" },
   ],
   inventarios: [
@@ -71,9 +70,9 @@ export default function Layout({ children, titulo, subtitulo }) {
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap');
-        .wms-layout { min-height:100vh; display:grid; grid-template-columns:220px 1fr; grid-template-rows:64px 1fr; background:#F0F0F0; font-family:'Outfit',sans-serif; }
+        .wms-layout { min-height:100vh; display:grid; grid-template-columns:220px 1fr; grid-template-rows:64px 1fr; background:#F2F3F5; font-family:'Outfit',sans-serif; }
         .wms-sidebar { grid-row:1/3; background:#0A0A0A; display:flex; flex-direction:column; position:relative; overflow:hidden; }
-        .wms-header { background:#FFFFFF; border-bottom:1px solid #E8E8E8; padding:1rem 1.5rem; display:flex; align-items:center; justify-content:space-between; }
+        .wms-header { background:#FFFFFF; border-bottom:1px solid #E2E4E8; padding:1rem 1.5rem; display:flex; align-items:center; justify-content:space-between; }
         .wms-content { padding:1.5rem; overflow-y:auto; }
         .wms-mobile-title { display:none; margin-bottom:1rem; }
         .wms-topbar { display:none; background:#0A0A0A; padding:0 1rem; height:56px; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
@@ -282,7 +281,7 @@ export default function Layout({ children, titulo, subtitulo }) {
               onClick={handleLogout}
               className="wms-sidebar-nav-btn"
               onMouseEnter={(e) => {
-                e.currentTarget.style.color = "#FF4444";
+                e.currentTarget.style.color = "#FF6B6B";
                 e.currentTarget.style.background = "rgba(255,68,68,0.08)";
               }}
               onMouseLeave={(e) => {
@@ -311,7 +310,7 @@ export default function Layout({ children, titulo, subtitulo }) {
               {titulo}
             </h1>
             {subtitulo && (
-              <p style={{ fontSize: "13px", color: "#888", marginTop: "2px" }}>
+              <p style={{ fontSize: "13px", color: "#4B5160", marginTop: "2px" }}>
                 {subtitulo}
               </p>
             )}
@@ -368,7 +367,7 @@ export default function Layout({ children, titulo, subtitulo }) {
               {titulo}
             </h1>
             {subtitulo && (
-              <p style={{ fontSize: "13px", color: "#888", marginTop: "2px" }}>
+              <p style={{ fontSize: "13px", color: "#4B5160", marginTop: "2px" }}>
                 {subtitulo}
               </p>
             )}

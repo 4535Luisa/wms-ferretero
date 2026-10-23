@@ -6,7 +6,7 @@ import api from "../services/api";
 const C = {
   card: {
     background: "#FFFFFF",
-    border: "1px solid #E8E8E8",
+    border: "1px solid #E2E4E8",
     borderRadius: "12px",
     padding: "1.25rem 1.5rem",
   },
@@ -270,7 +270,7 @@ export default function Verificacion() {
           style={{
             background: "transparent",
             color: "#0A0A0A",
-            border: "1.5px solid #E8E8E8",
+            border: "1px solid #E2E4E8",
             borderRadius: "8px",
             padding: "9px 18px",
             fontSize: "14px",
@@ -293,8 +293,8 @@ export default function Verificacion() {
             fontSize: "13px",
             fontWeight: 500,
             background:
-              mensaje.tipo === "error" ? "#FEE2E2" : "rgba(0,255,135,0.1)",
-            color: mensaje.tipo === "error" ? "#991B1B" : "#007A40",
+              mensaje.tipo === "error" ? "#FDECEC" : "rgba(0,255,135,0.1)",
+            color: mensaje.tipo === "error" ? "#B91C1C" : "#007A40",
             border: `1px solid ${mensaje.tipo === "error" ? "#FECACA" : "rgba(0,255,135,0.2)"}`,
           }}
         >
@@ -306,10 +306,10 @@ export default function Verificacion() {
       {vista === "lista" &&
         (pedidos.length === 0 ? (
           <div style={{ ...C.card, padding: "3rem", textAlign: "center" }}>
-            <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
+            <p style={{ fontSize: "15px", fontWeight: 500, color: "#4B5160" }}>
               No hay pedidos por verificar
             </p>
-            <p style={{ fontSize: "13px", color: "#BBB", marginTop: "4px" }}>
+            <p style={{ fontSize: "13px", color: "#8A909C", marginTop: "4px" }}>
               Cuando un operario cierre un pedido aparecera aqui
             </p>
           </div>
@@ -336,7 +336,7 @@ export default function Verificacion() {
                   <div
                     style={{
                       fontSize: "12px",
-                      color: "#888",
+                      color: "#4B5160",
                       marginTop: "4px",
                     }}
                   >
@@ -375,7 +375,7 @@ export default function Verificacion() {
                 style={{
                   padding: "0.875rem 0.5rem",
                   borderBottom:
-                    idx < items.length - 1 ? "1px solid #F5F5F5" : "none",
+                    idx < items.length - 1 ? "1px solid #F7F8F9" : "none",
                   background: info.completo
                     ? "rgba(0,255,135,0.04)"
                     : "#FFFFFF",
@@ -397,7 +397,7 @@ export default function Verificacion() {
                       style={{
                         ...C.mono,
                         fontSize: "11px",
-                        color: "#888",
+                        color: "#4B5160",
                         marginTop: "2px",
                       }}
                     >
@@ -413,7 +413,7 @@ export default function Verificacion() {
                             display: "flex",
                             justifyContent: "space-between",
                             fontSize: "11px",
-                            color: "#888",
+                            color: "#4B5160",
                             marginBottom: "3px",
                           }}
                         >
@@ -423,7 +423,7 @@ export default function Verificacion() {
                           </span>
                           <span
                             style={{
-                              color: info.cajasListas ? "#007A40" : "#888",
+                              color: info.cajasListas ? "#007A40" : "#4B5160",
                             }}
                           >
                             {info.cajasListas
@@ -433,7 +433,7 @@ export default function Verificacion() {
                         </div>
                         <div
                           style={{
-                            background: "#F0F0F0",
+                            background: "#F0F1F3",
                             borderRadius: "4px",
                             height: "5px",
                             overflow: "hidden",
@@ -468,8 +468,8 @@ export default function Verificacion() {
                           style={{
                             background: info.saldoVerificado
                               ? "rgba(0,255,135,0.1)"
-                              : "#FEF9C3",
-                            color: info.saldoVerificado ? "#007A40" : "#854D0E",
+                              : "#FFF4D6",
+                            color: info.saldoVerificado ? "#007A40" : "#8A5A00",
                             padding: "3px 9px",
                             borderRadius: "6px",
                             fontSize: "11px",
@@ -548,10 +548,10 @@ export default function Verificacion() {
                           style={{
                             fontSize: "11px",
                             fontWeight: 600,
-                            color: info.cajasListas ? "#3730A3" : "#854D0E",
+                            color: info.cajasListas ? "#3730A3" : "#8A5A00",
                             background: info.cajasListas
                               ? "#EEF2FF"
-                              : "#FEF9C3",
+                              : "#FFF4D6",
                             borderRadius: "8px",
                             padding: "6px 10px",
                           }}
@@ -568,8 +568,8 @@ export default function Verificacion() {
                               setMotivo("");
                             }}
                             style={{
-                              background: "#FEF9C3",
-                              color: "#854D0E",
+                              background: "#FFF4D6",
+                              color: "#8A5A00",
                               border: "1px solid #FDE68A",
                               borderRadius: "6px",
                               padding: "4px 10px",
@@ -624,7 +624,7 @@ export default function Verificacion() {
                 <p
                   style={{
                     fontSize: "13px",
-                    color: "#888",
+                    color: "#4B5160",
                     margin: "0 0 16px 0",
                   }}
                 >
@@ -635,7 +635,7 @@ export default function Verificacion() {
                   style={{
                     fontSize: "12px",
                     fontWeight: 600,
-                    color: "#666",
+                    color: "#4B5160",
                     display: "block",
                     marginBottom: "4px",
                   }}
@@ -649,7 +649,7 @@ export default function Verificacion() {
                   style={{
                     width: "100%",
                     padding: "10px 12px",
-                    border: "1.5px solid #E8E8E8",
+                    border: "1px solid #E2E4E8",
                     borderRadius: "8px",
                     fontSize: "14px",
                     marginBottom: "16px",
@@ -662,7 +662,7 @@ export default function Verificacion() {
                     style={{
                       flex: 1,
                       padding: "12px",
-                      border: "1.5px solid #E8E8E8",
+                      border: "1px solid #E2E4E8",
                       borderRadius: "8px",
                       background: "transparent",
                       fontSize: "14px",
@@ -729,7 +729,7 @@ export default function Verificacion() {
                 <p
                   style={{
                     fontSize: "13px",
-                    color: "#888",
+                    color: "#4B5160",
                     margin: "0 0 16px 0",
                   }}
                 >
@@ -739,7 +739,7 @@ export default function Verificacion() {
                   style={{
                     fontSize: "12px",
                     fontWeight: 600,
-                    color: "#666",
+                    color: "#4B5160",
                     display: "block",
                     marginBottom: "4px",
                   }}
@@ -753,7 +753,7 @@ export default function Verificacion() {
                   style={{
                     width: "100%",
                     padding: "10px 12px",
-                    border: "1.5px solid #E8E8E8",
+                    border: "1px solid #E2E4E8",
                     borderRadius: "8px",
                     fontSize: "14px",
                     marginBottom: "12px",
@@ -764,7 +764,7 @@ export default function Verificacion() {
                   style={{
                     fontSize: "12px",
                     fontWeight: 600,
-                    color: "#666",
+                    color: "#4B5160",
                     display: "block",
                     marginBottom: "4px",
                   }}
@@ -778,7 +778,7 @@ export default function Verificacion() {
                   style={{
                     width: "100%",
                     padding: "10px 12px",
-                    border: "1.5px solid #E8E8E8",
+                    border: "1px solid #E2E4E8",
                     borderRadius: "8px",
                     fontSize: "14px",
                     marginBottom: "16px",
@@ -791,7 +791,7 @@ export default function Verificacion() {
                     style={{
                       flex: 1,
                       padding: "12px",
-                      border: "1.5px solid #E8E8E8",
+                      border: "1px solid #E2E4E8",
                       borderRadius: "8px",
                       background: "transparent",
                       fontSize: "14px",
@@ -850,8 +850,8 @@ export default function Verificacion() {
                 disabled={cargando}
                 style={{
                   width: "100%",
-                  background: "#FEF9C3",
-                  color: "#854D0E",
+                  background: "#FFF4D6",
+                  color: "#8A5A00",
                   border: "1px solid #FDE68A",
                   borderRadius: "10px",
                   padding: "14px",
@@ -867,8 +867,8 @@ export default function Verificacion() {
               <div
                 style={{
                   width: "100%",
-                  background: "#E8E8E8",
-                  color: "#999",
+                  background: "#E2E4E8",
+                  color: "#8A909C",
                   borderRadius: "10px",
                   padding: "14px",
                   fontSize: "14px",

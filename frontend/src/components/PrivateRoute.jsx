@@ -7,7 +7,6 @@ const rutasPorRol = {
     "/admin/usuarios",
     "/admin/pedidos",
     "/admin/historial",
-    "/admin/reportes",
   ],
   montacarguista: ["/montacarguista", "/montacarguista/estibas"],
   operario: ["/operario"],
@@ -22,7 +21,6 @@ const rutasPorRol = {
     "/gerente",
     "/gerente/inventario",
     "/gerente/ajustes",
-    "/gerente/reportes",
   ],
   inventarios: [
     "/inventarios",

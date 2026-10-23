@@ -105,7 +105,7 @@ export default function Facturacion() {
             style={{
               background: "transparent",
               color: "#0A0A0A",
-              border: "1.5px solid #E8E8E8",
+              border: "1px solid #E2E4E8",
               borderRadius: "8px",
               padding: "9px 18px",
               fontSize: "14px",
@@ -128,8 +128,8 @@ export default function Facturacion() {
             fontSize: "13px",
             fontWeight: 500,
             background:
-              mensaje.tipo === "error" ? "#FEE2E2" : "rgba(0,255,135,0.1)",
-            color: mensaje.tipo === "error" ? "#991B1B" : "#007A40",
+              mensaje.tipo === "error" ? "#FDECEC" : "rgba(0,255,135,0.1)",
+            color: mensaje.tipo === "error" ? "#B91C1C" : "#007A40",
             border: `1px solid ${mensaje.tipo === "error" ? "#FECACA" : "rgba(0,255,135,0.2)"}`,
           }}
         >
@@ -143,7 +143,7 @@ export default function Facturacion() {
             display: "flex",
             gap: "8px",
             marginBottom: "1.25rem",
-            borderBottom: "1px solid #F0F0F0",
+            borderBottom: "1px solid #F0F1F3",
           }}
         >
           {[
@@ -157,7 +157,7 @@ export default function Facturacion() {
                 background: "transparent",
                 border: "none",
                 borderBottom: `2px solid ${tab === t.id ? "#00CC6A" : "transparent"}`,
-                color: tab === t.id ? "#0A0A0A" : "#888",
+                color: tab === t.id ? "#0A0A0A" : "#4B5160",
                 fontSize: "14px",
                 fontWeight: 600,
                 cursor: "pointer",
@@ -177,7 +177,7 @@ export default function Facturacion() {
             <div
               style={{
                 background: "#FFFFFF",
-                border: "1px solid #E8E8E8",
+                border: "1px solid #E2E4E8",
                 borderRadius: "12px",
                 padding: "3rem",
                 textAlign: "center",
@@ -186,10 +186,10 @@ export default function Facturacion() {
               <div style={{ fontSize: "40px", marginBottom: "1rem" }}>
                 Factura
               </div>
-              <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
+              <p style={{ fontSize: "15px", fontWeight: 500, color: "#4B5160" }}>
                 No hay pedidos pendientes de facturar
               </p>
-              <p style={{ fontSize: "13px", color: "#BBB", marginTop: "4px" }}>
+              <p style={{ fontSize: "13px", color: "#8A909C", marginTop: "4px" }}>
                 Cuando el jefe de bodega despache un pedido aparecerá aquí
               </p>
             </div>
@@ -203,7 +203,7 @@ export default function Facturacion() {
                   onClick={() => abrirPedido(pedido.id)}
                   style={{
                     background: "#FFFFFF",
-                    border: "1px solid #E8E8E8",
+                    border: "1px solid #E2E4E8",
                     borderRadius: "12px",
                     padding: "1.25rem 1.5rem",
                     cursor: "pointer",
@@ -218,7 +218,7 @@ export default function Facturacion() {
                       "0 0 0 3px rgba(0,255,135,0.08)";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "#E8E8E8";
+                    e.currentTarget.style.borderColor = "#E2E4E8";
                     e.currentTarget.style.boxShadow = "none";
                   }}
                 >
@@ -256,7 +256,7 @@ export default function Facturacion() {
                     <div
                       style={{
                         fontSize: "12px",
-                        color: "#888",
+                        color: "#4B5160",
                         marginTop: "4px",
                       }}
                     >
@@ -304,7 +304,7 @@ export default function Facturacion() {
             <div
               style={{
                 background: "#FFFFFF",
-                border: "1px solid #E8E8E8",
+                border: "1px solid #E2E4E8",
                 borderRadius: "12px",
                 padding: "3rem",
                 textAlign: "center",
@@ -313,7 +313,7 @@ export default function Facturacion() {
               <div style={{ fontSize: "40px", marginBottom: "1rem" }}>
                 Historial
               </div>
-              <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
+              <p style={{ fontSize: "15px", fontWeight: 500, color: "#4B5160" }}>
                 Aún no hay pedidos facturados
               </p>
             </div>
@@ -327,7 +327,7 @@ export default function Facturacion() {
                   onClick={() => abrirPedido(pedido.id)}
                   style={{
                     background: "#FFFFFF",
-                    border: "1px solid #E8E8E8",
+                    border: "1px solid #E2E4E8",
                     borderRadius: "12px",
                     padding: "1.25rem 1.5rem",
                     cursor: "pointer",
@@ -342,7 +342,7 @@ export default function Facturacion() {
                       "0 0 0 3px rgba(0,255,135,0.08)";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "#E8E8E8";
+                    e.currentTarget.style.borderColor = "#E2E4E8";
                     e.currentTarget.style.boxShadow = "none";
                   }}
                 >
@@ -365,8 +365,8 @@ export default function Facturacion() {
                       </span>
                       <span
                         style={{
-                          background: "#F3F4F6",
-                          color: "#374151",
+                          background: "#EEF0F2",
+                          color: "#3A3F4B",
                           padding: "2px 10px",
                           borderRadius: "20px",
                           fontSize: "10px",
@@ -380,7 +380,7 @@ export default function Facturacion() {
                     <div
                       style={{
                         fontSize: "12px",
-                        color: "#888",
+                        color: "#4B5160",
                         marginTop: "4px",
                       }}
                     >
@@ -400,7 +400,7 @@ export default function Facturacion() {
                   </div>
                   <div style={{ textAlign: "right" }}>
                     {pedido.hora_facturacion && (
-                      <div style={{ fontSize: "12px", color: "#888" }}>
+                      <div style={{ fontSize: "12px", color: "#4B5160" }}>
                         {new Date(pedido.hora_facturacion).toLocaleString(
                           "es-CO",
                           {
@@ -435,7 +435,7 @@ export default function Facturacion() {
           <div
             style={{
               background: "#FFFFFF",
-              border: "1px solid #E8E8E8",
+              border: "1px solid #E2E4E8",
               borderRadius: "12px",
               padding: "1.5rem",
               marginBottom: "1rem",
@@ -445,7 +445,7 @@ export default function Facturacion() {
               style={{
                 marginBottom: "1.25rem",
                 paddingBottom: "1rem",
-                borderBottom: "1px solid #F0F0F0",
+                borderBottom: "1px solid #F0F1F3",
               }}
             >
               <div
@@ -458,7 +458,7 @@ export default function Facturacion() {
                 {pedidoActivo.numero}
               </div>
               <div
-                style={{ fontSize: "13px", color: "#888", marginTop: "4px" }}
+                style={{ fontSize: "13px", color: "#4B5160", marginTop: "4px" }}
               >
                 {pedidoActivo.pedido_items?.length} referencias
               </div>
@@ -475,7 +475,7 @@ export default function Facturacion() {
                     padding: "0.875rem 0",
                     borderBottom:
                       idx < pedidoActivo.pedido_items.length - 1
-                        ? "1px solid #F5F5F5"
+                        ? "1px solid #F7F8F9"
                         : "none",
                     display: "flex",
                     justifyContent: "space-between",
@@ -490,7 +490,7 @@ export default function Facturacion() {
                       style={{
                         margin: "2px 0 0",
                         fontSize: "11px",
-                        color: "#888",
+                        color: "#4B5160",
                         fontFamily: "DM Mono, monospace",
                       }}
                     >
@@ -501,8 +501,8 @@ export default function Facturacion() {
                         style={{
                           margin: "4px 0 0",
                           fontSize: "11px",
-                          color: "#854D0E",
-                          background: "#FEF9C3",
+                          color: "#8A5A00",
+                          background: "#FFF4D6",
                           padding: "3px 8px",
                           borderRadius: "4px",
                           display: "inline-block",
@@ -524,7 +524,7 @@ export default function Facturacion() {
                         fontFamily: "DM Mono, monospace",
                         fontSize: "15px",
                         fontWeight: 700,
-                        color: hayDiferencia ? "#854D0E" : "#0A0A0A",
+                        color: hayDiferencia ? "#8A5A00" : "#0A0A0A",
                       }}
                     >
                       {cantidadFinal}
@@ -532,7 +532,7 @@ export default function Facturacion() {
                         <span
                           style={{
                             fontSize: "11px",
-                            color: "#888",
+                            color: "#4B5160",
                             fontWeight: 400,
                             marginLeft: "4px",
                           }}
@@ -541,7 +541,7 @@ export default function Facturacion() {
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize: "11px", color: "#888" }}>
+                    <div style={{ fontSize: "11px", color: "#4B5160" }}>
                       unidades
                     </div>
                   </div>
@@ -558,7 +558,7 @@ export default function Facturacion() {
             <div
               style={{
                 background: "#FFFFFF",
-                border: "1px solid #E8E8E8",
+                border: "1px solid #E2E4E8",
                 borderRadius: "12px",
                 padding: "1.25rem 1.5rem",
                 marginBottom: "1rem",
@@ -570,7 +570,7 @@ export default function Facturacion() {
                   fontWeight: 700,
                   textTransform: "uppercase",
                   letterSpacing: "0.06em",
-                  color: "#666",
+                  color: "#4B5160",
                   margin: "0 0 12px 0",
                 }}
               >
@@ -598,7 +598,7 @@ export default function Facturacion() {
                   .filter(([, v]) => v != null && v !== "")
                   .map(([k, v]) => (
                     <div key={k}>
-                      <div style={{ color: "#888", fontSize: "11px" }}>{k}</div>
+                      <div style={{ color: "#4B5160", fontSize: "11px" }}>{k}</div>
                       <div style={{ fontWeight: 600, color: "#0A0A0A" }}>
                         {v}
                       </div>
@@ -611,8 +611,8 @@ export default function Facturacion() {
                     marginTop: "10px",
                     fontSize: "11px",
                     fontWeight: 700,
-                    color: "#854D0E",
-                    background: "#FEF9C3",
+                    color: "#8A5A00",
+                    background: "#FFF4D6",
                     borderRadius: "6px",
                     padding: "4px 10px",
                     display: "inline-block",
@@ -650,7 +650,7 @@ export default function Facturacion() {
                 <p
                   style={{
                     fontSize: "12px",
-                    color: "#888",
+                    color: "#4B5160",
                     margin: "4px 0 0",
                   }}
                 >
@@ -665,7 +665,7 @@ export default function Facturacion() {
                   style={{
                     fontSize: "12px",
                     fontWeight: 600,
-                    color: "#374151",
+                    color: "#3A3F4B",
                     display: "block",
                     marginBottom: "6px",
                   }}
@@ -679,14 +679,14 @@ export default function Facturacion() {
                   style={{
                     width: "100%",
                     padding: "10px 12px",
-                    border: "1.5px solid #E8E8E8",
+                    border: "1px solid #E2E4E8",
                     borderRadius: "8px",
                     fontSize: "14px",
                     fontFamily: "DM Mono, monospace",
                     boxSizing: "border-box",
                   }}
                   onFocus={(e) => (e.target.style.borderColor = "#0A0A0A")}
-                  onBlur={(e) => (e.target.style.borderColor = "#E8E8E8")}
+                  onBlur={(e) => (e.target.style.borderColor = "#E2E4E8")}
                 />
               </div>
               <button
@@ -713,7 +713,7 @@ export default function Facturacion() {
               <p
                 style={{
                   fontSize: "11px",
-                  color: "#AAA",
+                  color: "#8A909C",
                   textAlign: "center",
                   marginTop: "8px",
                 }}

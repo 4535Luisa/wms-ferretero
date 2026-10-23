@@ -135,9 +135,9 @@ export default function GestionProductos() {
 
   const clsAbc = (abc) => {
     const m = {
-      A: { bg: "#FEE2E2", fg: "#991B1B" },
-      B: { bg: "#FEF9C3", fg: "#854D0E" },
-      C: { bg: "#F0F0F0", fg: "#374151" },
+      A: { bg: "#FDECEC", fg: "#B91C1C" },
+      B: { bg: "#FFF4D6", fg: "#8A5A00" },
+      C: { bg: "#F0F1F3", fg: "#3A3F4B" },
     };
     const c = m[abc] || m.C;
     return (
@@ -159,7 +159,7 @@ export default function GestionProductos() {
   const inputStyle = {
     width: "100%",
     padding: "10px 12px",
-    border: "1.5px solid #E8E8E8",
+    border: "1px solid #E2E4E8",
     borderRadius: "8px",
     fontSize: "14px",
     boxSizing: "border-box",
@@ -180,7 +180,7 @@ export default function GestionProductos() {
           onClick={() => setModo("lista")}
           style={{
             background: "transparent",
-            border: "1.5px solid #E8E8E8",
+            border: "1px solid #E2E4E8",
             borderRadius: "8px",
             padding: "9px 18px",
             fontSize: "13px",
@@ -202,8 +202,8 @@ export default function GestionProductos() {
             fontSize: "13px",
             fontWeight: 500,
             background:
-              mensaje.tipo === "error" ? "#FEE2E2" : "rgba(0,200,100,0.08)",
-            color: mensaje.tipo === "error" ? "#991B1B" : "#007A40",
+              mensaje.tipo === "error" ? "#FDECEC" : "rgba(0,200,100,0.08)",
+            color: mensaje.tipo === "error" ? "#B91C1C" : "#007A40",
             border: `1px solid ${mensaje.tipo === "error" ? "#FECACA" : "rgba(0,200,100,0.2)"}`,
           }}
         >
@@ -242,7 +242,7 @@ export default function GestionProductos() {
             <div
               style={{
                 background: "#FFFFFF",
-                border: "1px solid #E8E8E8",
+                border: "1px solid #E2E4E8",
                 borderRadius: "12px",
                 padding: "1.5rem",
                 marginBottom: "1rem",
@@ -269,7 +269,7 @@ export default function GestionProductos() {
                     style={{
                       fontSize: "12px",
                       fontWeight: 600,
-                      color: "#666",
+                      color: "#4B5160",
                       display: "block",
                       marginBottom: "4px",
                     }}
@@ -293,7 +293,7 @@ export default function GestionProductos() {
                     style={{
                       fontSize: "12px",
                       fontWeight: 600,
-                      color: "#666",
+                      color: "#4B5160",
                       display: "block",
                       marginBottom: "4px",
                     }}
@@ -317,7 +317,7 @@ export default function GestionProductos() {
                     style={{
                       fontSize: "12px",
                       fontWeight: 600,
-                      color: "#666",
+                      color: "#4B5160",
                       display: "block",
                       marginBottom: "4px",
                     }}
@@ -364,7 +364,7 @@ export default function GestionProductos() {
                 onClick={() => abrirProducto(p)}
                 style={{
                   background: "#FFFFFF",
-                  border: "1px solid #E8E8E8",
+                  border: "1px solid #E2E4E8",
                   borderRadius: "10px",
                   padding: "10px 14px",
                   cursor: "pointer",
@@ -377,7 +377,7 @@ export default function GestionProductos() {
                   (e.currentTarget.style.borderColor = "#0A0A0A")
                 }
                 onMouseLeave={(e) =>
-                  (e.currentTarget.style.borderColor = "#E8E8E8")
+                  (e.currentTarget.style.borderColor = "#E2E4E8")
                 }
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -402,8 +402,8 @@ export default function GestionProductos() {
                     {p.sin_codigo_barras && (
                       <span
                         style={{
-                          background: "#FEE2E2",
-                          color: "#991B1B",
+                          background: "#FDECEC",
+                          color: "#B91C1C",
                           padding: "2px 8px",
                           borderRadius: "20px",
                           fontSize: "10px",
@@ -431,7 +431,7 @@ export default function GestionProductos() {
                   <div
                     style={{
                       fontSize: "13px",
-                      color: "#374151",
+                      color: "#3A3F4B",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
@@ -442,7 +442,7 @@ export default function GestionProductos() {
                   <div
                     style={{
                       fontSize: "11px",
-                      color: "#888",
+                      color: "#4B5160",
                       marginTop: "2px",
                       fontFamily: "DM Mono, monospace",
                     }}
@@ -451,12 +451,12 @@ export default function GestionProductos() {
                     {p.ean14 ? `· EAN14: ${p.ean14}` : ""}
                   </div>
                 </div>
-                <span style={{ color: "#CCC", fontSize: "18px" }}>›</span>
+                <span style={{ color: "#C9CDD4", fontSize: "18px" }}>›</span>
               </div>
             ))}
             {filtrado.length > 100 && (
               <p
-                style={{ textAlign: "center", color: "#888", fontSize: "13px" }}
+                style={{ textAlign: "center", color: "#4B5160", fontSize: "13px" }}
               >
                 Mostrando 100 de {filtrado.length} — use el filtro para buscar
               </p>
@@ -470,7 +470,7 @@ export default function GestionProductos() {
           <div
             style={{
               background: "#FFFFFF",
-              border: "1px solid #E8E8E8",
+              border: "1px solid #E2E4E8",
               borderRadius: "12px",
               padding: "1.5rem",
               marginBottom: "1rem",
@@ -506,7 +506,7 @@ export default function GestionProductos() {
             >
               {seleccionado.descripcion_corta}
             </div>
-            <div style={{ fontSize: "13px", color: "#888" }}>
+            <div style={{ fontSize: "13px", color: "#4B5160" }}>
               Unidad de empaque: {seleccionado.unidad_empaque || "—"} unidades
               por caja
             </div>
@@ -515,7 +515,7 @@ export default function GestionProductos() {
           <div
             style={{
               background: "#FFFFFF",
-              border: "1px solid #E8E8E8",
+              border: "1px solid #E2E4E8",
               borderRadius: "12px",
               padding: "1.5rem",
             }}
@@ -552,7 +552,7 @@ export default function GestionProductos() {
                 }
                 style={{ width: "18px", height: "18px" }}
               />
-              <span style={{ fontSize: "14px", color: "#374151" }}>
+              <span style={{ fontSize: "14px", color: "#3A3F4B" }}>
                 No aplica — se baja manual
               </span>
             </label>
@@ -563,7 +563,7 @@ export default function GestionProductos() {
                   style={{
                     fontSize: "12px",
                     fontWeight: 600,
-                    color: "#666",
+                    color: "#4B5160",
                     display: "block",
                     marginBottom: "6px",
                   }}
@@ -631,12 +631,12 @@ export default function GestionProductos() {
                 {editando.ean14.length > 0 && editando.ean14.length !== 14 && (
                   <div
                     style={{
-                      background: "#FEE2E2",
+                      background: "#FDECEC",
                       border: "1px solid #FECACA",
                       borderRadius: "8px",
                       padding: "10px 14px",
                       fontSize: "13px",
-                      color: "#991B1B",
+                      color: "#B91C1C",
                     }}
                   >
                     El EAN14 debe tener 14 digitos — actualmente tiene{" "}

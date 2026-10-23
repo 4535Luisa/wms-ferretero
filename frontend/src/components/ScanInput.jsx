@@ -101,7 +101,7 @@ export default function ScanInput({
   });
 
   const borderColor =
-    flash === "ok" ? "#00FF87" : flash === "error" ? "#FF4444" : "#E8E8E8";
+    flash === "ok" ? "#00FF87" : flash === "error" ? "#B91C1C" : "#E2E4E8";
 
   const bgColor =
     flash === "ok"
@@ -115,7 +115,7 @@ export default function ScanInput({
       ref={inputRef}
       style={{
         background: bgColor,
-        border: `1.5px solid ${borderColor}`,
+        border: `1px solid ${borderColor}`,
         borderRadius: "12px",
         padding: "1.25rem 1.5rem",
         marginBottom: "1rem",
@@ -137,7 +137,7 @@ export default function ScanInput({
             fontWeight: 600,
             letterSpacing: "0.12em",
             textTransform: "uppercase",
-            color: "#888",
+            color: "#4B5160",
             margin: 0,
           }}
         >
@@ -151,7 +151,7 @@ export default function ScanInput({
               flexShrink: 0,
               background: camara ? "#0A0A0A" : "transparent",
               color: camara ? "#00FF87" : "#0A0A0A",
-              border: "1.5px solid #E8E8E8",
+              border: "1px solid #E2E4E8",
               borderRadius: "8px",
               padding: "7px 12px",
               fontSize: "12px",
@@ -199,7 +199,7 @@ export default function ScanInput({
           autoFocus={autoFocus}
         />
       )}
-      <p style={{ fontSize: "12px", color: "#BBB", marginTop: "8px" }}>
+      <p style={{ fontSize: "12px", color: "#8A909C", marginTop: "8px" }}>
         {hint}
       </p>
     </div>

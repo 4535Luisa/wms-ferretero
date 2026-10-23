@@ -19,7 +19,6 @@ import Inventarios from "./pages/Inventarios";
 import Facturacion from "./pages/Facturacion";
 import InventarioGeneral from "./pages/InventarioGeneral";
 import GestionProductos from "./pages/GestionProductos";
-import Reportes from "./pages/Reportes";
 
 const ADMIN = ["administrador"];
 
@@ -103,14 +102,8 @@ createRoot(document.getElementById("root")).render(
               </PrivateRoute>
             }
           />
-          <Route
-            path="/admin/reportes"
-            element={
-              <PrivateRoute roles={["administrador", "gerente_logistico"]}>
-                <Reportes />
-              </PrivateRoute>
-            }
-          />
+          {/* Reportes se reemplazó por el panel de control. */}
+          <Route path="/admin/reportes" element={<Navigate to="/admin/dashboard" replace />} />
 
           {/* Montacarguista */}
           <Route
@@ -183,14 +176,7 @@ createRoot(document.getElementById("root")).render(
               </PrivateRoute>
             }
           />
-          <Route
-            path="/gerente/reportes"
-            element={
-              <PrivateRoute roles={["gerente_logistico"]}>
-                <Gerente />
-              </PrivateRoute>
-            }
-          />
+          <Route path="/gerente/reportes" element={<Navigate to="/gerente/panel" replace />} />
 
           {/* Inventarios */}
           <Route

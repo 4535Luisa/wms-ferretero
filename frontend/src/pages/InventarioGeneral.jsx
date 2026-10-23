@@ -139,13 +139,13 @@ export default function InventarioGeneral() {
               flex: 1,
               minWidth: "160px",
               padding: "9px 12px",
-              border: "1.5px solid #E8E8E8",
+              border: "1px solid #E2E4E8",
               borderRadius: "8px",
               fontSize: "13px",
               outline: "none",
             }}
             onFocus={(e) => (e.target.style.borderColor = "#00FF87")}
-            onBlur={(e) => (e.target.style.borderColor = "#E8E8E8")}
+            onBlur={(e) => (e.target.style.borderColor = "#E2E4E8")}
           />
         ))}
         <button
@@ -154,12 +154,12 @@ export default function InventarioGeneral() {
           }
           style={{
             padding: "9px 16px",
-            border: "1.5px solid #E8E8E8",
+            border: "1px solid #E2E4E8",
             borderRadius: "8px",
             background: "transparent",
             fontSize: "13px",
             cursor: "pointer",
-            color: "#888",
+            color: "#4B5160",
           }}
         >
           Limpiar
@@ -184,7 +184,7 @@ export default function InventarioGeneral() {
       <p
         style={{
           fontSize: "12px",
-          color: "#AAA",
+          color: "#8A909C",
           marginBottom: "10px",
           fontStyle: "italic",
         }}
@@ -224,7 +224,7 @@ export default function InventarioGeneral() {
             key={label}
             style={{
               background: "#FFFFFF",
-              border: "1px solid #E8E8E8",
+              border: "1px solid #E2E4E8",
               borderRadius: "10px",
               padding: "10px 16px",
               flex: 1,
@@ -232,7 +232,7 @@ export default function InventarioGeneral() {
             }}
           >
             <div
-              style={{ fontSize: "11px", color: "#888", marginBottom: "2px" }}
+              style={{ fontSize: "11px", color: "#4B5160", marginBottom: "2px" }}
             >
               {label}
             </div>
@@ -258,18 +258,18 @@ export default function InventarioGeneral() {
             flex: 1,
             overflowX: "auto",
             borderRadius: "12px",
-            border: "1px solid #E8E8E8",
+            border: "1px solid #E2E4E8",
           }}
         >
           {cargando ? (
             <div
-              style={{ textAlign: "center", padding: "3rem", color: "#888" }}
+              style={{ textAlign: "center", padding: "3rem", color: "#4B5160" }}
             >
               Cargando inventario...
             </div>
           ) : filtrado.length === 0 ? (
             <div
-              style={{ textAlign: "center", padding: "3rem", color: "#888" }}
+              style={{ textAlign: "center", padding: "3rem", color: "#4B5160" }}
             >
               Sin resultados
             </div>
@@ -326,7 +326,7 @@ export default function InventarioGeneral() {
                         background: seleccionado
                           ? "rgba(0,255,135,0.08)"
                           : i % 2 === 0
-                            ? "#F8F8F8"
+                            ? "#F7F8F9"
                             : "#FFFFFF",
                         cursor: "context-menu",
                       }}
@@ -338,7 +338,7 @@ export default function InventarioGeneral() {
                       onMouseLeave={(e) => {
                         if (!seleccionado)
                           e.currentTarget.style.background =
-                            i % 2 === 0 ? "#F8F8F8" : "#FFFFFF";
+                            i % 2 === 0 ? "#F7F8F9" : "#FFFFFF";
                       }}
                     >
                       <td
@@ -355,7 +355,7 @@ export default function InventarioGeneral() {
                       <td
                         style={{
                           padding: "10px 14px",
-                          color: "#374151",
+                          color: "#3A3F4B",
                           maxWidth: "220px",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
@@ -384,7 +384,7 @@ export default function InventarioGeneral() {
                       <td
                         style={{
                           padding: "10px 14px",
-                          color: "#888",
+                          color: "#4B5160",
                           fontFamily: "DM Mono, monospace",
                           fontSize: "12px",
                         }}
@@ -409,7 +409,7 @@ export default function InventarioGeneral() {
                           fontFamily: "DM Mono, monospace",
                           fontWeight: 700,
                           color:
-                            row.cantidad_comprometida > 0 ? "#993C1D" : "#888",
+                            row.cantidad_comprometida > 0 ? "#993C1D" : "#4B5160",
                         }}
                       >
                         {(row.cantidad_comprometida || 0).toLocaleString(
@@ -422,7 +422,7 @@ export default function InventarioGeneral() {
                           textAlign: "right",
                           fontFamily: "DM Mono, monospace",
                           fontWeight: 700,
-                          color: real < 0 ? "#991B1B" : "#1E40AF",
+                          color: real < 0 ? "#B91C1C" : "#1E40AF",
                         }}
                       >
                         {real.toLocaleString("es-CO")}
@@ -443,7 +443,7 @@ export default function InventarioGeneral() {
               width: "340px",
               flexShrink: 0,
               background: "#FFFFFF",
-              border: "1.5px solid #E8E8E8",
+              border: "1px solid #E2E4E8",
               borderRadius: "12px",
               overflow: "hidden",
               boxShadow: "0 4px 24px rgba(0,0,0,0.10)",
@@ -502,7 +502,7 @@ export default function InventarioGeneral() {
             {/* Resumen totales del producto */}
             {!cargandoPanel && panelData && (
               <div
-                style={{ display: "flex", borderBottom: "1px solid #F0F0F0" }}
+                style={{ display: "flex", borderBottom: "1px solid #F0F1F3" }}
               >
                 {[
                   {
@@ -527,10 +527,10 @@ export default function InventarioGeneral() {
                       flex: 1,
                       padding: "10px 12px",
                       textAlign: "center",
-                      borderRight: "1px solid #F0F0F0",
+                      borderRight: "1px solid #F0F1F3",
                     }}
                   >
-                    <div style={{ fontSize: "10px", color: "#888" }}>
+                    <div style={{ fontSize: "10px", color: "#4B5160" }}>
                       {label}
                     </div>
                     <div
@@ -549,7 +549,7 @@ export default function InventarioGeneral() {
             )}
 
             {/* Tabs del panel */}
-            <div style={{ display: "flex", borderBottom: "1px solid #F0F0F0" }}>
+            <div style={{ display: "flex", borderBottom: "1px solid #F0F1F3" }}>
               {[
                 ["ubicaciones", " Ubicaciones"],
                 ["pedidos", " Comprometido"],
@@ -565,7 +565,7 @@ export default function InventarioGeneral() {
                     background: "transparent",
                     fontSize: "11px",
                     fontWeight: pestanaPanel === tab ? 700 : 400,
-                    color: pestanaPanel === tab ? "#0A0A0A" : "#888",
+                    color: pestanaPanel === tab ? "#0A0A0A" : "#4B5160",
                     cursor: "pointer",
                     borderBottom:
                       pestanaPanel === tab
@@ -585,7 +585,7 @@ export default function InventarioGeneral() {
                   style={{
                     padding: "2rem",
                     textAlign: "center",
-                    color: "#888",
+                    color: "#4B5160",
                     fontSize: "13px",
                   }}
                 >
@@ -598,7 +598,7 @@ export default function InventarioGeneral() {
                     style={{
                       padding: "2rem",
                       textAlign: "center",
-                      color: "#888",
+                      color: "#4B5160",
                       fontSize: "13px",
                     }}
                   >
@@ -610,7 +610,7 @@ export default function InventarioGeneral() {
                       key={i}
                       style={{
                         padding: "12px 16px",
-                        borderBottom: "1px solid #F8F8F8",
+                        borderBottom: "1px solid #F7F8F9",
                         display: "flex",
                         justifyContent: "space-between",
                         alignItems: "center",
@@ -630,7 +630,7 @@ export default function InventarioGeneral() {
                         <div
                           style={{
                             fontSize: "11px",
-                            color: "#888",
+                            color: "#4B5160",
                             marginTop: "2px",
                           }}
                         >
@@ -670,7 +670,7 @@ export default function InventarioGeneral() {
                       style={{
                         textAlign: "center",
                         padding: "2rem",
-                        color: "#888",
+                        color: "#4B5160",
                         fontSize: "13px",
                       }}
                     >
@@ -684,7 +684,7 @@ export default function InventarioGeneral() {
                           key={i}
                           style={{
                             padding: "10px 0",
-                            borderBottom: "1px solid #F8F8F8",
+                            borderBottom: "1px solid #F7F8F9",
                           }}
                         >
                           <div
@@ -717,7 +717,7 @@ export default function InventarioGeneral() {
                   style={{
                     padding: "2rem",
                     textAlign: "center",
-                    color: "#888",
+                    color: "#4B5160",
                     fontSize: "13px",
                   }}
                 >
@@ -735,7 +735,7 @@ export default function InventarioGeneral() {
                       key={m.id || i}
                       style={{
                         padding: "10px 16px",
-                        borderBottom: "1px solid #F0F0F0",
+                        borderBottom: "1px solid #F0F1F3",
                         display: "flex",
                         gap: "10px",
                         alignItems: "flex-start",
@@ -749,7 +749,7 @@ export default function InventarioGeneral() {
                           flexShrink: 0,
                           background:
                             diff === null
-                              ? "#F0F0F0"
+                              ? "#F0F1F3"
                               : diff >= 0
                                 ? "rgba(0,255,135,0.1)"
                                 : "rgba(153,60,29,0.1)",
@@ -795,7 +795,7 @@ export default function InventarioGeneral() {
                         <div
                           style={{
                             fontSize: "11px",
-                            color: "#888",
+                            color: "#4B5160",
                             marginTop: "2px",
                           }}
                         >

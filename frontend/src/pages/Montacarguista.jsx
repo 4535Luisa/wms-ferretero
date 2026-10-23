@@ -347,7 +347,7 @@ export default function Montacarguista() {
       style={{
         background: opts.bg || "transparent",
         color: opts.color || "#0A0A0A",
-        border: opts.border || "1.5px solid #E8E8E8",
+        border: opts.border || "1px solid #E2E4E8",
         borderRadius: "8px",
         padding: "9px 16px",
         fontSize: "13px",
@@ -380,7 +380,7 @@ export default function Montacarguista() {
             display: "flex",
             gap: "4px",
             marginBottom: "1.25rem",
-            background: "#F0F0F0",
+            background: "#F0F1F3",
             padding: "4px",
             borderRadius: "10px",
             width: "fit-content",
@@ -435,8 +435,8 @@ export default function Montacarguista() {
             fontSize: "13px",
             fontWeight: 500,
             background:
-              mensaje.tipo === "error" ? "#FEE2E2" : "rgba(0,255,135,0.1)",
-            color: mensaje.tipo === "error" ? "#991B1B" : "#007A40",
+              mensaje.tipo === "error" ? "#FDECEC" : "rgba(0,255,135,0.1)",
+            color: mensaje.tipo === "error" ? "#B91C1C" : "#007A40",
             border: `1px solid ${mensaje.tipo === "error" ? "#FECACA" : "rgba(0,255,135,0.2)"}`,
           }}
         >
@@ -451,14 +451,14 @@ export default function Montacarguista() {
             <div
               style={{
                 background: "#FFFFFF",
-                border: "1px solid #E8E8E8",
+                border: "1px solid #E2E4E8",
                 borderRadius: "12px",
                 padding: "3rem",
                 textAlign: "center",
               }}
             >
               <div style={{ fontSize: "48px", marginBottom: "1rem" }}></div>
-              <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
+              <p style={{ fontSize: "15px", fontWeight: 500, color: "#4B5160" }}>
                 No tienes listas asignadas
               </p>
             </div>
@@ -483,7 +483,7 @@ export default function Montacarguista() {
                     }}
                     style={{
                       background: "#FFFFFF",
-                      border: "1px solid #E8E8E8",
+                      border: "1px solid #E2E4E8",
                       borderRadius: "12px",
                       padding: "1.5rem",
                       cursor: "pointer",
@@ -494,7 +494,7 @@ export default function Montacarguista() {
                         "0 0 0 3px rgba(0,255,135,0.08)";
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = "#E8E8E8";
+                      e.currentTarget.style.borderColor = "#E2E4E8";
                       e.currentTarget.style.boxShadow = "none";
                     }}
                   >
@@ -509,9 +509,9 @@ export default function Montacarguista() {
                       <div>
                         <div
                           style={{
-                            fontFamily: "Bebas Neue, sans-serif",
-                            fontSize: "22px",
-                            letterSpacing: "0.04em",
+                            fontFamily: "Outfit, sans-serif",
+                            fontWeight: 700,
+                            fontSize: "18px",
                             color: "#0A0A0A",
                           }}
                         >
@@ -520,7 +520,7 @@ export default function Montacarguista() {
                         <div
                           style={{
                             fontSize: "13px",
-                            color: "#888",
+                            color: "#4B5160",
                             marginTop: "4px",
                           }}
                         >
@@ -542,14 +542,14 @@ export default function Montacarguista() {
                         >
                           {pct}%
                         </div>
-                        <div style={{ fontSize: "12px", color: "#888" }}>
+                        <div style={{ fontSize: "12px", color: "#4B5160" }}>
                           {bajadas}/{total} bajadas
                         </div>
                       </div>
                     </div>
                     <div
                       style={{
-                        background: "#F0F0F0",
+                        background: "#F0F1F3",
                         borderRadius: "4px",
                         height: "6px",
                         overflow: "hidden",
@@ -598,7 +598,7 @@ export default function Montacarguista() {
             <div
               style={{
                 background: "#FFFFFF",
-                border: "1px solid #E8E8E8",
+                border: "1px solid #E2E4E8",
                 borderRadius: "12px",
                 padding: "1.25rem",
                 marginBottom: "1rem",
@@ -613,13 +613,13 @@ export default function Montacarguista() {
                 placeholder="Nombre o número de la estiba"
                 style={{
                   padding: "10px 12px",
-                  border: "1.5px solid #E8E8E8",
+                  border: "1px solid #E2E4E8",
                   borderRadius: "8px",
                   fontSize: "14px",
                 }}
               />
               <label
-                style={{ fontSize: "12px", color: "#666", fontWeight: 600 }}
+                style={{ fontSize: "12px", color: "#4B5160", fontWeight: 600 }}
               >
                 Foto de la estiba (obligatoria)
               </label>
@@ -639,7 +639,7 @@ export default function Montacarguista() {
                     height: "120px",
                     objectFit: "cover",
                     borderRadius: "8px",
-                    border: "1px solid #E8E8E8",
+                    border: "1px solid #E2E4E8",
                   }}
                 />
               )}
@@ -667,14 +667,14 @@ export default function Montacarguista() {
             <div
               style={{
                 background: "#FFFFFF",
-                border: "1px solid #E8E8E8",
+                border: "1px solid #E2E4E8",
                 borderRadius: "12px",
                 padding: "3rem",
                 textAlign: "center",
               }}
             >
               <div style={{ fontSize: "48px", marginBottom: "1rem" }}></div>
-              <p style={{ fontSize: "15px", fontWeight: 500, color: "#888" }}>
+              <p style={{ fontSize: "15px", fontWeight: 500, color: "#4B5160" }}>
                 No tienes estibas activas
               </p>
             </div>
@@ -690,8 +690,8 @@ export default function Montacarguista() {
                     background: "#FFFFFF",
                     border:
                       estibaActiva === e.id
-                        ? "1.5px solid #00FF87"
-                        : "1px solid #E8E8E8",
+                        ? "1px solid #00FF87"
+                        : "1px solid #E2E4E8",
                     borderRadius: "12px",
                     padding: "1.25rem",
                     cursor: "pointer",
@@ -734,7 +734,7 @@ export default function Montacarguista() {
                       <div
                         style={{
                           fontSize: "12px",
-                          color: "#888",
+                          color: "#4B5160",
                           marginTop: "4px",
                         }}
                       >
@@ -777,7 +777,7 @@ export default function Montacarguista() {
           <div
             style={{
               background: "#FFFFFF",
-              border: "1px solid #E8E8E8",
+              border: "1px solid #E2E4E8",
               borderRadius: "12px",
               padding: "1rem 1.25rem",
               marginBottom: "1rem",
@@ -787,7 +787,7 @@ export default function Montacarguista() {
             }}
           >
             <div>
-              <div style={{ fontSize: "13px", color: "#888" }}>
+              <div style={{ fontSize: "13px", color: "#4B5160" }}>
                 Progreso del barrido
               </div>
               <div
@@ -812,7 +812,7 @@ export default function Montacarguista() {
                 width: "60px",
                 height: "60px",
                 borderRadius: "50%",
-                background: "#F0F0F0",
+                background: "#F0F1F3",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -842,7 +842,7 @@ export default function Montacarguista() {
             <div
               style={{
                 background: "rgba(0,255,135,0.08)",
-                border: "1.5px solid #00FF87",
+                border: "1px solid #00FF87",
                 borderRadius: "12px",
                 padding: "10px 16px",
                 marginBottom: "1rem",
@@ -878,12 +878,12 @@ export default function Montacarguista() {
                 onClick={() => setUbicacionActiva(null)}
                 style={{
                   background: "transparent",
-                  border: "1px solid #E8E8E8",
+                  border: "1px solid #E2E4E8",
                   borderRadius: "8px",
                   padding: "6px 12px",
                   fontSize: "12px",
                   cursor: "pointer",
-                  color: "#666",
+                  color: "#4B5160",
                 }}
               >
                 Cambiar ubicación
@@ -895,7 +895,7 @@ export default function Montacarguista() {
           <div
             style={{
               background: "#FFFFFF",
-              border: "1px solid #E8E8E8",
+              border: "1px solid #E2E4E8",
               borderRadius: "12px",
               padding: "1rem 1.25rem",
               marginBottom: "1rem",
@@ -919,7 +919,7 @@ export default function Montacarguista() {
                 onChange={(e) => setEstibaActiva(e.target.value)}
                 style={{
                   padding: "8px 12px",
-                  border: "1px solid #E8E8E8",
+                  border: "1px solid #E2E4E8",
                   borderRadius: "8px",
                   fontSize: "13px",
                   flex: 1,
@@ -937,7 +937,7 @@ export default function Montacarguista() {
                 onClick={() => setShowEstibaForm((v) => !v)}
                 style={{
                   background: "transparent",
-                  border: "1.5px solid #E8E8E8",
+                  border: "1px solid #E2E4E8",
                   borderRadius: "8px",
                   padding: "8px 14px",
                   fontSize: "13px",
@@ -953,7 +953,7 @@ export default function Montacarguista() {
                 style={{
                   marginTop: "12px",
                   paddingTop: "12px",
-                  borderTop: "1px solid #F0F0F0",
+                  borderTop: "1px solid #F0F1F3",
                   display: "flex",
                   flexDirection: "column",
                   gap: "8px",
@@ -965,13 +965,13 @@ export default function Montacarguista() {
                   placeholder="Nombre / número de la estiba"
                   style={{
                     padding: "9px 12px",
-                    border: "1px solid #E8E8E8",
+                    border: "1px solid #E2E4E8",
                     borderRadius: "8px",
                     fontSize: "14px",
                   }}
                 />
                 <label
-                  style={{ fontSize: "12px", color: "#666", fontWeight: 600 }}
+                  style={{ fontSize: "12px", color: "#4B5160", fontWeight: 600 }}
                 >
                   Foto (obligatoria)
                 </label>
@@ -1054,10 +1054,10 @@ export default function Montacarguista() {
                         ? "rgba(0,255,135,0.08)"
                         : "#FFFFFF",
                     border: esUbicActiva
-                      ? "1.5px solid #00FF87"
+                      ? "1px solid #00FF87"
                       : bajada
                         ? "1px solid rgba(0,255,135,0.2)"
-                        : "1px solid #E8E8E8",
+                        : "1px solid #E2E4E8",
                     borderRadius: "12px",
                     padding: "1rem 1.25rem",
                     opacity: bajada ? 0.7 : 1,
@@ -1083,8 +1083,8 @@ export default function Montacarguista() {
                       >
                         <span
                           style={{
-                            background: bajada ? "#E8E8E8" : "#0A0A0A",
-                            color: bajada ? "#888" : "#00FF87",
+                            background: bajada ? "#E2E4E8" : "#0A0A0A",
+                            color: bajada ? "#4B5160" : "#00FF87",
                             padding: "3px 12px",
                             borderRadius: "6px",
                             fontSize: "13px",
@@ -1097,8 +1097,8 @@ export default function Montacarguista() {
                         {grupo.destino_saldos && (
                           <span
                             style={{
-                              background: "#FEF9C3",
-                              color: "#854D0E",
+                              background: "#FFF4D6",
+                              color: "#8A5A00",
                               padding: "2px 8px",
                               borderRadius: "20px",
                               fontSize: "10px",
@@ -1126,8 +1126,8 @@ export default function Montacarguista() {
                           style={{
                             background: bajada
                               ? "rgba(0,255,135,0.1)"
-                              : "#F3F4F6",
-                            color: bajada ? "#007A40" : "#374151",
+                              : "#EEF0F2",
+                            color: bajada ? "#007A40" : "#3A3F4B",
                             padding: "2px 8px",
                             borderRadius: "20px",
                             fontSize: "10px",
@@ -1157,7 +1157,7 @@ export default function Montacarguista() {
                       <div
                         style={{
                           fontSize: "12px",
-                          color: "#888",
+                          color: "#4B5160",
                           fontFamily: "DM Mono, monospace",
                           marginTop: "3px",
                         }}
@@ -1181,7 +1181,7 @@ export default function Montacarguista() {
                       <div
                         style={{
                           fontSize: "11px",
-                          color: "#888",
+                          color: "#4B5160",
                           marginBottom: bajada ? 0 : "8px",
                         }}
                       >
@@ -1192,8 +1192,8 @@ export default function Montacarguista() {
                           style={{
                             fontSize: "11px",
                             fontWeight: 600,
-                            color: "#854D0E",
-                            background: "#FEF9C3",
+                            color: "#8A5A00",
+                            background: "#FFF4D6",
                             borderRadius: "8px",
                             padding: "8px 12px",
                             minWidth: "80px",
