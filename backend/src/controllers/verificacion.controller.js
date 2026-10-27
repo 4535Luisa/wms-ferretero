@@ -6,6 +6,11 @@ const {
   resolverCodigoEscaneado,
 } = require("../utils/escaneo");
 
+// Estados en los que un pedido se puede seguir verificando: "con_diferencia"
+// se asigna al registrar una diferencia y las demás referencias aún deben
+// poder escanearse (antes el pedido quedaba trabado y salía de la lista).
+const VERIFICABLES = ["cerrado", "con_diferencia"];
+
 // Pedidos cerrados por el operario que esperan verificacion fisica del
 // administrador antes de pasar a facturacion.
 const listarPorVerificar = async (req, res) => {
@@ -14,7 +19,7 @@ const listarPorVerificar = async (req, res) => {
     .select(
       "*, pedido_items(*, productos(codigo_interno, descripcion_corta, ean14, unidad_empaque))",
     )
-    .eq("estado", "cerrado")
+    .in("estado", VERIFICABLES)
     .order("hora_cierre", { ascending: true });
 
   const { data, error } = await query;
@@ -59,7 +64,7 @@ const verificarItem = async (req, res) => {
     .single();
 
   if (!item) return res.status(404).json({ error: "Item no encontrado" });
-  if (item.pedidos?.estado !== "cerrado") {
+  if (!VERIFICABLES.includes(item.pedidos?.estado)) {
     return res.status(400).json({
       error: "Solo se pueden verificar pedidos cerrados",
     });
@@ -159,7 +164,7 @@ const confirmarSaldoItem = async (req, res) => {
     .single();
 
   if (!item) return res.status(404).json({ error: "Item no encontrado" });
-  if (item.pedidos?.estado !== "cerrado") {
+  if (!VERIFICABLES.includes(item.pedidos?.estado)) {
     return res.status(400).json({ error: "Solo pedidos cerrados" });
   }
 
@@ -326,7 +331,7 @@ const registrarDiferencia = async (req, res) => {
     .single();
 
   if (!item) return res.status(404).json({ error: "Item no encontrado" });
-  if (item.pedidos?.estado !== "cerrado") {
+  if (!VERIFICABLES.includes(item.pedidos?.estado)) {
     return res
       .status(400)
       .json({
