@@ -43,6 +43,11 @@ export default function Campana({ variant = "light" }) {
   const navigate = useNavigate();
 
   const cargar = useCallback(async () => {
+    // Layout monta dos campanas (celular y computadora) y oculta una con CSS;
+    // la oculta, o la pestaña en segundo plano, no consulta al servidor. Toda
+    // la bodega comparte IP y el límite de peticiones es por IP.
+    if (document.hidden || (ref.current && ref.current.offsetParent === null))
+      return;
     try {
       const { data } = await api.get("/api/notificaciones?limit=20");
       setItems(data.notificaciones || []);
@@ -55,7 +60,15 @@ export default function Campana({ variant = "light" }) {
   useEffect(() => {
     cargar();
     const id = setInterval(cargar, REFRESCO_MS);
-    return () => clearInterval(id);
+    // Al volver a la pestaña, actualiza de inmediato.
+    const alVolver = () => {
+      if (!document.hidden) cargar();
+    };
+    document.addEventListener("visibilitychange", alVolver);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", alVolver);
+    };
   }, [cargar]);
 
   useEffect(() => {

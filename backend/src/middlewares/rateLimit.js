@@ -1,19 +1,39 @@
-const rateLimit = require("express-rate-limit");
+const crypto = require("crypto");
+const { rateLimit, ipKeyGenerator } = require("express-rate-limit");
 
-// Limitador general para toda la API: protege contra abuso/DoS básico.
+const VENTANA_MS = 15 * 60 * 1000; // 15 minutos
+
+// Toda la bodega sale a internet por la misma IP pública: un límite solo por IP
+// se reparte entre todos los usuarios conectados (la campana de cada uno
+// consulta cada 20 s). Por eso el límite general se cuenta por sesión (token)
+// y, aparte, hay un tope alto por IP contra quien rote tokens falsos.
+const claveSesion = (req) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return "ip:" + ipKeyGenerator(req.ip);
+  return "t:" + crypto.createHash("sha256").update(token).digest("hex").slice(0, 32);
+};
+
+// Limitador general por sesión: protege contra abuso/DoS básico.
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  limit: 1000, // solicitudes por IP en la ventana
+  windowMs: VENTANA_MS,
+  limit: 1000, // solicitudes por sesión (o por IP sin sesión) en la ventana
+  keyGenerator: claveSesion,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Demasiadas solicitudes, intenta más tarde" },
 });
 
-// Limitador de autenticación por IP. Toda la bodega comparte la IP pública,
-// así que el tope es amplio; la fuerza bruta por cuenta la frena el bloqueo
-// por IP+email del controlador de login (5 fallos -> 15 min).
+// Tope por IP para toda la bodega junta (suma de todas las sesiones).
+const ipLimiter = rateLimit({
+  windowMs: VENTANA_MS,
+  limit: 20000,
+  standardHeaders: false,
+  legacyHeaders: false,
+  message: { error: "Demasiadas solicitudes, intenta más tarde" },
+});
+
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
+  windowMs: VENTANA_MS,
   limit: 100, // intentos por IP en la ventana
   standardHeaders: true,
   legacyHeaders: false,
@@ -22,4 +42,4 @@ const authLimiter = rateLimit({
   },
 });
 
-module.exports = { apiLimiter, authLimiter };
+module.exports = { apiLimiter, ipLimiter, authLimiter, claveSesion };

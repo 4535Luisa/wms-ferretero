@@ -1,0 +1,431 @@
+{
+  "POST /api/auth/logout": [
+    "administrador",
+    "gerente_logistico",
+    "inventarios",
+    "facturacion",
+    "montacarguista",
+    "operario",
+    "saldos"
+  ],
+  "POST /api/auth/cambiar-password": [
+    "administrador",
+    "gerente_logistico",
+    "inventarios",
+    "facturacion",
+    "montacarguista",
+    "operario",
+    "saldos"
+  ],
+  "GET /api/auth/sesiones": [
+    "administrador"
+  ],
+  "POST /api/auth/crear-usuarios": [
+    "administrador"
+  ],
+  "POST /api/recepciones/": [
+    "administrador"
+  ],
+  "GET /api/recepciones/": [
+    "administrador"
+  ],
+  "GET /api/recepciones/:id": [
+    "administrador"
+  ],
+  "POST /api/recepciones/:id/items": [
+    "administrador"
+  ],
+  "PATCH /api/recepciones/:id/confirmar": [
+    "administrador"
+  ],
+  "PATCH /api/recepciones/:id/confirmar-directo": [
+    "administrador"
+  ],
+  "PATCH /api/recepciones/items/:item_id/cantidad": [
+    "administrador"
+  ],
+  "PATCH /api/recepciones/items/:item_id/inspeccion": [
+    "administrador"
+  ],
+  "GET /api/productos/buscar": [
+    "administrador",
+    "gerente_logistico",
+    "inventarios",
+    "facturacion",
+    "montacarguista",
+    "operario",
+    "saldos"
+  ],
+  "GET /api/productos/buscar-barras": [
+    "administrador",
+    "gerente_logistico",
+    "inventarios",
+    "facturacion",
+    "montacarguista",
+    "operario",
+    "saldos"
+  ],
+  "GET /api/productos/inventario-general": [
+    "administrador",
+    "gerente_logistico",
+    "inventarios",
+    "facturacion",
+    "montacarguista",
+    "saldos"
+  ],
+  "GET /api/productos/": [
+    "administrador",
+    "gerente_logistico",
+    "inventarios",
+    "facturacion",
+    "montacarguista",
+    "operario",
+    "saldos"
+  ],
+  "GET /api/productos/:id/historial": [
+    "administrador",
+    "gerente_logistico",
+    "inventarios",
+    "facturacion",
+    "montacarguista",
+    "operario",
+    "saldos"
+  ],
+  "PATCH /api/productos/:id/codigo-barras": [
+    "administrador",
+    "inventarios"
+  ],
+  "POST /api/productos/crear": [
+    "administrador"
+  ],
+  "GET /api/usuarios/": [
+    "administrador"
+  ],
+  "POST /api/usuarios/": [
+    "administrador"
+  ],
+  "PUT /api/usuarios/:id": [
+    "administrador"
+  ],
+  "PATCH /api/usuarios/:id/toggle": [
+    "administrador"
+  ],
+  "GET /api/usuarios/bodegas": [
+    "administrador",
+    "gerente_logistico",
+    "inventarios",
+    "facturacion",
+    "montacarguista",
+    "operario",
+    "saldos"
+  ],
+  "POST /api/pedidos/csv": [
+    "administrador"
+  ],
+  "GET /api/pedidos/": [
+    "administrador",
+    "gerente_logistico",
+    "facturacion"
+  ],
+  "GET /api/pedidos/operarios": [
+    "administrador"
+  ],
+  "GET /api/pedidos/mis-pedidos": [
+    "administrador",
+    "operario"
+  ],
+  "GET /api/pedidos/:id": [
+    "administrador",
+    "gerente_logistico",
+    "facturacion"
+  ],
+  "PATCH /api/pedidos/:id/asignar": [
+    "administrador"
+  ],
+  "PATCH /api/pedidos/:id/reasignar": [
+    "administrador"
+  ],
+  "POST /api/pedidos/tanda": [
+    "administrador"
+  ],
+  "PATCH /api/pedidos/:id/prioridad": [
+    "administrador"
+  ],
+  "PATCH /api/pedidos/:id/reabrir": [
+    "administrador"
+  ],
+  "PATCH /api/pedidos/:id/cancelar": [
+    "administrador"
+  ],
+  "PATCH /api/pedidos/:id/facturar": [
+    "administrador",
+    "facturacion"
+  ],
+  "PATCH /api/pedidos/items/:itemId": [
+    "administrador",
+    "operario"
+  ],
+  "PATCH /api/pedidos/:id/cerrar": [
+    "administrador",
+    "operario"
+  ],
+  "POST /api/picking/generar": [
+    "administrador"
+  ],
+  "GET /api/picking/": [
+    "administrador",
+    "gerente_logistico"
+  ],
+  "GET /api/picking/mis-listas": [
+    "administrador",
+    "montacarguista"
+  ],
+  "GET /api/picking/estibas": [
+    "administrador",
+    "montacarguista"
+  ],
+  "POST /api/picking/estibas": [
+    "administrador",
+    "montacarguista"
+  ],
+  "PATCH /api/picking/:id/asignar": [
+    "administrador"
+  ],
+  "PATCH /api/picking/:id/cancelar": [
+    "administrador",
+    "gerente_logistico"
+  ],
+  "PATCH /api/picking/items/:id/bajar": [
+    "administrador",
+    "montacarguista"
+  ],
+  "GET /api/saldos/": [
+    "administrador",
+    "saldos"
+  ],
+  "PATCH /api/saldos/caja/:itemId/confirmar": [
+    "administrador",
+    "saldos"
+  ],
+  "PATCH /api/saldos/entregar": [
+    "administrador",
+    "saldos"
+  ],
+  "GET /api/dashboard/": [
+    "administrador",
+    "gerente_logistico"
+  ],
+  "GET /api/notificaciones/": [
+    "administrador",
+    "gerente_logistico",
+    "facturacion",
+    "montacarguista",
+    "operario",
+    "saldos"
+  ],
+  "PATCH /api/notificaciones/leer-todas": [
+    "administrador",
+    "gerente_logistico",
+    "inventarios",
+    "facturacion",
+    "montacarguista",
+    "operario",
+    "saldos"
+  ],
+  "PATCH /api/notificaciones/:id/leida": [
+    "administrador",
+    "gerente_logistico",
+    "inventarios",
+    "facturacion",
+    "montacarguista",
+    "operario",
+    "saldos"
+  ],
+  "GET /api/verificacion/": [
+    "administrador"
+  ],
+  "GET /api/verificacion/:id": [
+    "administrador"
+  ],
+  "PATCH /api/verificacion/:id/items/:itemId/verificar": [
+    "administrador"
+  ],
+  "PATCH /api/verificacion/:id/items/:itemId/saldo": [
+    "administrador"
+  ],
+  "PATCH /api/verificacion/:id/confirmar": [
+    "administrador"
+  ],
+  "POST /api/verificacion/:id/items/:itemId/diferencia": [
+    "administrador"
+  ],
+  "POST /api/verificacion/:id/confirmar-diferencias": [
+    "administrador"
+  ],
+  "POST /api/ajustes/": [
+    "administrador",
+    "inventarios"
+  ],
+  "GET /api/ajustes/": [
+    "administrador",
+    "gerente_logistico",
+    "inventarios"
+  ],
+  "PATCH /api/ajustes/:id/aprobar": [
+    "administrador",
+    "gerente_logistico"
+  ],
+  "PATCH /api/ajustes/:id/rechazar": [
+    "administrador",
+    "gerente_logistico"
+  ],
+  "GET /api/ubicaciones/pendientes-ubicar": [
+    "administrador",
+    "montacarguista"
+  ],
+  "POST /api/ubicaciones/ubicar-caja": [
+    "administrador",
+    "montacarguista"
+  ],
+  "POST /api/ubicaciones/mover-caja": [
+    "administrador",
+    "montacarguista"
+  ],
+  "POST /api/ubicaciones/mover-ubicacion": [
+    "administrador",
+    "montacarguista"
+  ],
+  "GET /api/ubicaciones/movimientos": [
+    "administrador",
+    "montacarguista"
+  ],
+  "GET /api/ubicaciones/resolver": [
+    "administrador",
+    "montacarguista"
+  ],
+  "POST /api/ubicaciones/crear": [
+    "administrador",
+    "montacarguista"
+  ],
+  "GET /api/reportes/kpis": [
+    "administrador",
+    "gerente_logistico"
+  ],
+  "GET /api/reportes/filtros": [
+    "administrador",
+    "gerente_logistico"
+  ],
+  "GET /api/reportes/movimientos": [
+    "administrador",
+    "gerente_logistico"
+  ],
+  "POST /api/reportes/alertas": [
+    "administrador",
+    "gerente_logistico"
+  ],
+  "GET /api/reportes/tiempo-alistamiento": [
+    "administrador",
+    "gerente_logistico"
+  ],
+  "GET /api/reportes/referencias-despachadas": [
+    "administrador",
+    "gerente_logistico"
+  ],
+  "GET /api/alertas/pedidos-demorados": [
+    "administrador"
+  ],
+  "GET /api/alertas/": [
+    "administrador",
+    "gerente_logistico"
+  ],
+  "PATCH /api/alertas/:id": [
+    "administrador"
+  ],
+  "POST /api/alertas/errores-escaneo": [
+    "administrador",
+    "gerente_logistico",
+    "inventarios",
+    "facturacion",
+    "montacarguista",
+    "operario",
+    "saldos"
+  ],
+  "GET /api/alertas/errores-escaneo/reporte": [
+    "administrador",
+    "gerente_logistico"
+  ],
+  "POST /api/traslados/": [
+    "administrador",
+    "gerente_logistico",
+    "inventarios"
+  ],
+  "GET /api/traslados/": [
+    "administrador",
+    "gerente_logistico",
+    "inventarios"
+  ],
+  "PATCH /api/traslados/:id/confirmar": [
+    "administrador",
+    "gerente_logistico",
+    "inventarios"
+  ],
+  "PATCH /api/traslados/:id/cancelar": [
+    "administrador",
+    "gerente_logistico",
+    "inventarios"
+  ],
+  "POST /api/conteos/": [
+    "administrador",
+    "inventarios"
+  ],
+  "GET /api/conteos/": [
+    "administrador",
+    "gerente_logistico",
+    "inventarios"
+  ],
+  "GET /api/conteos/familias": [
+    "administrador",
+    "gerente_logistico",
+    "inventarios"
+  ],
+  "POST /api/conteos/programar": [
+    "administrador",
+    "gerente_logistico",
+    "inventarios"
+  ],
+  "PATCH /api/conteos/:id/generar-ajuste": [
+    "administrador",
+    "inventarios"
+  ],
+  "GET /api/panel/en-vivo": [
+    "administrador",
+    "gerente_logistico"
+  ],
+  "GET /api/panel/operarios": [
+    "administrador",
+    "gerente_logistico"
+  ],
+  "GET /api/panel/mercancia": [
+    "administrador",
+    "gerente_logistico"
+  ],
+  "GET /api/panel/flujo": [
+    "administrador",
+    "gerente_logistico"
+  ],
+  "GET /api/panel/metas": [
+    "administrador",
+    "gerente_logistico"
+  ],
+  "PUT /api/panel/metas": [
+    "administrador"
+  ],
+  "GET /api/panel/actividad": [
+    "administrador",
+    "gerente_logistico"
+  ],
+  "GET /api/panel/ajustes": [
+    "administrador",
+    "gerente_logistico"
+  ]
+}

@@ -56,4 +56,18 @@ describe("errorHandler", () => {
     assert.equal(res.statusCode, 500);
     assert.equal(res.body.error, "Error interno del servidor");
   });
+
+  test("JSON mal formado responde 400, no 500", () => {
+    const res = mkRes();
+    const err = Object.assign(new SyntaxError("Unexpected token"), { type: "entity.parse.failed", status: 400 });
+    errorHandler(err, { method: "POST", originalUrl: "/x" }, res, () => {});
+    assert.equal(res.statusCode, 400);
+  });
+
+  test("cuerpo demasiado grande responde 413, no 500", () => {
+    const res = mkRes();
+    const err = Object.assign(new Error("too large"), { type: "entity.too.large", status: 413 });
+    errorHandler(err, { method: "POST", originalUrl: "/x" }, res, () => {});
+    assert.equal(res.statusCode, 413);
+  });
 });

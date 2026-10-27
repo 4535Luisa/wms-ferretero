@@ -21,7 +21,11 @@ const trasladosRoutes = require("./routes/traslados.routes");
 const conteosRoutes = require("./routes/conteos.routes");
 const panelRoutes = require("./routes/panel.routes");
 const { errorHandler, notFoundHandler } = require("./utils/errors");
-const { apiLimiter, authLimiter } = require("./middlewares/rateLimit");
+const {
+  apiLimiter,
+  ipLimiter,
+  authLimiter,
+} = require("./middlewares/rateLimit");
 const { construirCorsOptions } = require("./utils/cors");
 const requestLogger = require("./middlewares/requestLogger");
 
@@ -58,6 +62,7 @@ app.get(
   },
 );
 
+app.use("/api", ipLimiter);
 app.use("/api", apiLimiter);
 app.use("/api/auth/login", authLimiter);
 

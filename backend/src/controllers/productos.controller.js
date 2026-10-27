@@ -1,6 +1,7 @@
 ﻿const supabase = require("../utils/supabase");
 const { sendServerError } = require("../utils/errors");
 const { valorFiltro } = require("../utils/validate");
+const { traerTodo, porLotes } = require("../utils/paginar");
 
 const buscarProducto = async (req, res) => {
   const { referencia } = req.query;
@@ -50,13 +51,16 @@ const buscarPorBarras = async (req, res) => {
 };
 
 const listarProductos = async (req, res) => {
-  const { data, error } = await supabase
-    .from("productos")
-    .select(
-      "id, codigo_interno, descripcion_corta, unidad_empaque, codigo_barras, ean14, sin_codigo_barras, familia",
-    )
-    .eq("activo", true)
-    .order("codigo_interno");
+  const { data, error } = await traerTodo(() =>
+    supabase
+      .from("productos")
+      .select(
+        "id, codigo_interno, descripcion_corta, unidad_empaque, codigo_barras, ean14, sin_codigo_barras, familia",
+      )
+      .eq("activo", true)
+      .order("codigo_interno")
+      .order("id"),
+  );
   if (error) return sendServerError(res, error, req);
   return res.json(data || []);
 };
@@ -105,12 +109,15 @@ const historialProducto = async (req, res) => {
 };
 
 const inventarioGeneral = async (req, res) => {
-  const { data: rows, error } = await supabase
-    .from("inventario")
-    .select(
-      "producto_id, cantidad_disponible, cantidad_comprometida, ubicacion_id, bodega_id",
-    )
-    .order("producto_id");
+  const { data: rows, error } = await traerTodo(() =>
+    supabase
+      .from("inventario")
+      .select(
+        "producto_id, cantidad_disponible, cantidad_comprometida, ubicacion_id, bodega_id",
+      )
+      .order("producto_id")
+      .order("id"),
+  );
 
   if (error) return sendServerError(res, error, req);
 
@@ -121,14 +128,16 @@ const inventarioGeneral = async (req, res) => {
   ];
 
   const [prodsRes, bodsRes, ubicsRes] = await Promise.all([
-    supabase
-      .from("productos")
-      .select("id, codigo_interno, descripcion_corta")
-      .in("id", productoIds),
+    porLotes(productoIds, (lote) =>
+      supabase
+        .from("productos")
+        .select("id, codigo_interno, descripcion_corta")
+        .in("id", lote),
+    ),
     supabase.from("bodegas").select("id, codigo, nombre").in("id", bodegaIds),
-    ubicacionIds.length > 0
-      ? supabase.from("ubicaciones").select("id, codigo").in("id", ubicacionIds)
-      : Promise.resolve({ data: [] }),
+    porLotes(ubicacionIds, (lote) =>
+      supabase.from("ubicaciones").select("id, codigo").in("id", lote),
+    ),
   ]);
 
   const prodMap = Object.fromEntries(

@@ -8,12 +8,13 @@ const verificarPedidosDemorados = async (req, res) => {
   const ahora = new Date();
   const limite = new Date(ahora.getTime() - HORAS_LIMITE * 60 * 60 * 1000);
 
-  // Pedidos activos que llevan mas de 2 horas sin cambiar de estado
+  // Pedidos activos asignados hace mas de 2 horas y aun sin cerrar
+  // (pedidos no tiene updated_at; se usa la hora de asignacion).
   const { data: pedidos, error } = await supabase
     .from("pedidos")
-    .select("id, numero, estado, updated_at, operario_id, montacarguista_id")
-    .in("estado", ["asignado", "en_picking", "en_saldos", "en_verificacion"])
-    .lt("updated_at", limite.toISOString());
+    .select("id, numero, estado, hora_asignacion, operario_id, montacarguista_id")
+    .in("estado", ["asignado", "en_proceso", "en_picking", "en_saldos"])
+    .lt("hora_asignacion", limite.toISOString());
 
   if (error) return sendServerError(res, error, req);
 

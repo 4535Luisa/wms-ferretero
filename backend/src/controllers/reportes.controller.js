@@ -356,10 +356,12 @@ const tiempoAlistamiento = async (req, res) => {
 
   let query = supabase
     .from("pedidos")
-    .select("id, numero, operario_id, estado, created_at, updated_at")
+    .select(
+      "id, numero, operario_id, estado, created_at, hora_asignacion, hora_cierre, hora_finalizacion",
+    )
     .in("estado", ["cerrado", "verificado", "facturado", "con_diferencia"])
     .not("operario_id", "is", null)
-    .order("updated_at", { ascending: false })
+    .order("hora_cierre", { ascending: false, nullsFirst: false })
     .limit(200);
 
   if (fecha_desde) query = query.gte("created_at", fecha_desde);
@@ -385,8 +387,12 @@ const tiempoAlistamiento = async (req, res) => {
   const detalle = [];
 
   for (const p of data || []) {
-    const inicio = new Date(p.created_at);
-    const fin = new Date(p.updated_at);
+    // pedidos no tiene updated_at: el alistamiento va de la asignación al
+    // cierre del operario.
+    const inicioIso = p.hora_asignacion || p.created_at;
+    const finIso = p.hora_cierre || p.hora_finalizacion || p.created_at;
+    const inicio = new Date(inicioIso);
+    const fin = new Date(finIso);
     const minutosAlistamiento = Math.round((fin - inicio) / 60000);
 
     detalle.push({
@@ -394,8 +400,8 @@ const tiempoAlistamiento = async (req, res) => {
       operario: opNames[p.operario_id] || "Desconocido",
       operario_id: p.operario_id,
       estado: p.estado,
-      inicio: p.created_at,
-      fin: p.updated_at,
+      inicio: inicioIso,
+      fin: finIso,
       minutos: minutosAlistamiento,
     });
 

@@ -1,7 +1,7 @@
 const supabase = require("../utils/supabase");
 const { ORDEN_BODEGAS, splitCajaSaldo } = require("../utils/picking");
 const { sendServerError, logError } = require("../utils/errors");
-const { toFiniteNumber } = require("../utils/validate");
+const { toFiniteNumber, isUuid } = require("../utils/validate");
 
 // Mensaje para el cliente a partir de un error de Postgres/PostgREST, sin
 // exponer el detalle interno (constraint, tabla, query). El detalle va al log.
@@ -593,6 +593,7 @@ const reasignarPedido = async (req, res) => {
 
 const obtenerPedido = async (req, res) => {
   const { id } = req.params;
+  if (!isUuid(id)) return res.status(400).json({ error: "id de pedido inválido" });
 
   const { data: pedido, error } = await supabase
     .from("pedidos")
@@ -600,9 +601,13 @@ const obtenerPedido = async (req, res) => {
       `*, pedido_items(*, productos(codigo_interno, descripcion_corta, unidad_empaque))`,
     )
     .eq("id", id)
-    .single();
+    .maybeSingle();
 
   if (error) return sendServerError(res, error, req);
+  if (!pedido) return res.status(404).json({ error: "Pedido no encontrado" });
+  // El operario solo puede ver los pedidos que tiene asignados.
+  if (req.usuario?.rol === "operario" && pedido.operario_id !== req.usuario.id)
+    return res.status(403).json({ error: "Este pedido no está asignado a ti" });
 
   const [enriquecido] = await adjuntarUsuarios([pedido]);
   return res.json(enriquecido);

@@ -17,9 +17,18 @@ function sendServerError(res, error, req) {
 }
 
 // Middleware global: captura excepciones no controladas en los handlers.
+// Errores del cliente que lanza express.json() (cuerpo mal formado o
+// demasiado grande): se responden con su código 4xx, no como 500.
+const ERRORES_CUERPO = {
+  "entity.parse.failed": [400, "El cuerpo de la petición no es JSON válido"],
+  "entity.too.large": [413, "El cuerpo de la petición es demasiado grande"],
+};
+
 function errorHandler(err, req, res, next) {
-  logError(`${req.method} ${req.originalUrl}`, err);
   if (res.headersSent) return next(err);
+  const cliente = ERRORES_CUERPO[err?.type];
+  if (cliente) return res.status(cliente[0]).json({ error: cliente[1] });
+  logError(`${req.method} ${req.originalUrl}`, err);
   res.status(500).json({ error: "Error interno del servidor" });
 }
 

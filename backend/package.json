@@ -7,7 +7,8 @@
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "test": "node --test",
-    "alertas": "node scripts/generar-alertas.js"
+    "alertas": "node scripts/generar-alertas.js",
+    "test:integracion": "node --test \"test-integracion/**/*.integracion.js\""
   },
   "keywords": [],
   "author": "",
