@@ -105,39 +105,45 @@ export default function Verificacion() {
   const onEscanear = async (refEscaneada) => {
     if (!activo) return;
 
-    // Buscar el item que corresponde al codigo escaneado y tiene cajas pendientes
-    // La busqueda la hace el backend via resolverCodigoEscaneado
-    // En el frontend buscamos por codigo_interno o ean14 para dar feedback rapido
-    const norm = refEscaneada.trim().toUpperCase();
-    const objetivo = (activo.pedido_items || []).find((item) => {
-      const info = itemVerifInfo(item);
-      if (info.cajasListas) return false;
-      if (item.verificado && !item.saldo_verificado && info.tieneSaldos)
-        return false;
+    // Busca el ítem del código escaneado para dar respuesta rápida; la
+    // verificación definitiva la hace el backend. Se compara con la referencia
+    // y el EAN14 de la caja; si no coincide y es numérico, puede ser el
+    // código de barras de la unidad (EAN-13), que se resuelve en el servidor.
+    const codigos = [refEscaneada.trim().toUpperCase()];
+    const esDe = (item) => {
       const ci = (item.productos?.codigo_interno || "").trim().toUpperCase();
       const ean = (item.productos?.ean14 || "").trim().toUpperCase();
-      // Limpiar prefijo GS1 01 si viene del scanner
-      const normLimpio = norm.replace(/^01(\d{14})$/, "$1");
-      return (
-        ci === norm || ean === norm || ci === normLimpio || ean === normLimpio
-      );
+      return codigos.some((c) => c === ci || (ean && c === ean));
+    };
+    const buscar = () => ({
+      objetivo: (activo.pedido_items || []).find((item) => {
+        const info = itemVerifInfo(item);
+        if (info.cajasListas) return false;
+        if (item.verificado && !item.saldo_verificado && info.tieneSaldos)
+          return false;
+        return esDe(item);
+      }),
+      yaCompleto: (activo.pedido_items || []).find(
+        (item) => itemVerifInfo(item).cajasListas && esDe(item),
+      ),
     });
 
-    if (!objetivo) {
-      // Ver si ya esta completo
-      const yaCompleto = (activo.pedido_items || []).find((item) => {
-        const info = itemVerifInfo(item);
-        const ci = (item.productos?.codigo_interno || "").trim().toUpperCase();
-        const ean = (item.productos?.ean14 || "").trim().toUpperCase();
-        const normLimpio = norm.replace(/^01(\d{14})$/, "$1");
-        return (
-          info.cajasListas &&
-          (ci === norm ||
-            ean === norm ||
-            ci === normLimpio ||
-            ean === normLimpio)
+    let { objetivo, yaCompleto } = buscar();
+    if (!objetivo && !yaCompleto && /^\d{8,14}$/.test(codigos[0])) {
+      try {
+        const { data } = await api.get(
+          `/api/productos/buscar-barras?codigo_barras=${codigos[0]}`,
         );
-      });
+        if (data?.codigo_interno) {
+          codigos.push(data.codigo_interno.trim().toUpperCase());
+          ({ objetivo, yaCompleto } = buscar());
+        }
+      } catch {
+        // 404: el código no pertenece a ningún producto
+      }
+    }
+
+    if (!objetivo) {
       bip("error");
       aviso(
         yaCompleto

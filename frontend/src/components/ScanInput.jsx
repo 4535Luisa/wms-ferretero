@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import CamaraScanner from "./CamaraScanner";
+import { limpiarEscaneo } from "./limpiarEscaneo";
 
 // Genera un bip usando Web Audio API.
 // tipo "ok"    → 880Hz, 80ms  (agudo, corto) — confirmación exitosa
@@ -45,6 +46,7 @@ function bip(tipo) {
 //   permitirCamara         — muestra el botón  Cámara
 export { bip };
 
+
 export default function ScanInput({
   onScan,
   disabled = false,
@@ -65,11 +67,10 @@ export default function ScanInput({
 
   // Ejecuta la acción al recibir Enter — sin esperar confirmación manual.
   const enviar = () => {
-    let v = valor.trim();
-    if (!v || disabled) return;
-    // Limpiar prefijo GS1 AI (01) que el Honeywell agrega al leer EAN14
+    // Ej.: el Honeywell agrega el AI (01) al leer EAN14:
     // "0117708935847713" -> "17708935847713"
-    v = v.replace(/^01(\d{14})$/, "$1");
+    const v = limpiarEscaneo(valor);
+    if (!v || disabled) return;
     setValor("");
     onScan(v, "teclado");
     // Recuperar foco automaticamente para escaneo continuo
@@ -81,7 +82,7 @@ export default function ScanInput({
   // Lectura por cámara: ejecuta inmediatamente al detectar el código.
   const onCamara = (texto) => {
     setCamara(false);
-    const v = (texto || "").trim();
+    const v = limpiarEscaneo(texto);
     if (v && !disabled) onScan(v, "camara");
   };
 
@@ -176,9 +177,16 @@ export default function ScanInput({
             if (e.key === "Enter") enviar();
           }}
           onBlur={() => {
-            // Recuperar foco automaticamente para escaneo continuo con pistola
+            // Recuperar foco para escaneo continuo con pistola, salvo que el
+            // usuario haya pasado a otro campo de texto (motivo, cantidad…).
             setTimeout(() => {
-              if (ref.current && !disabled) ref.current.focus();
+              const activo = document.activeElement;
+              const escribiendo =
+                activo &&
+                activo !== ref.current &&
+                (["INPUT", "TEXTAREA", "SELECT"].includes(activo.tagName) ||
+                  activo.isContentEditable);
+              if (ref.current && !disabled && !escribiendo) ref.current.focus();
             }, 100);
           }}
           placeholder={placeholder}
