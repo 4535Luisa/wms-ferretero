@@ -225,6 +225,8 @@ const crearProducto = async (req, res) => {
       codigo_interno: codigo_interno.trim().toUpperCase(),
       descripcion_corta: descripcion_corta.trim().toUpperCase(),
       unidad_empaque: ue,
+      // Obligatoria en la tabla; el catálogo usa "UND".
+      unidad_base: "UND",
       minimo_saldos: Math.ceil(ue * 0.4),
       activo: true,
       sin_codigo_barras: true,
