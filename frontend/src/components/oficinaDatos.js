@@ -28,6 +28,7 @@ export const MOVIMIENTO = {
   ENTREGA_SALDOS: { label: "Entrega de saldos", color: "#5B21B6", bg: "#EDE9FE" },
   TRASLADO: { label: "Traslado", color: "#5B21B6", bg: "#EDE9FE" },
   DESPACHO: { label: "Despacho", color: "#B91C1C", bg: "#FDECEC" },
+  CARGA_INVENTARIO: { label: "Carga de Excel", color: "#0369A1", bg: "#E0F2FE" },
 };
 export const movimiento = (accion) =>
   MOVIMIENTO[accion] || { label: accion, color: "#3A3F4B", bg: "#EEF0F2" };
