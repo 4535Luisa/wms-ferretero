@@ -1148,13 +1148,13 @@ const cancelarPedido = async (req, res) => {
   const { data: pedido, error: errPedido } = await supabase
     .from("pedidos")
     .select(
-      "*, pedido_items(id, producto_id, cantidad_pedida), lista_picking_items:lista_picking_items(id, producto_id, cantidad_unidades, inventario_id, estado)",
+      "*, pedido_items(id, producto_id, cantidad_pedida), lista_picking_items(id, lista_id, producto_id, ubicacion_id, cantidad_unidades, estado)",
     )
     .eq("id", id)
-    .single();
+    .maybeSingle();
 
-  if (errPedido || !pedido)
-    return res.status(404).json({ error: "Pedido no encontrado" });
+  if (errPedido) return sendServerError(res, errPedido, req);
+  if (!pedido) return res.status(404).json({ error: "Pedido no encontrado" });
 
   const estadosNoCancelables = ["facturado", "despachado", "cancelado"];
   if (estadosNoCancelables.includes(pedido.estado)) {
@@ -1163,25 +1163,47 @@ const cancelarPedido = async (req, res) => {
     });
   }
 
-  // Liberar inventario comprometido
-  for (const item of pedido.pedido_items || []) {
-    const { data: invRows } = await supabase
-      .from("inventario")
-      .select("id, cantidad_comprometida")
-      .eq("producto_id", item.producto_id)
-      .gt("cantidad_comprometida", 0);
-
-    for (const inv of invRows || []) {
-      await supabase
+  // Liberar lo que reservaron los ítems de picking aún pendientes de ESTE
+  // pedido, en su ubicación (igual que cancelar_lista_picking). Antes se
+  // restaba la cantidad pedida a todas las filas del producto con reserva,
+  // liberando también lo reservado por otros pedidos.
+  for (const item of pedido.lista_picking_items || []) {
+    if (item.estado !== "pendiente") continue;
+    if (item.ubicacion_id) {
+      const { data: inv } = await supabase
         .from("inventario")
-        .update({
-          cantidad_comprometida: Math.max(
-            0,
-            (inv.cantidad_comprometida || 0) - (item.cantidad_pedida || 0),
-          ),
-        })
-        .eq("id", inv.id);
+        .select("id, cantidad_comprometida")
+        .eq("producto_id", item.producto_id)
+        .eq("ubicacion_id", item.ubicacion_id)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (inv) {
+        const antes = inv.cantidad_comprometida || 0;
+        const nuevo = Math.max(0, antes - (item.cantidad_unidades || 0));
+        await supabase
+          .from("inventario")
+          .update({ cantidad_comprometida: nuevo })
+          .eq("id", inv.id);
+        await supabase.from("bitacora").insert({
+          usuario_id,
+          accion: "CANCELACION_PICKING",
+          tabla: "inventario",
+          registro_id: item.producto_id,
+          valores_antes: { cantidad_comprometida: antes, ubicacion_id: item.ubicacion_id },
+          valores_despues: {
+            cantidad_comprometida: nuevo,
+            ubicacion_id: item.ubicacion_id,
+            pedido_id: id,
+            lista_picking_item_id: item.id,
+          },
+        });
+      }
     }
+    await supabase
+      .from("lista_picking_items")
+      .update({ estado: "cancelada" })
+      .eq("id", item.id);
   }
 
   // Si habia listas de picking asignadas, notificar al montacarguista
@@ -1206,7 +1228,7 @@ const cancelarPedido = async (req, res) => {
       usuario_id: pedido.operario_id,
       tipo: "pedido_cancelado",
       titulo: "Pedido cancelado",
-      mensaje: `El pedido ${pedido.numero} ha sido cancelado por el jefe de bodega.`,
+      mensaje: `El pedido ${pedido.numero} ha sido cancelado por el administrador.`,
       datos: { pedido_id: id, pedido_numero: pedido.numero },
     });
   }
