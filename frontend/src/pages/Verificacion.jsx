@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Layout from "../components/Layout";
 import ScanInput, { bip } from "../components/ScanInput";
 import api from "../services/api";
+import { reportarErrorEscaneo } from "../services/errorEscaneo";
 import {
   Pagina,
   Acciones,
@@ -145,6 +146,8 @@ export default function Verificacion() {
 
     if (!objetivo) {
       bip("error");
+      if (!yaCompleto)
+        reportarErrorEscaneo({ codigo: refEscaneada, modulo: "verificacion", pedido_id: activo.id });
       aviso(
         yaCompleto
           ? `Las cajas de ${yaCompleto.productos?.codigo_interno} ya están verificadas`

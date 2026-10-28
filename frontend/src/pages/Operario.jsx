@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
 import ScanInput, { bip } from "../components/ScanInput";
 import api from "../services/api";
+import { reportarErrorEscaneo } from "../services/errorEscaneo";
 
 const C = {
   card: {
@@ -120,6 +121,7 @@ export default function Operario() {
       if (yaCompleto) {
         aviso(`Aviso: ${norm} ya tiene todas las cajas escaneadas`, "error");
       } else {
+        reportarErrorEscaneo({ codigo: refEscaneada, modulo: "operario", pedido_id: activo?.id });
         aviso(
           `Aviso: CAJA INCORRECTA: ${refEscaneada} no pertenece a este pedido`,
           "error",

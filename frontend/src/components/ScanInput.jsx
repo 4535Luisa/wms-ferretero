@@ -66,10 +66,13 @@ export default function ScanInput({
   }, [autoFocus, camara]);
 
   // Ejecuta la acción al recibir Enter — sin esperar confirmación manual.
-  const enviar = () => {
+  // `texto` es lo que hay escrito en el campo al recibir el Enter. Los lectores
+  // integrados (Honeywell EDA52) teclean muy rápido: el estado `valor` puede ir
+  // atrasado y perder los últimos dígitos, así que se lee el campo directamente.
+  const enviar = (texto = valor) => {
     // Ej.: el Honeywell agrega el AI (01) al leer EAN14:
     // "0117708935847713" -> "17708935847713"
-    const v = limpiarEscaneo(valor);
+    const v = limpiarEscaneo(texto);
     if (!v || disabled) return;
     setValor("");
     onScan(v, "teclado");
@@ -174,7 +177,11 @@ export default function ScanInput({
           value={valor}
           onChange={(e) => setValor(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") enviar();
+            // Algunos lectores Android envían el Enter solo con keyCode 13.
+            if (e.key === "Enter" || e.keyCode === 13) {
+              e.preventDefault();
+              enviar(e.currentTarget.value);
+            }
           }}
           onBlur={() => {
             // Recuperar foco para escaneo continuo con pistola, salvo que el

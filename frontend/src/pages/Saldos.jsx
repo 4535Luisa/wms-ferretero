@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import Layout from "../components/Layout";
 import ScanInput, { bip } from "../components/ScanInput";
 import api from "../services/api";
+import { reportarErrorEscaneo } from "../services/errorEscaneo";
 
 const REFRESCO_MS = 15000;
 
@@ -95,6 +96,7 @@ export default function Saldos() {
     );
     if (!objetivo) {
       bip("error");
+      reportarErrorEscaneo({ codigo: refEscaneada, modulo: "saldos" });
       aviso(
         `Aviso: Caja incorrecta: ${refEscaneada} no está entre las cajas por confirmar`,
         "error",
