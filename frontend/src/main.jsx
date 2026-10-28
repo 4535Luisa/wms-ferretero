@@ -247,3 +247,10 @@ createRoot(document.getElementById("root")).render(
     </AuthProvider>
   </StrictMode>,
 );
+
+// App instalable: el service worker solo se registra en la versión publicada.
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
