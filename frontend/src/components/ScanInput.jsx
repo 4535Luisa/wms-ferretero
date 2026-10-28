@@ -59,11 +59,48 @@ export default function ScanInput({
   const [valor, setValor] = useState("");
   const [camara, setCamara] = useState(false);
   const [flash, setFlash] = useState(null); // "ok" | "error" | null
+  // Teclado de pantalla: oculto por defecto para escanear seguido con el
+  // lector integrado (EDA52) sin que aparezca en cada lectura. El dispositivo
+  // recuerda la elección. No afecta a teclados físicos.
+  const [teclado, setTeclado] = useState(() => {
+    try {
+      return localStorage.getItem("scan_teclado") === "1";
+    } catch {
+      return false;
+    }
+  });
   const ref = useRef(null);
 
   useEffect(() => {
     if (!camara && autoFocus && ref.current) ref.current.focus();
   }, [autoFocus, camara]);
+
+  // Al terminar de procesar una lectura (disabled vuelve a false) el campo
+  // recupera el cursor solo, salvo que el usuario esté en otro campo de texto.
+  useEffect(() => {
+    if (disabled || camara || !ref.current) return;
+    const activo = document.activeElement;
+    const enOtroCampo =
+      activo &&
+      activo !== ref.current &&
+      (["INPUT", "TEXTAREA", "SELECT"].includes(activo.tagName) || activo.isContentEditable);
+    if (!enOtroCampo) ref.current.focus();
+  }, [disabled, camara]);
+
+  const cambiarTeclado = () => {
+    const nuevo = !teclado;
+    setTeclado(nuevo);
+    try {
+      localStorage.setItem("scan_teclado", nuevo ? "1" : "0");
+    } catch {
+      // sin almacenamiento: solo dura esta visita
+    }
+    // Volver a enfocar para que el teclado aparezca o se oculte de inmediato.
+    if (ref.current) {
+      ref.current.blur();
+      setTimeout(() => ref.current?.focus(), 50);
+    }
+  };
 
   // Ejecuta la acción al recibir Enter — sin esperar confirmación manual.
   // `texto` es lo que hay escrito en el campo al recibir el Enter. Los lectores
@@ -147,8 +184,30 @@ export default function ScanInput({
         >
           {label}
         </p>
+        <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+        {!camara && (
+          <button
+            type="button"
+            onClick={cambiarTeclado}
+            aria-pressed={teclado}
+            style={{
+              background: teclado ? "#0A0A0A" : "transparent",
+              color: teclado ? "#00FF87" : "#0A0A0A",
+              border: "1px solid #E2E4E8",
+              borderRadius: "8px",
+              padding: "7px 12px",
+              fontSize: "12px",
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: "Outfit, sans-serif",
+            }}
+          >
+            {teclado ? "Ocultar teclado" : "Teclado"}
+          </button>
+        )}
         {permitirCamara && (
           <button
+            type="button"
             onClick={() => setCamara((v) => !v)}
             disabled={disabled}
             style={{
@@ -167,6 +226,7 @@ export default function ScanInput({
             {camara ? "⌨️ Texto" : " Cámara"}
           </button>
         )}
+        </div>
       </div>
 
       {camara ? (
@@ -197,7 +257,15 @@ export default function ScanInput({
             }, 100);
           }}
           placeholder={placeholder}
-          disabled={disabled}
+          // readOnly (no disabled) mientras se procesa: un campo desactivado
+          // pierde el cursor y había que tocarlo después de cada caja.
+          readOnly={disabled}
+          aria-disabled={disabled}
+          inputMode={teclado ? "text" : "none"}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
           style={{
             width: "100%",
             boxSizing: "border-box",
@@ -209,7 +277,8 @@ export default function ScanInput({
             fontWeight: 500,
             background: "transparent",
             outline: "none",
-            transition: "border-color 0.15s",
+            transition: "border-color 0.15s, opacity 0.15s",
+            opacity: disabled ? 0.6 : 1,
           }}
           autoFocus={autoFocus}
         />
