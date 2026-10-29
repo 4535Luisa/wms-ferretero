@@ -76,6 +76,9 @@ export function Kpi({ etiqueta, valor, pie, colorPie = COLOR.gris, colorValor })
       <span
         className="kpi-valor"
         style={{
+          // Largo del valor: en la fila de 4 (celular) el tamaño se ajusta
+          // para que "555/560" quepa completo.
+          "--largo": String(valor ?? "").length || 1,
           fontFamily: "'DM Mono', monospace",
           fontSize: "34px",
           fontWeight: 500,

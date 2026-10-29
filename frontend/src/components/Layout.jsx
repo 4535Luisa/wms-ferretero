@@ -108,7 +108,9 @@ export default function Layout({ children, titulo, subtitulo, ocultarTituloMovil
           .fila-kpis.fila-kpis-4 { grid-template-columns:repeat(4, minmax(0, 1fr)); gap:6px; }
           .fila-kpis-4 .kpi { padding:8px !important; }
           .fila-kpis-4 .kpi > span:first-child { font-size:12px !important; line-height:1.2; }
-          .fila-kpis-4 .kpi-valor { font-size:20px !important; }
+          .fila-kpis-4 .kpi { container-type:inline-size; }
+          .fila-kpis-4 .kpi-valor { font-size:20px !important; white-space:nowrap; }
+          .fila-kpis-4 .kpi-valor { font-size:min(20px, calc(100cqi / (var(--largo) * 0.62))) !important; }
           .wms-layout { grid-template-columns:1fr; grid-template-rows:56px 1fr; }
           .wms-sidebar { display:none; }
           .wms-topbar { display:flex; }
