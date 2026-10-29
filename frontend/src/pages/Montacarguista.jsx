@@ -377,32 +377,34 @@ export default function Montacarguista() {
       {vista !== "barrido" && (
         <div
           style={{
-            display: "flex",
+            display: "grid",
+            gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
             gap: "4px",
-            marginBottom: "1.25rem",
+            marginBottom: "0.75rem",
             background: "#F0F1F3",
             padding: "4px",
             borderRadius: "10px",
-            width: "fit-content",
+            maxWidth: "520px",
           }}
         >
           {[
-            ["lista", " Mis listas"],
-            ["estibas", ` Estibas (${estibas.length})`],
-            ["ubicar", " Ubicar"],
-            ["mover", " Mover"],
+            ["lista", "Mis listas"],
+            ["estibas", `Estibas (${estibas.length})`],
+            ["ubicar", "Ubicar"],
+            ["mover", "Mover"],
           ].map(([v, label]) => (
             <button
               key={v}
               onClick={() => setVista(v)}
               style={{
-                padding: "8px 16px",
+                padding: "10px 4px",
                 borderRadius: "7px",
                 border: "none",
                 background: vista === v ? "#FFFFFF" : "transparent",
                 color: "#0A0A0A",
                 fontFamily: "Outfit, sans-serif",
-                fontSize: "13px",
+                fontSize: "14px",
+                lineHeight: 1.2,
                 fontWeight: vista === v ? 700 : 400,
                 cursor: "pointer",
                 boxShadow: vista === v ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
@@ -423,21 +425,25 @@ export default function Montacarguista() {
             setVista("lista");
             setUbicacionActiva(null);
           },
-          { style: { marginBottom: "1.25rem", display: "block" } },
+          { style: { marginBottom: "0.75rem", display: "block" } },
         )}
 
       {mensaje.texto && (
         <div
           style={{
-            padding: "12px 16px",
+            // Fijo bajo la barra superior: se ve aunque se haya bajado en la lista.
+            position: "sticky",
+            top: "64px",
+            zIndex: 50,
+            padding: "12px 14px",
             borderRadius: "8px",
-            marginBottom: "1.25rem",
-            fontSize: "13px",
-            fontWeight: 500,
-            background:
-              mensaje.tipo === "error" ? "#FDECEC" : "rgba(0,255,135,0.1)",
+            marginBottom: "0.75rem",
+            fontSize: "15px",
+            fontWeight: 700,
+            background: mensaje.tipo === "error" ? "#FDECEC" : "#E3F7EC",
             color: mensaje.tipo === "error" ? "#B91C1C" : "#007A40",
-            border: `1px solid ${mensaje.tipo === "error" ? "#FECACA" : "rgba(0,255,135,0.2)"}`,
+            border: `2px solid ${mensaje.tipo === "error" ? "#FCA5A5" : "#00CC6A"}`,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
           }}
         >
           {mensaje.texto}
@@ -751,7 +757,7 @@ export default function Montacarguista() {
                             marginTop: "6px",
                             background: "rgba(0,255,135,0.1)",
                             color: "#007A40",
-                            fontSize: "11px",
+                            fontSize: "13px",
                             fontWeight: 700,
                             padding: "2px 8px",
                             borderRadius: "20px",
@@ -854,7 +860,7 @@ export default function Montacarguista() {
               <div>
                 <div
                   style={{
-                    fontSize: "11px",
+                    fontSize: "13px",
                     fontWeight: 600,
                     color: "#007A40",
                     textTransform: "uppercase",
@@ -1059,7 +1065,7 @@ export default function Montacarguista() {
                         ? "1px solid rgba(0,255,135,0.2)"
                         : "1px solid #E2E4E8",
                     borderRadius: "12px",
-                    padding: "1rem 1.25rem",
+                    padding: "12px 14px",
                     opacity: bajada ? 0.7 : 1,
                   }}
                 >
@@ -1101,7 +1107,7 @@ export default function Montacarguista() {
                               color: "#8A5A00",
                               padding: "2px 8px",
                               borderRadius: "20px",
-                              fontSize: "10px",
+                              fontSize: "12px",
                               fontWeight: 700,
                             }}
                           >
@@ -1115,7 +1121,7 @@ export default function Montacarguista() {
                               color: "#3730A3",
                               padding: "2px 8px",
                               borderRadius: "20px",
-                              fontSize: "10px",
+                              fontSize: "12px",
                               fontWeight: 700,
                             }}
                           >
@@ -1130,7 +1136,7 @@ export default function Montacarguista() {
                             color: bajada ? "#007A40" : "#3A3F4B",
                             padding: "2px 8px",
                             borderRadius: "20px",
-                            fontSize: "10px",
+                            fontSize: "12px",
                             fontWeight: 700,
                             textTransform: "uppercase",
                           }}
@@ -1147,9 +1153,7 @@ export default function Montacarguista() {
                           fontSize: "14px",
                           fontWeight: 600,
                           color: "#0A0A0A",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
+                          lineHeight: 1.3,
                         }}
                       >
                         {grupo.descripcion}
@@ -1180,7 +1184,7 @@ export default function Montacarguista() {
                       </div>
                       <div
                         style={{
-                          fontSize: "11px",
+                          fontSize: "13px",
                           color: "#4B5160",
                           marginBottom: bajada ? 0 : "8px",
                         }}
@@ -1190,13 +1194,15 @@ export default function Montacarguista() {
                       {!bajada && (
                         <div
                           style={{
-                            fontSize: "11px",
+                            fontSize: "13px",
                             fontWeight: 600,
                             color: "#8A5A00",
                             background: "#FFF4D6",
                             borderRadius: "8px",
-                            padding: "8px 12px",
-                            minWidth: "80px",
+                            padding: "8px 10px",
+                            maxWidth: "92px",
+                            textAlign: "center",
+                            lineHeight: 1.25,
                           }}
                         >
                           Escanea para bajar

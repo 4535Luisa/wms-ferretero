@@ -134,15 +134,19 @@ export default function MontacarguistaUbicar() {
       {mensaje.texto && (
         <div
           style={{
-            padding: "12px 16px",
+            // Fijo bajo la barra superior: se ve aunque se haya bajado en la lista.
+            position: "sticky",
+            top: "64px",
+            zIndex: 50,
+            padding: "12px 14px",
             borderRadius: "8px",
-            marginBottom: "1rem",
-            fontSize: "13px",
-            fontWeight: 500,
-            background:
-              mensaje.tipo === "error" ? "#FDECEC" : "rgba(0,255,135,0.1)",
+            marginBottom: "0.75rem",
+            fontSize: "15px",
+            fontWeight: 700,
+            background: mensaje.tipo === "error" ? "#FDECEC" : "#E3F7EC",
             color: mensaje.tipo === "error" ? "#B91C1C" : "#007A40",
-            border: `1px solid ${mensaje.tipo === "error" ? "#FECACA" : "rgba(0,255,135,0.2)"}`,
+            border: `2px solid ${mensaje.tipo === "error" ? "#FCA5A5" : "#00CC6A"}`,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
           }}
         >
           {mensaje.texto}
@@ -166,7 +170,7 @@ export default function MontacarguistaUbicar() {
           <div>
             <div
               style={{
-                fontSize: "11px",
+                fontSize: "13px",
                 fontWeight: 600,
                 color: "#007A40",
                 textTransform: "uppercase",
@@ -328,7 +332,7 @@ export default function MontacarguistaUbicar() {
             marginBottom: "1rem",
           }}
         >
-          <div style={{ fontSize: "11px", color: "#4B5160" }}>
+          <div style={{ fontSize: "13px", color: "#4B5160" }}>
             Última caja ubicada
           </div>
           <div style={{ fontSize: "14px", fontWeight: 600, color: "#007A40" }}>
@@ -416,7 +420,7 @@ export default function MontacarguistaUbicar() {
                   >
                     {item.cantidad_disponible}
                   </div>
-                  <div style={{ fontSize: "11px", color: "#4B5160" }}>
+                  <div style={{ fontSize: "13px", color: "#4B5160" }}>
                     unidades
                   </div>
                 </div>

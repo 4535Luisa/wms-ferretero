@@ -50,26 +50,23 @@ export default function Login() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "grid",
-        gridTemplateColumns: "1fr 440px",
-        background: "#0A0A0A",
-        fontFamily: "Outfit, sans-serif",
-      }}
-    >
+    <div className="login-raiz">
+      <style>{`
+        .login-raiz { min-height:100vh; display:grid; grid-template-columns:1fr 440px; background:#0A0A0A; font-family:'Outfit',sans-serif; }
+        .login-marca { display:flex; flex-direction:column; justify-content:space-between; padding:3rem 4rem; position:relative; overflow:hidden; }
+        .login-form { background:#FFFFFF; display:flex; flex-direction:column; justify-content:center; padding:3.5rem; position:relative; }
+        .login-pie { position:absolute; bottom:2rem; left:3.5rem; right:3.5rem; }
+        /* Celular (EDA52): solo el formulario, a pantalla completa. */
+        @media(max-width:768px) {
+          .login-raiz { grid-template-columns:1fr; background:#FFFFFF; }
+          .login-marca { display:none; }
+          .login-form { padding:2.5rem 1.25rem 1.5rem; justify-content:flex-start; min-height:100vh; }
+          .login-pie { position:static; margin-top:auto; padding-top:2rem; }
+          .login-marca-movil { display:block !important; }
+        }
+      `}</style>
       {/* Panel izquierdo */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          padding: "3rem 4rem",
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
+      <div className="login-marca">
         {/* Grid de fondo */}
         <div
           style={{
@@ -233,16 +230,7 @@ export default function Login() {
       </div>
 
       {/* Panel derecho — formulario */}
-      <div
-        style={{
-          background: "#FFFFFF",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          padding: "3.5rem",
-          position: "relative",
-        }}
-      >
+      <div className="login-form">
         {/* Barra verde top */}
         <div
           style={{
@@ -256,6 +244,20 @@ export default function Login() {
         />
 
         <div style={{ marginBottom: "2.5rem" }}>
+          <div
+            className="login-marca-movil"
+            style={{
+              display: "none",
+              fontFamily: "Bebas Neue, sans-serif",
+              fontSize: "28px",
+              letterSpacing: "0.06em",
+              color: "#0A0A0A",
+              lineHeight: 1,
+              marginBottom: "1.5rem",
+            }}
+          >
+            MACHO <span style={{ color: "#00CC6A" }}>WMS</span>
+          </div>
           <h2
             style={{
               fontFamily: "Bebas Neue, sans-serif",
@@ -317,7 +319,7 @@ export default function Login() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="usuario@indurruedas.com"
               required
-              style={{ fontSize: "14px" }}
+              style={{ fontSize: "16px", padding: "12px 14px", width: "100%", boxSizing: "border-box" }}
             />
           </div>
 
@@ -343,8 +345,9 @@ export default function Login() {
                 placeholder="••••••••"
                 required
                 style={{
-                  fontSize: "14px",
-                  paddingRight: "48px",
+                  fontSize: "16px",
+                  padding: "12px 14px",
+                  paddingRight: "76px",
                   width: "100%",
                   boxSizing: "border-box",
                 }}
@@ -366,14 +369,15 @@ export default function Login() {
                   cursor: "pointer",
                   padding: "4px",
                   color: "#4B5160",
-                  fontSize: "16px",
+                  fontSize: "13px",
+                  fontWeight: 600,
                   lineHeight: 1,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                 }}
               >
-                {showPassword ? "" : "️"}
+                {showPassword ? "Ocultar" : "Ver"}
               </button>
             </div>
           </div>
@@ -410,14 +414,7 @@ export default function Login() {
         </form>
 
         {/* Footer */}
-        <div
-          style={{
-            position: "absolute",
-            bottom: "2rem",
-            left: "3.5rem",
-            right: "3.5rem",
-          }}
-        >
+        <div className="login-pie">
           <div
             style={{
               height: "1px",

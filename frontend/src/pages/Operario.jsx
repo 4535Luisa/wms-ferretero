@@ -10,7 +10,7 @@ const C = {
     background: "#FFFFFF",
     border: "1px solid #E2E4E8",
     borderRadius: "12px",
-    padding: "1.25rem 1.5rem",
+    padding: "14px",
   },
   mono: { fontFamily: "DM Mono, monospace" },
 };
@@ -236,11 +236,11 @@ export default function Operario() {
             color: "#0A0A0A",
             border: "1px solid #E2E4E8",
             borderRadius: "8px",
-            padding: "9px 18px",
+            padding: "8px 14px",
             fontSize: "14px",
             fontWeight: 600,
             cursor: "pointer",
-            marginBottom: "1.25rem",
+            marginBottom: "0.75rem",
           }}
         >
           ← Volver
@@ -250,15 +250,20 @@ export default function Operario() {
       {mensaje.texto && (
         <div
           style={{
-            padding: "12px 16px",
+            // Fijo bajo la barra superior: se ve aunque se haya bajado en la lista.
+            position: "sticky",
+            top: "64px",
+            zIndex: 50,
+            padding: "12px 14px",
             borderRadius: "8px",
-            marginBottom: "1.25rem",
-            fontSize: "13px",
-            fontWeight: 500,
+            marginBottom: "0.75rem",
+            fontSize: "15px",
+            fontWeight: 700,
             background:
-              mensaje.tipo === "error" ? "#FDECEC" : "rgba(0,255,135,0.1)",
+              mensaje.tipo === "error" ? "#FDECEC" : "#E3F7EC",
             color: mensaje.tipo === "error" ? "#B91C1C" : "#007A40",
-            border: `1px solid ${mensaje.tipo === "error" ? "#FECACA" : "rgba(0,255,135,0.2)"}`,
+            border: `2px solid ${mensaje.tipo === "error" ? "#FCA5A5" : "#00CC6A"}`,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
           }}
         >
           {mensaje.texto}
@@ -317,7 +322,7 @@ export default function Operario() {
                               color: "#B91C1C",
                               padding: "2px 8px",
                               borderRadius: "20px",
-                              fontSize: "10px",
+                              fontSize: "12px",
                               fontWeight: 700,
                             }}
                           >
@@ -331,7 +336,7 @@ export default function Operario() {
                               color: "#007A40",
                               padding: "2px 8px",
                               borderRadius: "20px",
-                              fontSize: "10px",
+                              fontSize: "12px",
                               fontWeight: 700,
                             }}
                           >
@@ -511,7 +516,7 @@ export default function Operario() {
                             style={{
                               display: "flex",
                               justifyContent: "space-between",
-                              fontSize: "11px",
+                              fontSize: "13px",
                               color: "#4B5160",
                               marginBottom: "4px",
                             }}
@@ -560,7 +565,7 @@ export default function Operario() {
                               color: "#8A5A00",
                               padding: "3px 9px",
                               borderRadius: "6px",
-                              fontSize: "11px",
+                              fontSize: "13px",
                               fontWeight: 600,
                             }}
                           >
@@ -574,7 +579,7 @@ export default function Operario() {
                               color: "#3730A3",
                               padding: "3px 9px",
                               borderRadius: "6px",
-                              fontSize: "11px",
+                              fontSize: "13px",
                               fontWeight: 600,
                             }}
                           >
@@ -588,7 +593,7 @@ export default function Operario() {
                               color: "#B91C1C",
                               padding: "3px 9px",
                               borderRadius: "6px",
-                              fontSize: "11px",
+                              fontSize: "13px",
                               fontWeight: 600,
                             }}
                           >
@@ -606,11 +611,11 @@ export default function Operario() {
                             fontWeight: 700,
                             fontSize: "24px",
                           }}
-                        ></span>
+                        >✓</span>
                       ) : info.cajasListas && info.cantSaldos > 0 ? (
                         <span
                           style={{
-                            fontSize: "11px",
+                            fontSize: "13px",
                             fontWeight: 600,
                             color: "#3730A3",
                             background: "#EEF2FF",
@@ -633,7 +638,7 @@ export default function Operario() {
                         >
                           <span
                             style={{
-                              fontSize: "11px",
+                              fontSize: "13px",
                               fontWeight: 600,
                               color: "#8A5A00",
                               background: "#FFF4D6",
@@ -779,7 +784,7 @@ export default function Operario() {
               </button>
               <p
                 style={{
-                  fontSize: "11px",
+                  fontSize: "13px",
                   color: "#8A909C",
                   textAlign: "center",
                   marginTop: "8px",

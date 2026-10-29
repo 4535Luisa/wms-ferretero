@@ -81,7 +81,8 @@ export default function Layout({ children, titulo, subtitulo }) {
         .wms-mobile-overlay.open { opacity:1; pointer-events:all; }
         .wms-mobile-menu { position:fixed; top:0; left:-280px; width:280px; height:100vh; background:#0A0A0A; z-index:210; transition:left 0.25s ease; display:flex; flex-direction:column; overflow-y:auto; }
         .wms-mobile-menu.open { left:0; }
-        .wms-nav-btn { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:8px 4px; flex:1; background:transparent; border:none; cursor:pointer; color:rgba(255,255,255,0.4); font-family:'Outfit',sans-serif; font-size:10px; font-weight:500; min-height:56px; transition:color 0.15s; border-radius:0; }
+        .wms-nav-btn { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:8px 4px; flex:1; background:transparent; border:none; cursor:pointer; color:rgba(255,255,255,0.55); font-family:'Outfit',sans-serif; font-size:13px; font-weight:600; line-height:1.2; min-height:52px; transition:color 0.15s; border-radius:0; }
+        .wms-nav-btn:hover { transform:none; }
         .wms-nav-btn.active { color:#00FF87; }
         .wms-nav-btn .icon { font-size:20px; line-height:1; }
         .wms-sidebar-nav-btn { width:100%; display:flex; align-items:center; gap:10px; padding:11px 14px; border-radius:8px; margin-bottom:2px; background:transparent; color:rgba(255,255,255,0.45); border:1px solid transparent; font-size:13px; font-weight:400; text-align:left; cursor:pointer; transition:all 0.15s; font-family:'Outfit',sans-serif; min-height:44px; }
@@ -90,14 +91,23 @@ export default function Layout({ children, titulo, subtitulo }) {
         .grid-bg { position:absolute; inset:0; background-image:linear-gradient(rgba(0,255,135,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,135,0.03) 1px,transparent 1px); background-size:30px 30px; pointer-events:none; }
         .hamburger-btn { background:transparent; border:none; cursor:pointer; padding:8px; display:flex; flex-direction:column; gap:5px; min-width:44px; min-height:44px; align-items:center; justify-content:center; }
         .hamburger-btn span { display:block; width:22px; height:2px; background:#FFFFFF; border-radius:2px; }
+        .fila-kpis { display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:16px; }
         @media(max-width:768px) {
+          /* Celular / lector EDA52 (360 px): cifras de a dos por fila y
+             tarjetas más compactas, sin achicar el texto. */
+          .fila-kpis { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
+          .kpi { padding:12px !important; }
+          .kpi-valor { font-size:26px !important; }
+          section.panel-seccion:not(.fila-kpis) { padding:14px !important; }
           .wms-layout { grid-template-columns:1fr; grid-template-rows:56px 1fr; }
           .wms-sidebar { display:none; }
           .wms-topbar { display:flex; }
           .wms-header { display:none; }
           .wms-mobile-title { display:block; }
-          .wms-content { padding:1rem; padding-bottom:calc(56px + env(safe-area-inset-bottom) + 1rem); }
-          .wms-bottomnav { display:flex; align-items:stretch; height:calc(56px + env(safe-area-inset-bottom)); }
+          .wms-content { padding:0.75rem; padding-bottom:calc(52px + env(safe-area-inset-bottom) + 1rem); }
+          .wms-bottomnav { display:flex; align-items:stretch; height:calc(52px + env(safe-area-inset-bottom)); }
+          .wms-mobile-title { margin-bottom:0.75rem; }
+          .wms-mobile-title h1 { font-size:22px !important; }
         }
         @media(min-width:769px) and (max-width:900px) {
           .wms-layout { grid-template-columns:72px 1fr; }
@@ -383,12 +393,11 @@ export default function Layout({ children, titulo, subtitulo }) {
               className={`wms-nav-btn${location.pathname === item.path ? " active" : ""}`}
               onClick={() => handleNav(item.path)}
             >
-              <span className="icon">{item.icon}</span>
+              {item.icon && <span className="icon">{item.icon}</span>}
               <span>{item.label}</span>
             </button>
           ))}
           <button className="wms-nav-btn" onClick={handleLogout}>
-            <span className="icon">⎋</span>
             <span>Salir</span>
           </button>
         </div>

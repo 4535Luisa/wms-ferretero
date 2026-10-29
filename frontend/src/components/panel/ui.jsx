@@ -51,12 +51,9 @@ export function FilaKpis({ children, etiqueta }) {
   return (
     <section
       aria-label={etiqueta}
-      className="panel-seccion"
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
-        gap: "16px",
-      }}
+      // Columnas y espacio en .fila-kpis (Layout.jsx): cambian en el celular.
+      className="panel-seccion fila-kpis"
+      style={{ display: "grid" }}
     >
       {children}
     </section>
@@ -66,6 +63,7 @@ export function FilaKpis({ children, etiqueta }) {
 export function Kpi({ etiqueta, valor, pie, colorPie = COLOR.gris, colorValor }) {
   return (
     <div
+      className="kpi"
       style={{
         ...estiloTarjeta,
         padding: "18px 20px",
@@ -76,6 +74,7 @@ export function Kpi({ etiqueta, valor, pie, colorPie = COLOR.gris, colorValor })
     >
       <span style={{ fontSize: "13px", fontWeight: 600, color: COLOR.gris }}>{etiqueta}</span>
       <span
+        className="kpi-valor"
         style={{
           fontFamily: "'DM Mono', monospace",
           fontSize: "34px",

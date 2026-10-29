@@ -2,31 +2,67 @@ import { useEffect, useRef, useState } from "react";
 import CamaraScanner from "./CamaraScanner";
 import { limpiarEscaneo } from "./limpiarEscaneo";
 
-// Genera un bip usando Web Audio API.
-// tipo "ok"    → 880Hz, 80ms  (agudo, corto) — confirmación exitosa
-// tipo "error" → 220Hz, 400ms (grave, largo) — referencia incorrecta
+// Bip de escaneo con Web Audio API, a volumen máximo.
+// Los parlantes pequeños (Honeywell EDA52) suenan más fuerte entre 2 y 4 kHz;
+// un tono grave casi no se oye en bodega, por eso ambos tonos van en ese rango.
+// tipo "ok"    → 2 tonos ascendentes cortos (~0.2 s)
+// tipo "error" → sirena de 4 pulsos agudo/grave (~0.9 s) + vibración larga
+let audioCtx = null;
+
+function contexto() {
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return null;
+  if (!audioCtx || audioCtx.state === "closed") audioCtx = new Ctx();
+  // Android suspende el audio hasta que el usuario toca la pantalla.
+  if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
+  return audioCtx;
+}
+
+// Desbloquea el audio con el primer toque o tecla, para que el primer bip
+// del turno ya suene.
+if (typeof window !== "undefined") {
+  const desbloquear = () => contexto();
+  window.addEventListener("pointerdown", desbloquear, { once: true });
+  window.addEventListener("keydown", desbloquear, { once: true });
+}
+
+function tono(ctx, salida, frecuencia, inicio, duracion) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = "square";
+  osc.frequency.setValueAtTime(frecuencia, inicio);
+  // Volumen pleno de inicio a fin; las rampas de 5 ms solo evitan el "clic".
+  gain.gain.setValueAtTime(0, inicio);
+  gain.gain.linearRampToValueAtTime(1, inicio + 0.005);
+  gain.gain.setValueAtTime(1, inicio + duracion - 0.005);
+  gain.gain.linearRampToValueAtTime(0, inicio + duracion);
+  osc.connect(gain);
+  gain.connect(salida);
+  osc.start(inicio);
+  osc.stop(inicio + duracion);
+}
+
 function bip(tipo) {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = "square";
+    navigator.vibrate?.(tipo === "ok" ? 80 : [250, 100, 250, 100, 250]);
+  } catch {
+    // sin vibración
+  }
+  try {
+    const ctx = contexto();
+    if (!ctx) return;
+    const salida = ctx.createGain();
+    salida.gain.value = 1;
+    salida.connect(ctx.destination);
+    const t = ctx.currentTime + 0.01;
     if (tipo === "ok") {
-      osc.frequency.setValueAtTime(880, ctx.currentTime);
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.08);
+      tono(ctx, salida, 2700, t, 0.09);
+      tono(ctx, salida, 3500, t + 0.1, 0.11);
     } else {
-      osc.frequency.setValueAtTime(220, ctx.currentTime);
-      gain.gain.setValueAtTime(0.4, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.4);
+      for (let i = 0; i < 4; i++) {
+        tono(ctx, salida, i % 2 === 0 ? 3200 : 1600, t + i * 0.23, 0.2);
+      }
     }
-    osc.onended = () => ctx.close();
   } catch {
     // Web Audio no disponible — silencio
   }
@@ -51,7 +87,7 @@ export default function ScanInput({
   onScan,
   disabled = false,
   label = "Escanea la referencia",
-  placeholder = "Escanea o digita — Enter para confirmar",
+  placeholder = "Escanea o digita",
   hint = "El sensor enviará Enter automáticamente al leer el código",
   autoFocus = true,
   permitirCamara = true,
@@ -132,7 +168,7 @@ export default function ScanInput({
   const resultado = (ok) => {
     bip(ok ? "ok" : "error");
     setFlash(ok ? "ok" : "error");
-    setTimeout(() => setFlash(null), ok ? 300 : 600);
+    setTimeout(() => setFlash(null), ok ? 400 : 1200);
   };
 
   // Exponer resultado() vía ref para que el padre pueda llamarlo.
@@ -146,9 +182,9 @@ export default function ScanInput({
 
   const bgColor =
     flash === "ok"
-      ? "rgba(0,255,135,0.04)"
+      ? "rgba(0,255,135,0.28)"
       : flash === "error"
-        ? "rgba(255,68,68,0.04)"
+        ? "rgba(185,28,28,0.2)"
         : "#FFFFFF";
 
   return (
@@ -156,10 +192,10 @@ export default function ScanInput({
       ref={inputRef}
       style={{
         background: bgColor,
-        border: `1px solid ${borderColor}`,
+        border: `2px solid ${borderColor}`,
         borderRadius: "12px",
-        padding: "1.25rem 1.5rem",
-        marginBottom: "1rem",
+        padding: "12px 14px",
+        marginBottom: "0.75rem",
         transition: "border-color 0.15s, background 0.15s",
       }}
     >
@@ -169,16 +205,15 @@ export default function ScanInput({
           justifyContent: "space-between",
           alignItems: "center",
           gap: "8px",
-          marginBottom: "12px",
+          marginBottom: "10px",
         }}
       >
         <p
           style={{
-            fontSize: "11px",
-            fontWeight: 600,
-            letterSpacing: "0.12em",
-            textTransform: "uppercase",
-            color: "#4B5160",
+            fontSize: "14px",
+            fontWeight: 700,
+            lineHeight: 1.3,
+            color: "#0A0A0A",
             margin: 0,
           }}
         >
@@ -195,8 +230,8 @@ export default function ScanInput({
               color: teclado ? "#00FF87" : "#0A0A0A",
               border: "1px solid #E2E4E8",
               borderRadius: "8px",
-              padding: "7px 12px",
-              fontSize: "12px",
+              padding: "8px 10px",
+              fontSize: "13px",
               fontWeight: 700,
               cursor: "pointer",
               fontFamily: "Outfit, sans-serif",
@@ -216,14 +251,14 @@ export default function ScanInput({
               color: camara ? "#00FF87" : "#0A0A0A",
               border: "1px solid #E2E4E8",
               borderRadius: "8px",
-              padding: "7px 12px",
-              fontSize: "12px",
+              padding: "8px 10px",
+              fontSize: "13px",
               fontWeight: 700,
               cursor: disabled ? "not-allowed" : "pointer",
               fontFamily: "Outfit, sans-serif",
             }}
           >
-            {camara ? "⌨️ Texto" : " Cámara"}
+            {camara ? "Texto" : "Cámara"}
           </button>
         )}
         </div>
@@ -269,13 +304,13 @@ export default function ScanInput({
           style={{
             width: "100%",
             boxSizing: "border-box",
-            padding: "12px 14px",
-            border: `1px solid ${borderColor}`,
+            padding: "12px",
+            border: `2px solid ${borderColor}`,
             borderRadius: "8px",
-            fontSize: "18px",
+            fontSize: "17px",
             fontFamily: "DM Mono, monospace",
             fontWeight: 500,
-            background: "transparent",
+            background: "#FFFFFF",
             outline: "none",
             transition: "border-color 0.15s, opacity 0.15s",
             opacity: disabled ? 0.6 : 1,
@@ -283,7 +318,7 @@ export default function ScanInput({
           autoFocus={autoFocus}
         />
       )}
-      <p style={{ fontSize: "12px", color: "#8A909C", marginTop: "8px" }}>
+      <p style={{ fontSize: "13px", lineHeight: 1.35, color: "#4B5160", marginTop: "8px" }}>
         {hint}
       </p>
     </div>

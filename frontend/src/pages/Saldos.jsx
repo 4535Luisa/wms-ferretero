@@ -11,7 +11,7 @@ const C = {
     background: "#FFFFFF",
     border: "1px solid #E2E4E8",
     borderRadius: "12px",
-    padding: "1.25rem 1.5rem",
+    padding: "14px",
   },
   mono: { fontFamily: "DM Mono, monospace" },
 };
@@ -157,15 +157,19 @@ export default function Saldos() {
       {mensaje.texto && (
         <div
           style={{
-            padding: "12px 16px",
+            // Fijo bajo la barra superior: se ve aunque se haya bajado en la lista.
+            position: "sticky",
+            top: "64px",
+            zIndex: 50,
+            padding: "12px 14px",
             borderRadius: "8px",
-            marginBottom: "1.25rem",
-            fontSize: "13px",
-            fontWeight: 500,
-            background:
-              mensaje.tipo === "error" ? "#FDECEC" : "rgba(0,255,135,0.1)",
+            marginBottom: "0.75rem",
+            fontSize: "15px",
+            fontWeight: 700,
+            background: mensaje.tipo === "error" ? "#FDECEC" : "#E3F7EC",
             color: mensaje.tipo === "error" ? "#B91C1C" : "#007A40",
-            border: `1px solid ${mensaje.tipo === "error" ? "#FECACA" : "rgba(0,255,135,0.2)"}`,
+            border: `2px solid ${mensaje.tipo === "error" ? "#FCA5A5" : "#00CC6A"}`,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
           }}
         >
           {mensaje.texto}
@@ -237,7 +241,7 @@ export default function Saldos() {
               }}
             >
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: "11px", color: "#4B5160" }}>Requerido</div>
+                <div style={{ fontSize: "13px", color: "#4B5160" }}>Requerido</div>
                 <div
                   style={{
                     ...C.mono,
@@ -250,7 +254,7 @@ export default function Saldos() {
                 </div>
               </div>
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: "11px", color: "#4B5160" }}>En SALDOS</div>
+                <div style={{ fontSize: "13px", color: "#4B5160" }}>En SALDOS</div>
                 <div
                   style={{
                     ...C.mono,
@@ -401,7 +405,7 @@ export default function Saldos() {
                 </div>
                 <span
                   style={{
-                    fontSize: "11px",
+                    fontSize: "13px",
                     fontWeight: 600,
                     color: "#8A5A00",
                     background: "#FFF4D6",
@@ -446,7 +450,7 @@ export default function Saldos() {
               color: "#B91C1C",
               padding: "3px 10px",
               borderRadius: "20px",
-              fontSize: "11px",
+              fontSize: "13px",
               fontWeight: 700,
             }}
           >
@@ -507,7 +511,7 @@ export default function Saldos() {
                       color: sem.fg,
                       padding: "4px 10px",
                       borderRadius: "20px",
-                      fontSize: "11px",
+                      fontSize: "13px",
                       fontWeight: 700,
                     }}
                   >
@@ -554,7 +558,7 @@ export default function Saldos() {
                         <div
                           style={{
                             ...C.mono,
-                            fontSize: "11px",
+                            fontSize: "13px",
                             color: "#4B5160",
                             marginTop: "3px",
                           }}
@@ -575,7 +579,7 @@ export default function Saldos() {
                               color: "#3A3F4B",
                               padding: "2px 8px",
                               borderRadius: "20px",
-                              fontSize: "10px",
+                              fontSize: "12px",
                               fontWeight: 600,
                             }}
                           >
@@ -595,7 +599,7 @@ export default function Saldos() {
                                   : "#B91C1C",
                               padding: "2px 8px",
                               borderRadius: "20px",
-                              fontSize: "10px",
+                              fontSize: "12px",
                               fontWeight: 600,
                             }}
                           >
@@ -608,7 +612,7 @@ export default function Saldos() {
                                 color: "#8A5A00",
                                 padding: "2px 8px",
                                 borderRadius: "20px",
-                                fontSize: "10px",
+                                fontSize: "12px",
                                 fontWeight: 600,
                               }}
                             >
@@ -622,7 +626,7 @@ export default function Saldos() {
                                 color: "#B91C1C",
                                 padding: "2px 8px",
                                 borderRadius: "20px",
-                                fontSize: "10px",
+                                fontSize: "12px",
                                 fontWeight: 600,
                               }}
                             >
@@ -662,7 +666,7 @@ export default function Saldos() {
                         ) : item.entrantes.length > 0 ? (
                           <span
                             style={{
-                              fontSize: "11px",
+                              fontSize: "13px",
                               color: "#8A5A00",
                               background: "#FFF4D6",
                               borderRadius: "8px",
@@ -677,7 +681,7 @@ export default function Saldos() {
                         ) : (
                           <span
                             style={{
-                              fontSize: "11px",
+                              fontSize: "13px",
                               color: "#B91C1C",
                               background: "#FDECEC",
                               borderRadius: "8px",

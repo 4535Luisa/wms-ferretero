@@ -236,13 +236,19 @@ export function Mensaje({ tipo = "ok", children }) {
     <div
       role={tipo === "error" ? "alert" : "status"}
       style={{
+        // Fijo bajo la barra superior: el resultado de un escaneo se ve
+        // aunque se haya bajado en la lista.
+        position: "sticky",
+        top: "64px",
+        zIndex: 50,
         background: c.bg,
         color: c.fg,
-        border: `1px solid ${c.borde}`,
+        border: `2px solid ${c.borde}`,
         borderRadius: "10px",
-        padding: "12px 16px",
-        fontSize: "14px",
-        fontWeight: 500,
+        padding: "12px 14px",
+        fontSize: "15px",
+        fontWeight: 600,
+        boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
       }}
     >
       {children}
