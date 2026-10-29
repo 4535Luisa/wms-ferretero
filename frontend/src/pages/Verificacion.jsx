@@ -34,6 +34,8 @@ export default function Verificacion() {
   const [motivo, setMotivo] = useState("");
   const [cantidadReal, setCantidadReal] = useState("");
   const [cantidadSaldoRecibida, setCantidadSaldoRecibida] = useState("");
+  // Ítem del último escaneo correcto: se muestra de primero en pendientes.
+  const [ultimoEscaneado, setUltimoEscaneado] = useState(null);
 
   const aviso = (texto, tipo = "ok") => {
     setMensaje({ texto, tipo });
@@ -57,6 +59,7 @@ export default function Verificacion() {
     try {
       const { data } = await api.get(`/api/verificacion/${id}`);
       setActivo(data);
+      setUltimoEscaneado(null);
       setVista("detalle");
     } catch (err) {
       console.error(err);
@@ -164,6 +167,7 @@ export default function Verificacion() {
         { referencia_escaneada: refEscaneada },
       );
       bip("ok");
+      setUltimoEscaneado(objetivo.id);
       aviso(
         data.cajasListas
           ? `Cajas de ${objetivo.productos?.codigo_interno} completadas`
@@ -278,10 +282,156 @@ export default function Verificacion() {
   ).length;
   const completas = itemsInfo.filter(({ info }) => info.completo).length;
 
+  // Pendientes arriba (el último escaneado de primero); las completas van
+  // aparte, en una sección plegada.
+  const pendientes = itemsInfo
+    .filter(({ info }) => !info.completo)
+    .sort(
+      (a, b) =>
+        (b.item.id === ultimoEscaneado) - (a.item.id === ultimoEscaneado),
+    );
+  const verificadas = itemsInfo.filter(({ info }) => info.completo);
+
   const volver = () => {
     setVista("lista");
     setActivo(null);
+    setUltimoEscaneado(null);
     cargarLista();
+  };
+
+  // Fila de una referencia del pedido en el detalle.
+  const filaItem = ({ item, info }, idx, destacado = false) => {
+    const faltan = info.cajasCompletas - info.cajasVerificadas;
+    return (
+      <div
+        key={item.id}
+        style={{
+          padding: destacado ? "14px 12px" : "14px 0",
+          margin: destacado ? "0 -12px" : 0,
+          borderRadius: destacado ? "10px" : 0,
+          background: destacado ? "#E3F7EC" : "transparent",
+          borderTop:
+            idx > 0 && !destacado ? `1px solid ${COLOR.bordeSuave}` : "none",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: "16px",
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ flex: "1 1 260px", minWidth: 0 }}>
+          {destacado && (
+            <div
+              style={{
+                fontSize: "12px",
+                fontWeight: 700,
+                color: COLOR.verdeTexto,
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                marginBottom: "4px",
+              }}
+            >
+              Último escaneo
+            </div>
+          )}
+          <div style={{ fontSize: "14px", fontWeight: 600 }}>
+            {item.productos?.descripcion_corta || item.descripcion}
+          </div>
+          <div style={{ ...mono, fontSize: "12px", color: COLOR.gris, marginTop: "4px" }}>
+            {item.productos?.codigo_interno} · Pedido: {info.cantPicking} u
+          </div>
+
+          {info.cajasCompletas > 0 && (
+            <div style={{ marginTop: "10px", maxWidth: "420px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontSize: "12px",
+                  color: COLOR.gris,
+                  marginBottom: "4px",
+                }}
+              >
+                <span>
+                  Cajas: {info.cajasVerificadas}/{info.cajasCompletas} ({info.ue} u/caja)
+                </span>
+                <span style={{ color: info.cajasListas ? COLOR.verdeTexto : COLOR.gris, fontWeight: 600 }}>
+                  {info.cajasListas ? "Completo" : `Faltan ${faltan}`}
+                </span>
+              </div>
+              <Progreso
+                valor={info.cajasVerificadas}
+                total={info.cajasCompletas}
+                color={info.cajasListas ? COLOR.verdeBarra : COLOR.negro}
+              />
+            </div>
+          )}
+
+          {info.tieneSaldos && (
+            <div style={{ marginTop: "10px", display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+              <Pastilla
+                texto={`Saldos: ${info.cantSaldos} u — ${
+                  info.saldoVerificado
+                    ? `recibido ${item.cantidad_saldo_recibida ?? info.cantSaldos} u`
+                    : "pendiente confirmar"
+                }`}
+                bg={info.saldoVerificado ? "#E3F7EC" : "#FFF4D6"}
+                fg={info.saldoVerificado ? COLOR.verdeTexto : COLOR.ambar}
+              />
+              {info.cajasListas && !info.saldoVerificado && (
+                <Boton
+                  pequeno
+                  variante="principal"
+                  onClick={() => {
+                    setModalSaldo({ item, info });
+                    setCantidadSaldoRecibida(String(info.cantSaldos));
+                  }}
+                >
+                  Confirmar saldo
+                </Boton>
+              )}
+            </div>
+          )}
+
+          {item.motivo_diferencia && (
+            <div style={{ marginTop: "8px", fontSize: "13px", color: COLOR.rojo, fontWeight: 500 }}>
+              Diferencia: {item.motivo_diferencia}
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-end" }}>
+          {info.completo ? (
+            <Pastilla texto="Verificado" bg="#E3F7EC" fg={COLOR.verdeTexto} />
+          ) : (
+            <>
+              <Pastilla
+                texto={
+                  info.cajasListas
+                    ? "Falta saldo"
+                    : `Escanea ${faltan} caja${faltan !== 1 ? "s" : ""}`
+                }
+                bg={info.cajasListas ? "#EEF2FF" : "#FFF4D6"}
+                fg={info.cajasListas ? "#3730A3" : COLOR.ambar}
+              />
+              {!item.motivo_diferencia && (
+                <Boton
+                  pequeno
+                  variante="peligro"
+                  onClick={() => {
+                    setModalDiferencia({ item });
+                    setCantidadReal(String(info.cantPicking));
+                    setMotivo("");
+                  }}
+                >
+                  Registrar diferencia
+                </Boton>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    );
   };
 
   const columnasLista = [
@@ -356,6 +506,49 @@ export default function Verificacion() {
         {/* DETALLE DEL PEDIDO */}
         {vista === "detalle" && activo && (
           <>
+
+            {/* Escáner y pendientes primero: en el EDA52 la referencia recién
+                escaneada queda a la vista sin bajar. */}
+            <ScanInput
+              onScan={onEscanear}
+              disabled={cargando || todosCompletos}
+              label="Escanea cada caja física para verificar"
+              hint="Cada escaneo cuenta 1 caja — escanea tantas cajas como haya físicamente"
+              autoFocus
+            />
+
+            <Tarjeta
+              titulo={`Pendientes (${pendientes.length})`}
+              style={{ padding: "20px 20px 8px" }}
+            >
+              {pendientes.length === 0 ? (
+                <Vacio>Todas las referencias están verificadas.</Vacio>
+              ) : (
+                pendientes.map((fila, idx) =>
+                  filaItem(fila, idx, fila.item.id === ultimoEscaneado),
+                )
+              )}
+            </Tarjeta>
+
+            {verificadas.length > 0 && (
+              <Tarjeta style={{ padding: "4px 20px" }}>
+                <details>
+                  <summary
+                    style={{
+                      cursor: "pointer",
+                      padding: "14px 0",
+                      fontSize: "16px",
+                      fontWeight: 700,
+                      color: COLOR.verdeTexto,
+                    }}
+                  >
+                    Completas ({verificadas.length})
+                  </summary>
+                  {verificadas.map((fila, idx) => filaItem(fila, idx))}
+                </details>
+              </Tarjeta>
+            )}
+
             <FilaKpis etiqueta="Avance de la verificación">
               <Kpi
                 etiqueta="Referencias listas"
@@ -378,134 +571,6 @@ export default function Verificacion() {
                 colorValor={hayDiferencias ? COLOR.rojo : undefined}
               />
             </FilaKpis>
-
-            <Tarjeta titulo="Escanear cajas">
-              <ScanInput
-                onScan={onEscanear}
-                disabled={cargando || todosCompletos}
-                label="Escanea cada caja física para verificar"
-                hint="Cada escaneo cuenta 1 caja — escanea tantas cajas como haya físicamente"
-                autoFocus
-              />
-            </Tarjeta>
-
-            <Tarjeta titulo="Referencias del pedido" style={{ padding: "20px 20px 8px" }}>
-              {itemsInfo.map(({ item, info }, idx) => {
-                const faltan = info.cajasCompletas - info.cajasVerificadas;
-                return (
-                  <div
-                    key={item.id}
-                    style={{
-                      padding: "14px 0",
-                      borderTop: idx > 0 ? `1px solid ${COLOR.bordeSuave}` : "none",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      gap: "16px",
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <div style={{ flex: "1 1 260px", minWidth: 0 }}>
-                      <div style={{ fontSize: "14px", fontWeight: 600 }}>
-                        {item.productos?.descripcion_corta || item.descripcion}
-                      </div>
-                      <div style={{ ...mono, fontSize: "12px", color: COLOR.gris, marginTop: "4px" }}>
-                        {item.productos?.codigo_interno} · Pedido: {info.cantPicking} u
-                      </div>
-
-                      {info.cajasCompletas > 0 && (
-                        <div style={{ marginTop: "10px", maxWidth: "420px" }}>
-                          <div
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              fontSize: "12px",
-                              color: COLOR.gris,
-                              marginBottom: "4px",
-                            }}
-                          >
-                            <span>
-                              Cajas: {info.cajasVerificadas}/{info.cajasCompletas} ({info.ue} u/caja)
-                            </span>
-                            <span style={{ color: info.cajasListas ? COLOR.verdeTexto : COLOR.gris, fontWeight: 600 }}>
-                              {info.cajasListas ? "Completo" : `Faltan ${faltan}`}
-                            </span>
-                          </div>
-                          <Progreso
-                            valor={info.cajasVerificadas}
-                            total={info.cajasCompletas}
-                            color={info.cajasListas ? COLOR.verdeBarra : COLOR.negro}
-                          />
-                        </div>
-                      )}
-
-                      {info.tieneSaldos && (
-                        <div style={{ marginTop: "10px", display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-                          <Pastilla
-                            texto={`Saldos: ${info.cantSaldos} u — ${
-                              info.saldoVerificado
-                                ? `recibido ${item.cantidad_saldo_recibida ?? info.cantSaldos} u`
-                                : "pendiente confirmar"
-                            }`}
-                            bg={info.saldoVerificado ? "#E3F7EC" : "#FFF4D6"}
-                            fg={info.saldoVerificado ? COLOR.verdeTexto : COLOR.ambar}
-                          />
-                          {info.cajasListas && !info.saldoVerificado && (
-                            <Boton
-                              pequeno
-                              variante="principal"
-                              onClick={() => {
-                                setModalSaldo({ item, info });
-                                setCantidadSaldoRecibida(String(info.cantSaldos));
-                              }}
-                            >
-                              Confirmar saldo
-                            </Boton>
-                          )}
-                        </div>
-                      )}
-
-                      {item.motivo_diferencia && (
-                        <div style={{ marginTop: "8px", fontSize: "13px", color: COLOR.rojo, fontWeight: 500 }}>
-                          Diferencia: {item.motivo_diferencia}
-                        </div>
-                      )}
-                    </div>
-
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-end" }}>
-                      {info.completo ? (
-                        <Pastilla texto="Verificado" bg="#E3F7EC" fg={COLOR.verdeTexto} />
-                      ) : (
-                        <>
-                          <Pastilla
-                            texto={
-                              info.cajasListas
-                                ? "Falta saldo"
-                                : `Escanea ${faltan} caja${faltan !== 1 ? "s" : ""}`
-                            }
-                            bg={info.cajasListas ? "#EEF2FF" : "#FFF4D6"}
-                            fg={info.cajasListas ? "#3730A3" : COLOR.ambar}
-                          />
-                          {!item.motivo_diferencia && (
-                            <Boton
-                              pequeno
-                              variante="peligro"
-                              onClick={() => {
-                                setModalDiferencia({ item });
-                                setCantidadReal(String(info.cantPicking));
-                                setMotivo("");
-                              }}
-                            >
-                              Registrar diferencia
-                            </Boton>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </Tarjeta>
 
             {/* Botones de confirmación */}
             {todosCompletos ? (
