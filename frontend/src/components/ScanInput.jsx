@@ -318,9 +318,11 @@ export default function ScanInput({
           autoFocus={autoFocus}
         />
       )}
-      <p style={{ fontSize: "13px", lineHeight: 1.35, color: "#4B5160", marginTop: "8px" }}>
-        {hint}
-      </p>
+      {hint && (
+        <p style={{ fontSize: "13px", lineHeight: 1.35, color: "#4B5160", marginTop: "8px" }}>
+          {hint}
+        </p>
+      )}
     </div>
   );
 }

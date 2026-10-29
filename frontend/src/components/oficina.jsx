@@ -87,6 +87,7 @@ const ESTILOS = `
 export function Pagina({ children }) {
   return (
     <div
+      className="of-pagina"
       style={{
         display: "flex",
         flexDirection: "column",
@@ -234,6 +235,7 @@ export function Mensaje({ tipo = "ok", children }) {
         : { bg: "#E3F7EC", fg: COLOR.verdeTexto, borde: "#BCE8CF" };
   return (
     <div
+      className="of-mensaje"
       role={tipo === "error" ? "alert" : "status"}
       style={{
         // Fijo bajo la barra superior: el resultado de un escaneo se ve

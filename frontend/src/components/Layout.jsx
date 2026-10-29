@@ -50,7 +50,9 @@ const labelRol = {
   facturacion: "Facturación",
 };
 
-export default function Layout({ children, titulo, subtitulo }) {
+// ocultarTituloMovil: la página muestra su propio encabezado compacto en el
+// celular (para ganar espacio en el EDA52).
+export default function Layout({ children, titulo, subtitulo, ocultarTituloMovil = false }) {
   const { usuario, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -96,9 +98,17 @@ export default function Layout({ children, titulo, subtitulo }) {
           /* Celular / lector EDA52 (360 px): cifras de a dos por fila y
              tarjetas más compactas, sin achicar el texto. */
           .fila-kpis { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
-          .kpi { padding:12px !important; }
-          .kpi-valor { font-size:26px !important; }
+          .kpi { padding:10px 12px !important; gap:2px !important; }
+          .kpi-valor { font-size:24px !important; }
           section.panel-seccion:not(.fila-kpis) { padding:14px !important; }
+          .of-pagina { gap:10px !important; }
+          /* Avisos flotando bajo la barra superior: no empujan el contenido. */
+          .of-mensaje { position:fixed !important; top:62px !important; left:12px; right:12px; }
+          /* Fila de 4 cifras en una sola línea (verificación). */
+          .fila-kpis.fila-kpis-4 { grid-template-columns:repeat(4, minmax(0, 1fr)); gap:6px; }
+          .fila-kpis-4 .kpi { padding:8px !important; }
+          .fila-kpis-4 .kpi > span:first-child { font-size:12px !important; line-height:1.2; }
+          .fila-kpis-4 .kpi-valor { font-size:20px !important; }
           .wms-layout { grid-template-columns:1fr; grid-template-rows:56px 1fr; }
           .wms-sidebar { display:none; }
           .wms-topbar { display:flex; }
@@ -364,7 +374,10 @@ export default function Layout({ children, titulo, subtitulo }) {
 
         {/* ── Contenido ── */}
         <div className="wms-content">
-          <div className="wms-mobile-title">
+          <div
+            className="wms-mobile-title"
+            style={ocultarTituloMovil ? { display: "none" } : undefined}
+          >
             <h1
               style={{
                 fontFamily: "Bebas Neue,sans-serif",

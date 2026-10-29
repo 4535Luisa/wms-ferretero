@@ -47,12 +47,12 @@ export function Nota({ children, style }) {
   );
 }
 
-export function FilaKpis({ children, etiqueta }) {
+export function FilaKpis({ children, etiqueta, cuatroEnFila = false }) {
   return (
     <section
       aria-label={etiqueta}
       // Columnas y espacio en .fila-kpis (Layout.jsx): cambian en el celular.
-      className="panel-seccion fila-kpis"
+      className={`panel-seccion fila-kpis${cuatroEnFila ? " fila-kpis-4" : ""}`}
       style={{ display: "grid" }}
     >
       {children}

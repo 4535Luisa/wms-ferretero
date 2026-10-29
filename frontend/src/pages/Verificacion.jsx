@@ -284,13 +284,15 @@ export default function Verificacion() {
 
   // Pendientes arriba (el último escaneado de primero); las completas van
   // aparte, en una sección plegada.
-  const pendientes = itemsInfo
-    .filter(({ info }) => !info.completo)
-    .sort(
-      (a, b) =>
-        (b.item.id === ultimoEscaneado) - (a.item.id === ultimoEscaneado),
-    );
-  const verificadas = itemsInfo.filter(({ info }) => info.completo);
+  // La referencia del último escaneo va aparte, justo encima del escáner;
+  // debajo quedan las demás pendientes y las completas en una sección plegada.
+  const escaneada = itemsInfo.find(({ item }) => item.id === ultimoEscaneado);
+  const pendientes = itemsInfo.filter(
+    ({ item, info }) => !info.completo && item.id !== ultimoEscaneado,
+  );
+  const verificadas = itemsInfo.filter(
+    ({ item, info }) => info.completo && item.id !== ultimoEscaneado,
+  );
 
   const volver = () => {
     setVista("lista");
@@ -400,7 +402,7 @@ export default function Verificacion() {
           )}
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-end" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
           {info.completo ? (
             <Pastilla texto="Verificado" bg="#E3F7EC" fg={COLOR.verdeTexto} />
           ) : (
@@ -470,6 +472,7 @@ export default function Verificacion() {
   return (
     <Layout
       titulo="Verificación"
+      ocultarTituloMovil={vista === "detalle"}
       subtitulo={
         vista === "lista"
           ? `${pedidos.length} pedido${pedidos.length !== 1 ? "s" : ""} por verificar`
@@ -480,6 +483,9 @@ export default function Verificacion() {
         {vista === "detalle" && (
           <Acciones>
             <Boton onClick={volver}>← Volver</Boton>
+            <span style={{ ...mono, fontSize: "16px", fontWeight: 700 }}>
+              {activo?.numero}
+            </span>
           </Acciones>
         )}
 
@@ -506,50 +512,9 @@ export default function Verificacion() {
         {/* DETALLE DEL PEDIDO */}
         {vista === "detalle" && activo && (
           <>
-
-            {/* Escáner y pendientes primero: en el EDA52 la referencia recién
-                escaneada queda a la vista sin bajar. */}
-            <ScanInput
-              onScan={onEscanear}
-              disabled={cargando || todosCompletos}
-              label="Escanea cada caja física para verificar"
-              hint="Cada escaneo cuenta 1 caja — escanea tantas cajas como haya físicamente"
-              autoFocus
-            />
-
-            <Tarjeta
-              titulo={`Pendientes (${pendientes.length})`}
-              style={{ padding: "20px 20px 8px" }}
-            >
-              {pendientes.length === 0 ? (
-                <Vacio>Todas las referencias están verificadas.</Vacio>
-              ) : (
-                pendientes.map((fila, idx) =>
-                  filaItem(fila, idx, fila.item.id === ultimoEscaneado),
-                )
-              )}
-            </Tarjeta>
-
-            {verificadas.length > 0 && (
-              <Tarjeta style={{ padding: "4px 20px" }}>
-                <details>
-                  <summary
-                    style={{
-                      cursor: "pointer",
-                      padding: "14px 0",
-                      fontSize: "16px",
-                      fontWeight: 700,
-                      color: COLOR.verdeTexto,
-                    }}
-                  >
-                    Completas ({verificadas.length})
-                  </summary>
-                  {verificadas.map((fila, idx) => filaItem(fila, idx))}
-                </details>
-              </Tarjeta>
-            )}
-
-            <FilaKpis etiqueta="Avance de la verificación">
+            {/* Orden pensado para el EDA52: avance, referencia que se está
+                escaneando, escáner y luego el resto de la lista. */}
+            <FilaKpis etiqueta="Avance de la verificación" cuatroEnFila>
               <Kpi
                 etiqueta="Referencias listas"
                 valor={`${completas}/${items.length}`}
@@ -571,6 +536,48 @@ export default function Verificacion() {
                 colorValor={hayDiferencias ? COLOR.rojo : undefined}
               />
             </FilaKpis>
+
+            {escaneada && (
+              <Tarjeta style={{ padding: "4px 14px" }}>
+                {filaItem(escaneada, 0, true)}
+              </Tarjeta>
+            )}
+
+            <ScanInput
+              onScan={onEscanear}
+              disabled={cargando || todosCompletos}
+              label="Escanear"
+              hint=""
+              autoFocus
+            />
+
+            {pendientes.length > 0 && (
+              <Tarjeta
+                titulo={`Pendientes (${pendientes.length})`}
+                style={{ padding: "20px 20px 8px" }}
+              >
+                {pendientes.map((fila, idx) => filaItem(fila, idx))}
+              </Tarjeta>
+            )}
+
+            {verificadas.length > 0 && (
+              <Tarjeta style={{ padding: "4px 20px" }}>
+                <details>
+                  <summary
+                    style={{
+                      cursor: "pointer",
+                      padding: "14px 0",
+                      fontSize: "16px",
+                      fontWeight: 700,
+                      color: COLOR.verdeTexto,
+                    }}
+                  >
+                    Completas ({verificadas.length})
+                  </summary>
+                  {verificadas.map((fila, idx) => filaItem(fila, idx))}
+                </details>
+              </Tarjeta>
+            )}
 
             {/* Botones de confirmación */}
             {todosCompletos ? (
